@@ -128,6 +128,16 @@ export function getChapterDifferenceMap(book, chapter) {
   return map;
 }
 
+// Reader underlines are sparse by design (spec §7 / mockup): the full difference set is dense
+// (~7 words/verse), so underline only a representative Type A and Type B per verse — the first of
+// each in reading order (matches the mockup: John 12:25 -> "loves"/A + "life"/B). The Differences
+// card still lists every difference for the selected verse; the interlinear exposes all words.
+export function selectUnderlines(diffs) {
+  const a = (diffs || []).find(d => d.type === 'A');
+  const b = (diffs || []).find(d => d.type === 'B');
+  return [a, b].filter(Boolean);
+}
+
 const UNDERLINE_STOP = new Set(['the', 'a', 'an', 'of', 'to', 'and', 'in', 'you', 'me', 'my', 'his', 'her',
   'their', 'them', 'they', 'it', 'is', 'was', 'for', 'this', 'that', 'who', 'will', 'be', 'he', 'she', 'we',
   'your', 'i', 'as', 'then', 'so', 'not', 'but', 'with', 'on', 'up', 'do', 'did', 'have', 'has', 'son', 'may']);

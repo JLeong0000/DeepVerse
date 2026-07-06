@@ -63,6 +63,18 @@ describe('1.4 differences', () => {
     const map = db.getChapterDifferenceMap('John', 12);
     expect(map.get(25).length).toBeGreaterThan(0);
   });
+  test('selectUnderlines keeps one representative A + B in reading order', () => {
+    const diffs = [
+      { position: 2, type: 'A', gloss: 'loving' },
+      { position: 4, type: 'B', gloss: 'life' },
+      { position: 6, type: 'A', gloss: 'loses' },
+      { position: 6, type: 'B', gloss: 'loses' },
+    ];
+    const sel = db.selectUnderlines(diffs);
+    expect(sel).toHaveLength(2);
+    expect(sel.find(d => d.type === 'A').gloss).toBe('loving'); // first A
+    expect(sel.find(d => d.type === 'B').gloss).toBe('life');   // first B
+  });
   test('underlineSpans marks the difference words and covers the whole text', () => {
     const text = 'Anyone who loves their life will lose it';
     const segs = db.underlineSpans(text, [{ type: 'A', gloss: 'loving' }, { type: 'B', gloss: 'life' }]);

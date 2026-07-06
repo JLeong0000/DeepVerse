@@ -4,3 +4,10 @@ node_modules/
 data/*.db
 *.log
 .superpowers/
+app/node_modules/
+app/dist/
+app/dev-dist/
+app/public/bible.db
+app/public/sql-wasm.wasm
+.playwright-mcp/
+app/.playwright-mcp/

@@ -1,0 +1,35 @@
+/* Scholarly-print theme tokens — lifted verbatim from docs/mockups/home.html.
+   Light on :root; dark under html.dark (applied by theme.js). A = oxblood, B = indigo. */
+:root {
+  --bg: #f2ede2; --panel: #f7f3ea; --ink: #201d18; --dim: #6b6459; --rule: #d8cdb8;
+  --a: #8a2f2f; --b: #33407a;
+  --lv0: #e3d8c4; --lv1: #dcc0a8; --lv2: #c98f74; --lv3: #a85a44; --lv4: #8a2f2f;
+  --sy1: #efe3bf; --sy2: #e7d3bd; --sy3: #dde3cf; --sy4: #ece0cd;
+  --serif: "Iowan Old Style", Charter, Georgia, serif;
+  --greek: "SBL Greek", "New Athena Unicode", Georgia, serif;
+}
+:root.dark {
+  --bg: #1c1813; --panel: #24201a; --ink: #e6ddc9; --dim: #9a9080; --rule: #3a3327;
+  --a: #d98070; --b: #93a3da;
+  --lv0: #2a251d; --lv1: #4a3226; --lv2: #6e4030; --lv3: #a5503c; --lv4: #d98070;
+  --sy1: #3a3324; --sy2: #372f26; --sy3: #2f342a; --sy4: #38312a;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--serif);
+  transition: background .25s, color .25s;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* shared primitives */
+.lbl { font-variant: small-caps; letter-spacing: .09em; font-size: 11px; color: var(--dim); }
+.grk { font-family: var(--greek); }
+.brand { font-size: 13px; font-variant: small-caps; letter-spacing: .1em; color: var(--dim); }
+.toggle {
+  cursor: pointer; border: 1px solid var(--rule); border-radius: 50%; width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--ink);
+  font-size: 14px; background: transparent;
+}

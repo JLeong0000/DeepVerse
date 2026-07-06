@@ -22,7 +22,10 @@
 </script>
 
 <div class="top">
-  <button class="brand plain" onclick={() => go('home')}>DeepVerse</button>
+  <button class="brand plain" onclick={() => go('home')}>
+    <img class="logo" src="/deepverse-192.png" alt="" width="24" height="24" />
+    <span>DeepVerse</span>
+  </button>
   <nav>
     <button class="navlink" class:active={route.view === 'home'} onclick={() => go('home')}>Home</button>
     <button class="navlink" class:active={route.view === 'study'} onclick={() => go('study')}>Study</button>
@@ -48,7 +51,8 @@
 
 <style>
   .top { display: flex; align-items: center; gap: 18px; padding: 9px 22px; border-bottom: 1px solid var(--rule); }
-  .plain { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
+  .plain { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 8px; }
+  .logo { border-radius: 5px; display: block; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
   nav { display: flex; gap: 4px; }
   .navlink {
     background: none; border: none; cursor: pointer; font-family: inherit; color: var(--dim);

@@ -1,6 +1,7 @@
 // sql.js loader + query. bible.db is loaded once into memory; every feature is a SQL query against it.
 // Query functions (getChapter, getVerseDifferences, …) are added in Milestone 1.
 import initSqlJs from 'sql.js';
+import { BOOKS } from './refs.js';
 
 let db = null;
 
@@ -48,6 +49,34 @@ export function chapterCount(version, book) {
 }
 export function getChapterLanguages(book, chapter) {
   return query('SELECT DISTINCT lang FROM words WHERE book=? AND chapter=?', [book, chapter]).map(r => r.lang);
+}
+
+// Books present in a version, in canonical order, with chapter counts.
+export function listBooks(version = 'NIV') {
+  const counts = new Map(
+    query('SELECT book, MAX(chapter) AS chapters FROM verses WHERE version=? GROUP BY book', [version])
+      .map(r => [r.book, r.chapters]));
+  return BOOKS.filter(([code]) => counts.has(code))
+    .map(([code, name]) => ({ book: code, name, chapters: counts.get(code) }));
+}
+
+// Deterministic-per-day "word of the day": a common Type-B sense-spread word + an example occurrence.
+export function getWordOfDay(seed = new Date().toISOString().slice(0, 10)) {
+  const rows = query(`SELECT d.strongs, d.detail,
+      MIN(d.book || '/' || d.chapter || '/' || d.verse || '/' || d.position) AS anchor
+    FROM differences d WHERE d.type='B' GROUP BY d.strongs HAVING COUNT(*) > 20`);
+  if (!rows.length) return null;
+  let h = 2166136261;
+  for (const c of String(seed)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  const r = rows[h % rows.length];
+  const [book, chapter, verse, position] = r.anchor.split('/');
+  const w = query('SELECT original, translit, gloss FROM words WHERE book=? AND chapter=? AND verse=? AND position=?',
+    [book, +chapter, +verse, +position])[0] || {};
+  return {
+    strongs: r.strongs, original: w.original || '', translit: w.translit || '',
+    senses: JSON.parse(r.detail).senses,
+    ref: { version: 'NIV', book, chapter: +chapter, verse: +verse },
+  };
 }
 
 // --- 1.3 Interlinear ---

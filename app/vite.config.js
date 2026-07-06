@@ -21,7 +21,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    // bible.db smoke test loads a 90MB file into wasm; give it room.
+    setupFiles: ['./vitest.setup.js'],
+    // bible.db smoke test loads a large file into wasm; give it room.
     testTimeout: 30000,
   },
 });

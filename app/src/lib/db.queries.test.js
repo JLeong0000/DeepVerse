@@ -72,6 +72,24 @@ describe('1.4 differences', () => {
   });
 });
 
+describe('home helpers', () => {
+  test('listBooks returns 66 books in canonical order', () => {
+    const books = db.listBooks('NIV');
+    expect(books.length).toBe(66);
+    expect(books[0].book).toBe('Gen');
+    expect(books.at(-1).book).toBe('Rev');
+    expect(books.find(b => b.book === 'John').chapters).toBe(21);
+  });
+  test('getWordOfDay is deterministic per seed and returns a real Type-B word', () => {
+    const w = db.getWordOfDay('2026-07-06');
+    expect(w).toBeTruthy();
+    expect(w.original).toBeTruthy();
+    expect(w.senses.length).toBeGreaterThanOrEqual(2);
+    expect(w.ref.book).toBeTruthy();
+    expect(db.getWordOfDay('2026-07-06').strongs).toBe(w.strongs); // stable
+  });
+});
+
 describe('1.5 cross-references', () => {
   test('John 3:16 top cross-ref is Rom.5.8', () => {
     expect(db.getCrossRefs('John', 3, 16)[0].to_ref).toBe('Rom.5.8');

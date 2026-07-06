@@ -25,6 +25,8 @@
 
   $effect(() => { setPref('cardOrder', order); });
   $effect(() => { setPref('cardOpen', open); });
+  // clicking a word (in Differences or the interlinear) reveals its meaning in the Original card
+  $effect(() => { if (study.word && DEFS.original) open.original = true; });
 
   function toggle(id) { open[id] = !open[id]; }
 

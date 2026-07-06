@@ -16,11 +16,16 @@
     return m;
   });
 
-  let sel = $state(null); // { word, lex, concordance }
-  function tap(w) {
-    selectWord({ strongs: w.strongs, ...w });
-    sel = { word: w, lex: getLexicon(w.strongs), conc: w.strongs ? countLemma(w.strongs) : null };
-  }
+  // word detail is driven by the shared selection (tap here OR click a Differences button)
+  let detail = $derived.by(() => {
+    const w = study.word;
+    if (!w?.strongs) return null;
+    return { word: w, lex: getLexicon(w.strongs), conc: countLemma(w.strongs) };
+  });
+
+  let detailEl = $state(null);
+  $effect(() => { if (detail && detailEl) detailEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+
   const markClass = (p) => { const t = markMap.get(p); return t === 'A' ? 'mA' : t === 'B' ? 'mB' : t === 'AB' ? 'mAB' : ''; };
 </script>
 
@@ -30,20 +35,21 @@
   {#if langs.length > 1}<div class="langnote">This chapter mixes {langs.join(' + ')}.</div>{/if}
   <div class="interlin">
     {#each words as w (w.position)}
-      <div class="iw {markClass(w.position)}" onclick={() => tap(w)} role="button" tabindex="0" class:active={sel?.word.position === w.position}>
+      <div class="iw {markClass(w.position)}" onclick={() => selectWord({ strongs: w.strongs, ...w })} role="button" tabindex="0"
+        class:active={study.word?.position === w.position && study.word?.strongs === w.strongs}>
         <span class="g grk">{w.original}</span>
         <span class="p">{w.translit}</span>
         <span class="e">{w.gloss}</span>
       </div>
     {/each}
   </div>
-  {#if sel}
-    <div class="wdetail">
-      <div class="wtop"><span class="grk big">{sel.word.original}</span> <span class="tl">{sel.word.translit}</span>
-        <span class="strong">{sel.word.strongs}</span> <span class="morph">{sel.word.morph}</span></div>
-      {#if sel.lex}<div class="def">{sel.lex.gloss}{sel.lex.definition ? ` — ${sel.lex.definition.slice(0, 160)}` : ''}</div>
+  {#if detail}
+    <div class="wdetail" bind:this={detailEl}>
+      <div class="wtop"><span class="grk big">{detail.word.original}</span> <span class="tl">{detail.word.translit}</span>
+        <span class="strong">{detail.word.strongs}</span>{#if detail.word.morph} <span class="morph">{detail.word.morph}</span>{/if}</div>
+      {#if detail.lex}<div class="def">{detail.lex.gloss}{detail.lex.definition ? ` — ${detail.lex.definition}` : ''}</div>
       {:else}<div class="def dim">No lexicon entry.</div>{/if}
-      {#if sel.conc}<div class="conc">Occurs <b>{sel.conc.total}×</b> in the Bible ({sel.conc.byBook.length} books)</div>{/if}
+      {#if detail.conc}<div class="conc">Occurs <b>{detail.conc.total}×</b> in the Bible ({detail.conc.byBook.length} books)</div>{/if}
     </div>
   {/if}
 {/if}
@@ -64,6 +70,6 @@
   .grk { font-family: var(--greek); } .big { font-size: 18px; }
   .tl { color: var(--dim); font-style: italic; }
   .strong { color: var(--dim); font-size: .85em; margin-left: 6px; } .morph { color: var(--dim); font-size: .85em; }
-  .def { margin-top: 5px; line-height: 1.5; } .def.dim { color: var(--dim); font-style: italic; }
-  .conc { margin-top: 5px; color: var(--dim); }
+  .def { margin-top: 5px; line-height: 1.55; } .def.dim { color: var(--dim); font-style: italic; }
+  .conc { margin-top: 6px; color: var(--dim); }
 </style>

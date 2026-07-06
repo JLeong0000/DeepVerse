@@ -162,6 +162,15 @@ function wordMatches(englishWord, keyword) {
   return min >= 3 && (a.startsWith(b) || b.startsWith(a));
 }
 
+// Does a difference word's gloss actually appear in this English verse? (Underlines can only be placed
+// where the translation's wording matches the original's gloss — the card shows the difference either way.)
+export function glossInText(text, gloss) {
+  const keys = glossKeywords(gloss);
+  if (!keys.length) return false;
+  const words = String(text).toLowerCase().split(/\s+/).map(w => w.replace(/[^\p{L}]/gu, '')).filter(Boolean);
+  return words.some(w => keys.some(k => wordMatches(w, k)));
+}
+
 // Map original-word differences onto the English verse (approximate: no NIV↔Greek alignment — spec §13).
 // diffs: [{type:'A'|'B', gloss}]. Returns segments [{text, type:null|'A'|'B'|'AB'}] covering the full text.
 export function underlineSpans(englishText, diffs) {
@@ -199,6 +208,14 @@ export function getCrossRefs(book, chapter, verse) {
 export function getChapterCrossRefStats(book, chapter) {
   return query(`SELECT COUNT(*) AS total, COUNT(DISTINCT from_verse) AS versesWithRefs
     FROM cross_refs WHERE from_book=? AND from_chapter=?`, [book, chapter])[0];
+}
+// NIV text of a cross-ref target's first verse (to_ref may be a range like "1John.4.9-1John.4.10").
+export function getRefPreview(toRef) {
+  const first = String(toRef).split('-')[0];
+  const m = first.match(/^(\w+)\.(\d+)\.(\d+)$/);
+  if (!m) return '';
+  return query("SELECT text FROM verses WHERE version='NIV' AND book=? AND chapter=? AND verse=?",
+    [m[1], +m[2], +m[3]])[0]?.text || '';
 }
 
 // --- 1.6 Stats + word-selector concordance ---

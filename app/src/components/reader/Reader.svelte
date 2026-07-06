@@ -1,7 +1,7 @@
 <script>
   import { getChapter, getChapterDifferenceMap, listBooks } from '../../lib/db.js';
   import { recordRead, setPref } from '../../lib/store.js';
-  import { study, selectVerse, setVersion, goToPassage } from '../../lib/study.svelte.js';
+  import { study, selectVerse, setVersion, goToPassage, selectedRange } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
   import VerseLine from './VerseLine.svelte';
 
@@ -11,6 +11,7 @@
   let verses = $derived(getChapter(study.version, study.book, study.chapter));
   let diffMap = $derived(getChapterDifferenceMap(study.book, study.chapter));
   let maxChapter = $derived(books.find(b => b.book === study.book)?.chapters || 1);
+  let range = $derived(selectedRange()); // [lo, hi] | null
 
   // count a reading day once per chapter open (depends only on version/book/chapter, NOT verse)
   $effect(() => {
@@ -41,7 +42,7 @@
   <div class="eng">
     {#each verses as row (row.verse)}
       <VerseLine verse={row.verse} text={row.text} diffs={diffMap.get(row.verse) || []}
-        selected={study.verse === row.verse} onselect={selectVerse} />
+        selected={range != null && row.verse >= range[0] && row.verse <= range[1]} onselect={selectVerse} />
     {/each}
   </div>
 </div>

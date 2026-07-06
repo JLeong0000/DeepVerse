@@ -24,16 +24,16 @@
 {#if study.verse == null}
   <div class="empty">Select a verse.</div>
 {:else}
-  {#if counts}<div class="row"><span class="lbl">Verse</span> {counts.words} words · {counts.chars} chars</div>{/if}
+  {#if counts}<div class="row"><span class="lbl">Length</span> this verse is {counts.words} words · {counts.chars} characters ({study.version})</div>{/if}
 
   <div class="selector">
-    <span class="lbl">Word count</span>
-    <input class="in" placeholder="English word…" bind:value={term}
+    <span class="lbl">Concordance</span>
+    <input class="in" placeholder="count an English word across {study.version}…" bind:value={term}
       onkeydown={(e) => e.key === 'Enter' && lookup()} />
     <button class="go" onclick={lookup}>count</button>
   </div>
   {#if result}
-    <div class="res">“{result.word}” appears <b>{result.versionCount}×</b> in {study.version}.</div>
+    <div class="res">“{result.word}” appears <b>{result.versionCount}×</b> across all of {study.version}.</div>
   {/if}
 
   {#if wordConc}

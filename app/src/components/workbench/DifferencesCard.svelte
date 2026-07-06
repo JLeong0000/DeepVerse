@@ -40,7 +40,7 @@
         <div class="lead">
           <span class="bdg bA">A · synonym</span>
           <b>“{r.gloss.trim()}”</b> uses
-          <button class="gbtn used" onclick={() => selectWord({ strongs: r.strongs, ...r.a })}>
+          <button class="gbtn" onclick={() => selectWord({ strongs: r.strongs, ...r.a })}>
             <span class="grk">{r.original}</span><span class="tl">{r.translit}</span>
           </button>
           {#if r.a.detail.nearSynonyms?.length}
@@ -64,7 +64,7 @@
             <span class="grk">{r.original}</span> <span class="tl">{r.translit}</span>
           </span>
         </div>
-        <div class="exn">One word — no alternative to pick. Across the NT it's translated:</div>
+        <div class="exn">Rendered across the NT as:</div>
         <div class="spread">
           {#each r.b.detail.senses.slice(0, 3) as p, i}<i class="s{i + 1}" style="flex:{p.count}"></i>{/each}
         </div>
@@ -72,6 +72,9 @@
       {/if}
     </div>
   {/each}
+  {#if rows.length > shown.length && !showAll}
+    <div class="repcap">Showing the {shown.length} word{shown.length > 1 ? 's' : ''} highlighted in the reader; {rows.length} words are flagged in this verse.</div>
+  {/if}
   {#if rows.length > shown.length || showAll}
     <button class="showall" onclick={() => (showAll = !showAll)}>
       {showAll ? '▴ Show fewer' : `▾ Show all ${rows.length} differences`}
@@ -101,6 +104,7 @@
   .spread i { display: block; }
   .spread .s1 { background: var(--b); } .spread .s2 { background: color-mix(in srgb, var(--b) 55%, var(--bg)); }
   .spread .s3 { background: var(--rule); }
+  .repcap { padding: 8px 11px 0; font-size: 11px; color: var(--dim); font-style: italic; }
   .showall { display: block; width: 100%; text-align: left; padding: 8px 11px; border: none; border-top: 1px solid var(--rule);
     background: transparent; color: var(--b); cursor: pointer; font-family: inherit; font-size: 12px; }
   .showall:hover { text-decoration: underline; }

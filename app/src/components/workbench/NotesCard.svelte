@@ -1,11 +1,16 @@
 <script>
   import { notesForRef, addNote, updateNote, deleteNote } from '../../lib/store.js';
-  import { study } from '../../lib/study.svelte.js';
+  import { study, selectedRange } from '../../lib/study.svelte.js';
 
-  // target the selected verse, or the chapter when no verse is selected
-  let target = $derived(study.verse != null
-    ? { type: 'verse', ref: `${study.book}.${study.chapter}.${study.verse}` }
-    : { type: 'chapter', ref: `${study.book}.${study.chapter}` });
+  // the note attaches to the current selection: a single verse, a verse range, or (if nothing
+  // is selected) the whole chapter.
+  let target = $derived.by(() => {
+    const r = selectedRange();
+    if (!r) return { type: 'chapter', ref: `${study.book}.${study.chapter}`, label: `${study.book} ${study.chapter}` };
+    const [lo, hi] = r;
+    if (lo === hi) return { type: 'verse', ref: `${study.book}.${study.chapter}.${lo}`, label: `${study.book} ${study.chapter}:${lo}` };
+    return { type: 'verse', ref: `${study.book}.${study.chapter}.${lo}-${hi}`, label: `${study.book} ${study.chapter}:${lo}–${hi}` };
+  });
 
   let notes = $state([]);
   let draft = $state('');
@@ -30,7 +35,7 @@
 </script>
 
 <div class="wrap">
-  <div class="tgt">Note on <b>{target.ref}</b> <span class="dim">({target.type})</span></div>
+  <div class="tgt">Note on <b>{target.label}</b> <span class="dim">({target.type === 'chapter' ? 'chapter' : (target.ref.includes('-') ? 'verse range' : 'verse')})</span></div>
   {#each notes as note (note.id)}
     <textarea class="note" value={note.body} onblur={(e) => edit(note, e)}></textarea>
   {/each}

@@ -28,7 +28,7 @@
 </div>
 
 <style>
-  .page { padding: 14px 30px 32px; max-width: 1100px; }
+  .page { padding: 14px 30px 32px; max-width: 1100px; margin: 0 auto; }
   .greetrule { border: none; border-top: 1px solid var(--rule); margin: 22px 0 24px; }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
   @media (max-width: 640px) { .cols { grid-template-columns: 1fr; gap: 26px; } }

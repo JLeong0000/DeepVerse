@@ -4,11 +4,17 @@ export const study = $state({
   version: 'NIV',
   book: 'John',
   chapter: 12,
-  verse: null,   // selected verse number (drives the workbench)
-  word: null,    // optionally a tapped interlinear word { position, strongs, ... }
+  verse: null,     // anchor of the selection (drives the workbench cards)
+  verseEnd: null,  // end of a multi-verse range selection (null = single verse)
+  word: null,      // a tapped/clicked word { position?, strongs, original, translit, ... }
 });
 
-export function selectVerse(v) { study.verse = v; study.word = null; }
+// select a verse; extend=true (shift-click) grows the selection into a range from the anchor.
+export function selectVerse(v, extend = false) {
+  if (extend && study.verse != null) { study.verseEnd = v; }
+  else { study.verse = v; study.verseEnd = null; }
+  study.word = null;
+}
 export function selectWord(w) { study.word = w; }
 export function setVersion(v) { study.version = v; }
 export function goToPassage({ version, book, chapter, verse = null }) {
@@ -16,5 +22,13 @@ export function goToPassage({ version, book, chapter, verse = null }) {
   study.book = book;
   study.chapter = chapter;
   study.verse = verse;
+  study.verseEnd = null;
   study.word = null;
+}
+
+// normalized [low, high] of the current selection (null if no verse selected)
+export function selectedRange() {
+  if (study.verse == null) return null;
+  const end = study.verseEnd ?? study.verse;
+  return [Math.min(study.verse, end), Math.max(study.verse, end)];
 }

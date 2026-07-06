@@ -3,12 +3,13 @@
         onDragStart, onDragOver, onDrop, children } = $props();
 </script>
 
+<!-- The whole card is a DROP target, but only the header row is DRAGGABLE, so clicking/selecting in
+     the body (notes, inputs, word buttons) never starts a reorder. -->
 <div class="card" class:open
-  draggable="true"
-  ondragstart={(e) => onDragStart(index, e)}
   ondragover={(e) => { e.preventDefault(); onDragOver(index); }}
   ondrop={(e) => { e.preventDefault(); onDrop(index); }}>
-  <div class="hd" onclick={onToggle} role="button" tabindex="0">
+  <div class="hd" onclick={onToggle} role="button" tabindex="0"
+    draggable="true" ondragstart={(e) => onDragStart(index, e)}>
     <span class="grip" title="Drag to reorder">⠿</span>
     {#if !open}<span class="tw">▸</span>{/if}
     <span class="title">{title}</span>

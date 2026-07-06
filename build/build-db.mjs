@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import { parseWordRef } from './lib/refs.mjs';
 import { deriveLang } from './lib/lang.mjs';
 import { normalizeGloss } from './lib/gloss.mjs';
-import { parseMaculaGreekLine, parseProximityLine } from './lib/macula.mjs';
+import { parseMaculaGreekLine, parseProximityLine, padStrong } from './lib/macula.mjs';
+import { computeDifferences } from './lib/differences.mjs';
 
 const ROOT = '/Users/justinleong/Desktop/Coding/DeepVerse';
 const DB = `${ROOT}/data/bible.db`;
@@ -121,11 +122,16 @@ console.log('word_domain:', db.prepare('SELECT COUNT(*) n FROM word_domain').get
 const proximity = `${ROOT}/sources/macula-greek/sources/Clear/synonyms/Proximity.tsv`;
 {
   const insP = db.prepare('INSERT INTO synonyms VALUES (?,?,?)');
+  // Pad to match words.strongs / word_domain (Proximity.tsv uses bare G25, words use G0025).
   tx(() => { for (const line of fs.readFileSync(proximity,'utf8').split('\n')) {
-    const p = parseProximityLine(line); if (!p) continue; insP.run(p.a, p.b, p.distance);
+    const p = parseProximityLine(line); if (!p) continue; insP.run(padStrong(p.a), padStrong(p.b), p.distance);
   }});
 }
 console.log('synonyms:', db.prepare('SELECT COUNT(*) n FROM synonyms').get().n);
+
+// 6) DIFFERENCES (precomputed Type A/B interpretive-difference table)
+computeDifferences(db);
+console.log('differences:', db.prepare('SELECT COUNT(*) n FROM differences').get().n);
 
 db.exec(`
   CREATE INDEX idx_words_ref ON words(book,chapter,verse);

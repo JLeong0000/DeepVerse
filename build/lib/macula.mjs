@@ -1,6 +1,6 @@
 // build/lib/macula.mjs
 // STEPBible `words.strongs` are zero-padded (G0025). MACULA `strong` is bare (25). Normalize to match.
-function padStrong(raw) {
+export function padStrong(raw) {
   const s = String(raw || '').trim();
   const m = s.match(/^([GH])?(\d+)([A-Za-z]?)$/);
   if (!m) return '';

@@ -1,9 +1,7 @@
 <script>
-  import { verseWordCounts, countEnglishWord, countLemma, getLexicon } from '../../lib/db.js';
+  import { countEnglishWord, countLemma, getLexicon } from '../../lib/db.js';
   import { study } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
-
-  let counts = $derived(study.verse == null ? null : verseWordCounts(study.version, study.book, study.chapter, study.verse));
 
   let term = $state('');
   let result = $state(null);
@@ -24,8 +22,6 @@
 {#if study.verse == null}
   <div class="empty">Select a verse.</div>
 {:else}
-  {#if counts}<div class="row"><span class="lbl">Length</span> this verse is {counts.words} words · {counts.chars} characters ({study.version})</div>{/if}
-
   <div class="selector">
     <span class="lbl">Concordance</span>
     <input class="in" placeholder="count an English word across {study.version}…" bind:value={term}
@@ -47,7 +43,7 @@
 
 <style>
   .empty { color: var(--dim); font-size: 12px; font-style: italic; padding: 9px 11px; }
-  .row, .res, .conc { padding: 8px 11px; font-size: 12.5px; }
+  .res, .conc { padding: 8px 11px; font-size: 12.5px; }
   .lbl { font-variant: small-caps; letter-spacing: .05em; color: var(--dim); font-size: 11px; margin-right: 6px; }
   .selector { display: flex; align-items: center; gap: 6px; padding: 4px 11px; }
   .in { flex: 1; font-family: inherit; font-size: 12px; padding: 3px 7px; border: 1px solid var(--rule); border-radius: 4px; background: var(--bg); color: var(--ink); }

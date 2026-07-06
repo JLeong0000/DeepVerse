@@ -53,7 +53,7 @@
   }
 </script>
 
-<div class="page">
+<div class="scroll"><div class="page">
   <div class="head">
     <h1>Notes</h1>
     <div class="actions">
@@ -86,10 +86,11 @@
       </section>
     {/each}
   {/if}
-</div>
+</div></div>
 
 <style>
-  .page { padding: 20px 30px 40px; max-width: 1100px; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; }
+  .page { padding: 20px 30px 40px; max-width: 1100px; margin: 0 auto; }
   .head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
   h1 { font-size: 26px; font-weight: normal; margin: 0; }
   .actions { display: flex; gap: 8px; align-items: center; }

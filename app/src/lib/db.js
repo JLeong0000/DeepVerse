@@ -29,3 +29,151 @@ export function query(sql, params = []) {
 export function _setDbForTest(instance) {
   db = instance;
 }
+
+// ---------------------------------------------------------------------------
+// Milestone 1 — data-access layer. All synchronous after loadDb() (sql.js is in-memory).
+// ---------------------------------------------------------------------------
+
+// --- 1.2 Reader + versions ---
+export function getChapter(version, book, chapter) {
+  return query('SELECT verse, text FROM verses WHERE version=? AND book=? AND chapter=? ORDER BY verse',
+    [version, book, chapter]);
+}
+export function getVerseAllVersions(book, chapter, verse) {
+  return query('SELECT version, text FROM verses WHERE book=? AND chapter=? AND verse=?',
+    [book, chapter, verse]);
+}
+export function chapterCount(version, book) {
+  return query('SELECT MAX(chapter) AS n FROM verses WHERE version=? AND book=?', [version, book])[0]?.n || 0;
+}
+export function getChapterLanguages(book, chapter) {
+  return query('SELECT DISTINCT lang FROM words WHERE book=? AND chapter=?', [book, chapter]).map(r => r.lang);
+}
+
+// --- 1.3 Interlinear ---
+export function getInterlinear(book, chapter, verse) {
+  return query(`SELECT position, original, translit, gloss, strongs, morph, lemma
+    FROM words WHERE book=? AND chapter=? AND verse=? ORDER BY position`, [book, chapter, verse]);
+}
+export function getLexicon(strongs) {
+  if (!strongs) return null;
+  let rows = query('SELECT lemma, translit, gloss, definition FROM lexicon WHERE code=?', [strongs]);
+  if (!rows.length) {
+    const base = strongs.replace(/[A-Za-z]$/, ''); // strip a trailing homograph letter (G0996G -> G0996)
+    if (base !== strongs) rows = query('SELECT lemma, translit, gloss, definition FROM lexicon WHERE code=?', [base]);
+  }
+  return rows[0] || null;
+}
+
+// --- 1.4 Differences (read side of the engine) ---
+export function getVerseDifferences(book, chapter, verse) {
+  const rows = query(`SELECT d.position, d.type, d.strongs, d.detail, w.original, w.translit, w.gloss
+    FROM differences d JOIN words w
+      ON w.book=d.book AND w.chapter=d.chapter AND w.verse=d.verse AND w.position=d.position
+    WHERE d.book=? AND d.chapter=? AND d.verse=? ORDER BY d.position, d.type`, [book, chapter, verse]);
+  return rows.map(r => {
+    const detail = JSON.parse(r.detail);
+    if (r.type === 'A' && Array.isArray(detail.nearSynonyms)) {
+      detail.nearSynonyms = detail.nearSynonyms.map(s => {
+        const lex = getLexicon(s.strongs);
+        return { ...s, lemma: lex?.lemma || '', translit: lex?.translit || '', gloss: lex?.gloss || '' };
+      });
+    }
+    return { position: r.position, type: r.type, strongs: r.strongs, detail,
+      original: r.original, translit: r.translit, gloss: r.gloss };
+  });
+}
+
+// Per-verse difference words for a chapter, to drive reader underlines.
+// Returns Map<verse, [{position, type, gloss}]>.
+export function getChapterDifferenceMap(book, chapter) {
+  const rows = query(`SELECT d.verse, d.position, d.type, w.gloss
+    FROM differences d JOIN words w
+      ON w.book=d.book AND w.chapter=d.chapter AND w.verse=d.verse AND w.position=d.position
+    WHERE d.book=? AND d.chapter=? ORDER BY d.verse, d.position`, [book, chapter]);
+  const map = new Map();
+  for (const r of rows) {
+    if (!map.has(r.verse)) map.set(r.verse, []);
+    map.get(r.verse).push({ position: r.position, type: r.type, gloss: r.gloss });
+  }
+  return map;
+}
+
+const UNDERLINE_STOP = new Set(['the', 'a', 'an', 'of', 'to', 'and', 'in', 'you', 'me', 'my', 'his', 'her',
+  'their', 'them', 'they', 'it', 'is', 'was', 'for', 'this', 'that', 'who', 'will', 'be', 'he', 'she', 'we',
+  'your', 'i', 'as', 'then', 'so', 'not', 'but', 'with', 'on', 'up', 'do', 'did', 'have', 'has', 'son', 'may']);
+
+// keyword(s) to search for in the English text from an original-word gloss (e.g. "[son] of John" -> ["john"]).
+function glossKeywords(gloss) {
+  return String(gloss || '').toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/)
+    .filter(w => w.length >= 3 && !UNDERLINE_STOP.has(w));
+}
+// crude English stemmer — enough to align a gloss word to a differently-inflected verse word.
+function stem(w) { return w.replace(/(ing|edly|edness|ed|es|s|en)$/, ''); }
+function wordMatches(englishWord, keyword) {
+  if (englishWord === keyword) return true;
+  const a = stem(englishWord), b = stem(keyword); // loves->love, loving->lov, life->life
+  const min = Math.min(a.length, b.length);
+  return min >= 3 && (a.startsWith(b) || b.startsWith(a));
+}
+
+// Map original-word differences onto the English verse (approximate: no NIV↔Greek alignment — spec §13).
+// diffs: [{type:'A'|'B', gloss}]. Returns segments [{text, type:null|'A'|'B'|'AB'}] covering the full text.
+export function underlineSpans(englishText, diffs) {
+  const targets = (diffs || []).map(d => ({ type: d.type, keys: glossKeywords(d.gloss), used: false }))
+    .filter(t => t.keys.length);
+  const tokens = String(englishText).split(/(\s+)/); // keep whitespace tokens
+  const segs = [];
+  const push = (text, type) => {
+    const last = segs[segs.length - 1];
+    if (last && last.type === type) last.text += text;
+    else segs.push({ text, type });
+  };
+  for (const tok of tokens) {
+    if (/^\s+$/.test(tok) || tok === '') { push(tok, null); continue; }
+    const bare = tok.toLowerCase().replace(/[^\p{L}]/gu, '');
+    const types = new Set();
+    for (const t of targets) {
+      if (t.used) continue;
+      if (bare && t.keys.some(k => wordMatches(bare, k))) { types.add(t.type); t.used = true; }
+    }
+    let type = null;
+    if (types.has('A') && types.has('B')) type = 'AB';
+    else if (types.has('A')) type = 'A';
+    else if (types.has('B')) type = 'B';
+    push(tok, type);
+  }
+  return segs;
+}
+
+// --- 1.5 Cross-references + context ---
+export function getCrossRefs(book, chapter, verse) {
+  return query('SELECT to_ref, votes FROM cross_refs WHERE from_book=? AND from_chapter=? AND from_verse=? ORDER BY votes DESC',
+    [book, chapter, verse]);
+}
+export function getChapterCrossRefStats(book, chapter) {
+  return query(`SELECT COUNT(*) AS total, COUNT(DISTINCT from_verse) AS versesWithRefs
+    FROM cross_refs WHERE from_book=? AND from_chapter=?`, [book, chapter])[0];
+}
+
+// --- 1.6 Stats + word-selector concordance ---
+export function countEnglishWord(version, word) {
+  const re = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+  let n = 0;
+  for (const r of query('SELECT text FROM verses WHERE version=? AND text LIKE ?', [version, `%${word}%`])) {
+    const m = r.text.match(re);
+    if (m) n += m.length;
+  }
+  return n;
+}
+export function countLemma(strongs) {
+  const byBook = query('SELECT book, COUNT(*) AS n FROM words WHERE strongs=? GROUP BY book', [strongs]);
+  return { total: byBook.reduce((s, r) => s + r.n, 0), byBook };
+}
+export function verseWordCounts(version, book, chapter, verse) {
+  const row = query('SELECT text FROM verses WHERE version=? AND book=? AND chapter=? AND verse=?',
+    [version, book, chapter, verse])[0];
+  const text = row?.text || '';
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  return { words, chars: text.length };
+}

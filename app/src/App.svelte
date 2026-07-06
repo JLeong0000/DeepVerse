@@ -5,6 +5,7 @@
   import { route, go } from './lib/router.svelte.js';
   import Home from './routes/Home.svelte';
   import Study from './routes/Study.svelte';
+  import Comparison from './routes/Comparison.svelte';
   import NotesPage from './routes/NotesPage.svelte';
 
   let dark = $state(false);
@@ -25,6 +26,7 @@
   <nav>
     <button class="navlink" class:active={route.view === 'home'} onclick={() => go('home')}>Home</button>
     <button class="navlink" class:active={route.view === 'study'} onclick={() => go('study')}>Study</button>
+    <button class="navlink" class:active={route.view === 'compare'} onclick={() => go('compare')}>Compare</button>
     <button class="navlink" class:active={route.view === 'notes'} onclick={() => go('notes')}>Notes</button>
   </nav>
   <button class="toggle" onclick={flip} aria-label="Toggle theme">{dark ? '☀' : '☾'}</button>
@@ -36,6 +38,8 @@
   <div class="gate dim">Loading bible.db…</div>
 {:else if route.view === 'study'}
   <Study />
+{:else if route.view === 'compare'}
+  <Comparison />
 {:else if route.view === 'notes'}
   <NotesPage />
 {:else}

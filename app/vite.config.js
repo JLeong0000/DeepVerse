@@ -7,11 +7,27 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
-      // bible.db is large; precache the shell here and cache the DB at runtime (configured in M6).
-      workbox: { globPatterns: ['**/*.{js,css,html,wasm}'], maximumFileSizeToCacheInBytes: 4 * 1024 * 1024 },
+      workbox: {
+        // precache the app shell + wasm; the 135 MB bible.db is too big to precache, so it is
+        // runtime-cached (CacheFirst) — after the first load the whole app works offline.
+        globPatterns: ['**/*.{js,css,html,wasm}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.endsWith('/bible.db'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'bible-db',
+              expiration: { maxEntries: 1 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'DeepVerse',
         short_name: 'DeepVerse',
+        description: 'Offline-first Bible study — English next to the original languages.',
         theme_color: '#1c1813',
         background_color: '#f2ede2',
         display: 'standalone',

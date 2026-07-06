@@ -1,0 +1,401 @@
+{
+  "version": "NKJV",
+  "books": [
+    {
+      "osis": "Gen",
+      "name": "Genesis",
+      "chapters": 50,
+      "verses": 1533
+    },
+    {
+      "osis": "Exod",
+      "name": "Exodus",
+      "chapters": 40,
+      "verses": 1213
+    },
+    {
+      "osis": "Lev",
+      "name": "Leviticus",
+      "chapters": 27,
+      "verses": 848
+    },
+    {
+      "osis": "Num",
+      "name": "Numbers",
+      "chapters": 37,
+      "verses": 1304
+    },
+    {
+      "osis": "Deut",
+      "name": "Deuteronomy",
+      "chapters": 34,
+      "verses": 941
+    },
+    {
+      "osis": "Josh",
+      "name": "Joshua",
+      "chapters": 24,
+      "verses": 652
+    },
+    {
+      "osis": "Judg",
+      "name": "Judges",
+      "chapters": 22,
+      "verses": 624
+    },
+    {
+      "osis": "Ruth",
+      "name": "Ruth",
+      "chapters": 4,
+      "verses": 85
+    },
+    {
+      "osis": "1Sam",
+      "name": "1 Samuel",
+      "chapters": 30,
+      "verses": 778
+    },
+    {
+      "osis": "2Sam",
+      "name": "2 Samuel",
+      "chapters": 24,
+      "verses": 695
+    },
+    {
+      "osis": "1Kgs",
+      "name": "1 Kings",
+      "chapters": 22,
+      "verses": 797
+    },
+    {
+      "osis": "2Kgs",
+      "name": "2 Kings",
+      "chapters": 24,
+      "verses": 702
+    },
+    {
+      "osis": "1Chr",
+      "name": "1 Chronicles",
+      "chapters": 29,
+      "verses": 909
+    },
+    {
+      "osis": "2Chr",
+      "name": "2 Chronicles",
+      "chapters": 35,
+      "verses": 803
+    },
+    {
+      "osis": "Ezra",
+      "name": "Ezra",
+      "chapters": 10,
+      "verses": 280
+    },
+    {
+      "osis": "Neh",
+      "name": "Nehemiah",
+      "chapters": 13,
+      "verses": 406
+    },
+    {
+      "osis": "Esth",
+      "name": "Esther",
+      "chapters": 10,
+      "verses": 148
+    },
+    {
+      "osis": "Job",
+      "name": "Job",
+      "chapters": 42,
+      "verses": 1070
+    },
+    {
+      "osis": "Ps",
+      "name": "Psalms",
+      "chapters": 150,
+      "verses": 2461
+    },
+    {
+      "osis": "Prov",
+      "name": "Proverbs",
+      "chapters": 31,
+      "verses": 915
+    },
+    {
+      "osis": "Eccl",
+      "name": "Ecclesiastes",
+      "chapters": 11,
+      "verses": 203
+    },
+    {
+      "osis": "Song",
+      "name": "Song of Solomon",
+      "chapters": 8,
+      "verses": 114
+    },
+    {
+      "osis": "Isa",
+      "name": "Isaiah",
+      "chapters": 67,
+      "verses": 1295
+    },
+    {
+      "osis": "Jer",
+      "name": "Jeremiah",
+      "chapters": 52,
+      "verses": 1342
+    },
+    {
+      "osis": "Lam",
+      "name": "Lamentations",
+      "chapters": 6,
+      "verses": 158
+    },
+    {
+      "osis": "Ezek",
+      "name": "Ezekiel",
+      "chapters": 48,
+      "verses": 1251
+    },
+    {
+      "osis": "Dan",
+      "name": "Daniel",
+      "chapters": 12,
+      "verses": 357
+    },
+    {
+      "osis": "Hos",
+      "name": "Hosea",
+      "chapters": 14,
+      "verses": 190
+    },
+    {
+      "osis": "Joel",
+      "name": "Joel",
+      "chapters": 4,
+      "verses": 75
+    },
+    {
+      "osis": "Amos",
+      "name": "Amos",
+      "chapters": 10,
+      "verses": 151
+    },
+    {
+      "osis": "Obad",
+      "name": "Obadiah",
+      "chapters": 1,
+      "verses": 21
+    },
+    {
+      "osis": "Jonah",
+      "name": "Jonah",
+      "chapters": 4,
+      "verses": 48
+    },
+    {
+      "osis": "Mic",
+      "name": "Micah",
+      "chapters": 7,
+      "verses": 105
+    },
+    {
+      "osis": "Nah",
+      "name": "Nahum",
+      "chapters": 3,
+      "verses": 47
+    },
+    {
+      "osis": "Hab",
+      "name": "Habakkuk",
+      "chapters": 3,
+      "verses": 56
+    },
+    {
+      "osis": "Zeph",
+      "name": "Zephaniah",
+      "chapters": 3,
+      "verses": 52
+    },
+    {
+      "osis": "Hag",
+      "name": "Haggai",
+      "chapters": 3,
+      "verses": 39
+    },
+    {
+      "osis": "Zech",
+      "name": "Zechariah",
+      "chapters": 14,
+      "verses": 211
+    },
+    {
+      "osis": "Mal",
+      "name": "Malachi",
+      "chapters": 4,
+      "verses": 55
+    },
+    {
+      "osis": "Matt",
+      "name": "Matthew",
+      "chapters": 28,
+      "verses": 1071
+    },
+    {
+      "osis": "Mark",
+      "name": "Mark",
+      "chapters": 16,
+      "verses": 678
+    },
+    {
+      "osis": "Luke",
+      "name": "Luke",
+      "chapters": 24,
+      "verses": 1151
+    },
+    {
+      "osis": "John",
+      "name": "John",
+      "chapters": 21,
+      "verses": 874
+    },
+    {
+      "osis": "Acts",
+      "name": "Acts",
+      "chapters": 29,
+      "verses": 1012
+    },
+    {
+      "osis": "Rom",
+      "name": "Romans",
+      "chapters": 16,
+      "verses": 433
+    },
+    {
+      "osis": "1Cor",
+      "name": "1 Corinthians",
+      "chapters": 16,
+      "verses": 427
+    },
+    {
+      "osis": "2Cor",
+      "name": "2 Corinthians",
+      "chapters": 13,
+      "verses": 257
+    },
+    {
+      "osis": "Gal",
+      "name": "Galatians",
+      "chapters": 6,
+      "verses": 136
+    },
+    {
+      "osis": "Eph",
+      "name": "Ephesians",
+      "chapters": 7,
+      "verses": 168
+    },
+    {
+      "osis": "Phil",
+      "name": "Philippians",
+      "chapters": 4,
+      "verses": 96
+    },
+    {
+      "osis": "Col",
+      "name": "Colossians",
+      "chapters": 5,
+      "verses": 103
+    },
+    {
+      "osis": "1Thess",
+      "name": "1 Thessalonians",
+      "chapters": 5,
+      "verses": 68
+    },
+    {
+      "osis": "2Thess",
+      "name": "2 Thessalonians",
+      "chapters": 4,
+      "verses": 56
+    },
+    {
+      "osis": "1Tim",
+      "name": "1 Timothy",
+      "chapters": 7,
+      "verses": 119
+    },
+    {
+      "osis": "2Tim",
+      "name": "2 Timothy",
+      "chapters": 3,
+      "verses": 60
+    },
+    {
+      "osis": "Titus",
+      "name": "Titus",
+      "chapters": 3,
+      "verses": 35
+    },
+    {
+      "osis": "Phlm",
+      "name": "Philemon",
+      "chapters": 1,
+      "verses": 25
+    },
+    {
+      "osis": "Heb",
+      "name": "Hebrews",
+      "chapters": 13,
+      "verses": 303
+    },
+    {
+      "osis": "Jas",
+      "name": "James",
+      "chapters": 5,
+      "verses": 108
+    },
+    {
+      "osis": "1Pet",
+      "name": "1 Peter",
+      "chapters": 5,
+      "verses": 95
+    },
+    {
+      "osis": "2Pet",
+      "name": "2 Peter",
+      "chapters": 3,
+      "verses": 47
+    },
+    {
+      "osis": "1John",
+      "name": "1 John",
+      "chapters": 5,
+      "verses": 105
+    },
+    {
+      "osis": "2John",
+      "name": "2 John",
+      "chapters": 1,
+      "verses": 13
+    },
+    {
+      "osis": "3John",
+      "name": "3 John",
+      "chapters": 1,
+      "verses": 14
+    },
+    {
+      "osis": "Jude",
+      "name": "Jude",
+      "chapters": 1,
+      "verses": 25
+    },
+    {
+      "osis": "Rev",
+      "name": "Revelation",
+      "chapters": 22,
+      "verses": 387
+    }
+  ]
+}

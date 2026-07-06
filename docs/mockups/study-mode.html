@@ -1,0 +1,94 @@
+<h2>Scholarly print — buttons only where there's a choice</h2>
+<p class="subtitle">Type A = two words to compare → buttons. Type B = one word → inline (underlined like the text), clickable but no button box. Plus the Original card is now a real interlinear (read the Greek, tap any word).</p>
+
+<style>
+  .sp { --bg:#f2ede2; --panel:#f7f3ea; --ink:#201d18; --dim:#6b6459; --rule:#d8cdb8; --a:#8a2f2f; --b:#33407a; --abg:#e6d3d0; --bbg:#d7dbec; --sel:#efe7d8;
+    background:var(--bg); color:var(--ink); font-family:"Iowan Old Style",Charter,Georgia,"Times New Roman",serif; border-radius:8px; overflow:hidden; border:1px solid rgba(127,127,127,.25); transition:background .25s,color .25s; }
+  .sp.dark { --bg:#1c1813; --panel:#24201a; --ink:#e6ddc9; --dim:#9a9080; --rule:#3a3327; --a:#d98070; --b:#93a3da; --abg:#3a2622; --bbg:#26304a; --sel:#2b2619; }
+  .sp .top { display:flex; align-items:center; gap:9px; padding:8px 13px; font-size:11px; background:color-mix(in srgb, var(--panel) 70%, var(--bg)); border-bottom:1px solid var(--rule); color:var(--dim); font-variant:small-caps; letter-spacing:.06em; }
+  .sp .top b { color:var(--ink); }
+  .sp .chip { border:1px solid var(--rule); border-radius:2px; padding:1px 8px; color:var(--ink); font-variant:normal; }
+  .sp .toggle { margin-left:auto; cursor:pointer; border:1px solid var(--rule); border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:14px; user-select:none; background:transparent; line-height:1; }
+  .sp .split { display:flex; min-height:320px; }
+  .sp .eng { width:41%; padding:13px 15px; border-right:1px solid var(--rule); font-size:14px; line-height:1.64; }
+  .sp .v { margin:8px 0; } .sp .n { color:var(--dim); font-size:.72em; vertical-align:super; margin-right:3px; }
+  .sp .v.sel { background:var(--sel); box-shadow:inset 2px 0 0 var(--a); padding:6px 10px; }
+  .sp .wA { border-bottom:1.5px solid var(--a); cursor:pointer; } .sp .wB { border-bottom:1.5px solid var(--b); cursor:pointer; }
+  .sp .wb { width:59%; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .sp .card { border:1px solid var(--rule); background:var(--panel); border-radius:5px; }
+  .sp .card .hd { display:flex; align-items:center; padding:7px 10px; font-variant:small-caps; letter-spacing:.05em; font-size:12.5px; color:var(--dim); }
+  .sp .card.open .hd { border-bottom:1px solid var(--rule); }
+  .sp .card .hd .k { margin-left:auto; opacity:.55; font-variant:normal; border:1px solid var(--rule); border-radius:3px; min-width:15px; text-align:center; padding:0 3px; font-size:.85em; }
+  .sp .card .hd .tw { margin-right:6px; opacity:.5; font-variant:normal; }
+  .sp .card .hd .sub { margin-left:8px; font-variant:normal; letter-spacing:0; opacity:.7; }
+  .sp .drow { padding:9px 11px; } .sp .drow + .drow { border-top:1px solid var(--rule); }
+  .sp .bdg { font-size:.72em; font-weight:700; padding:1px 6px; border-radius:3px; font-variant:small-caps; letter-spacing:.04em; } .sp .bA { background:var(--abg); color:var(--a); } .sp .bB { background:var(--bbg); color:var(--b); }
+  .sp .lead { font-size:14px; margin-bottom:4px; line-height:1.9; }
+  .sp .ex { font-size:.86em; color:var(--dim); font-style:italic; }
+  .sp .grk { font-family:"SBL Greek","New Athena Unicode",Georgia,serif; }
+  .sp .tl { color:var(--dim); font-style:italic; font-size:.82em; }
+
+  /* Type A: two words to compare -> buttons */
+  .sp .gbtn { display:inline-flex; align-items:baseline; gap:5px; border:1px solid var(--rule); background:color-mix(in srgb, var(--panel) 50%, var(--bg)); border-radius:5px; padding:2px 8px; cursor:pointer; color:var(--ink); transition:border-color .15s; }
+  .sp .gbtn:hover { border-color:var(--a); } .sp .gbtn .grk { font-size:1.1em; }
+  .sp .gbtn.used { border-color:var(--a); } .sp .vs { color:var(--dim); font-size:.85em; margin:0 3px; }
+  /* Type B: single word -> inline, underlined, no box */
+  .sp .wordB { border-bottom:2px solid var(--b); cursor:pointer; padding-bottom:1px; }
+  .sp .wordB .grk { font-size:1.1em; }
+
+  .sp .spread { display:flex; gap:2px; margin:6px 0 4px; height:10px; width:190px; border-radius:2px; overflow:hidden; } .sp .spread i { display:block; } .sp .spread .s1{background:var(--b)} .sp .spread .s2{background:color-mix(in srgb,var(--b) 55%,var(--bg))} .sp .spread .s3{background:var(--rule)}
+
+  .sp .interlin { display:flex; flex-wrap:wrap; gap:4px 6px; padding:11px; }
+  .sp .iw { display:flex; flex-direction:column; align-items:center; gap:1px; padding:4px 6px; border:1px solid transparent; border-radius:5px; cursor:pointer; }
+  .sp .iw:hover { border-color:var(--rule); background:color-mix(in srgb, var(--panel) 50%, var(--bg)); }
+  .sp .iw .g { font-family:"SBL Greek","New Athena Unicode",Georgia,serif; font-size:16px; }
+  .sp .iw .p { font-size:9.5px; font-style:italic; color:var(--dim); } .sp .iw .e { font-size:10.5px; color:var(--dim); }
+  .sp .iw.mA .g { border-bottom:2px solid var(--a); } .sp .iw.mB .g { border-bottom:2px solid var(--b); }
+  .sp .cap { padding:9px 13px; font-size:11px; color:var(--dim); border-top:1px solid var(--rule); background:color-mix(in srgb, var(--panel) 70%, var(--bg)); font-variant:small-caps; letter-spacing:.05em; }
+</style>
+
+<div class="sp" id="spmock">
+  <div class="top"><b>DeepVerse</b> · John 12 <span class="chip">NIV ▾</span>
+    <button class="toggle" title="toggle theme" onclick="var s=document.getElementById('spmock');s.classList.toggle('dark');this.textContent=s.classList.contains('dark')?'☀':'☾';">☾</button>
+  </div>
+  <div class="split">
+    <div class="eng">
+      <div class="v"><span class="n">24</span>unless a kernel of wheat falls to the ground and dies…</div>
+      <div class="v sel"><span class="n">25</span>Anyone who <span class="wA">loves</span> their <span class="wB">life</span> will lose it, while anyone who hates their life… keeps it for eternal life.</div>
+      <div class="v"><span class="n">27</span>Now my <span class="wB">soul</span> is troubled…</div>
+    </div>
+    <div class="wb">
+      <div class="card open">
+        <div class="hd">Differences — v25 <span class="k">1</span></div>
+        <div class="drow">
+          <div class="lead"><span class="bdg bA">A · synonym</span> &nbsp;<b>“loves”</b> uses <button class="gbtn used"><span class="grk">φιλέω</span><span class="tl">phileō</span></button> <span class="vs">not</span> <button class="gbtn"><span class="grk">ἀγαπάω</span><span class="tl">agapaō</span></button></div>
+          <div class="ex">φιλέω = warm affection; ἀγαπάω = self-giving love. Two words to compare — that's why they're buttons.</div>
+        </div>
+        <div class="drow">
+          <div class="lead"><span class="bdg bB">B · sense-spread</span> &nbsp;<b>“life”</b> is <span class="wordB"><span class="grk">ψυχή</span> <span class="tl">psychē</span></span></div>
+          <div class="ex" style="font-style:normal;color:var(--ink)">One word — no alternative to pick, so it's inline (underlined), not a button. Across the NT it's translated:</div>
+          <div class="spread"><i class="s1" style="flex:32"></i><i class="s2" style="flex:31"></i><i class="s3" style="flex:6"></i></div>
+          <div class="ex"><b style="font-style:normal">soul</b> 32× · <b style="font-style:normal">life</b> 31× · self 6×</div>
+        </div>
+      </div>
+      <div class="card open">
+        <div class="hd">Original — Greek <span class="sub">read the verse itself · tap any word</span> <span class="k">2</span></div>
+        <div class="interlin">
+          <div class="iw"><span class="g">ὁ</span><span class="p">ho</span><span class="e">the</span></div>
+          <div class="iw mA"><span class="g">φιλῶν</span><span class="p">philōn</span><span class="e">loving</span></div>
+          <div class="iw"><span class="g">τὴν</span><span class="p">tēn</span><span class="e">the</span></div>
+          <div class="iw mB"><span class="g">ψυχὴν</span><span class="p">psychēn</span><span class="e">life</span></div>
+          <div class="iw"><span class="g">αὐτοῦ</span><span class="p">autou</span><span class="e">of him</span></div>
+          <div class="iw"><span class="g">ἀπολλύει</span><span class="p">apollyei</span><span class="e">loses</span></div>
+          <div class="iw"><span class="g">αὐτήν</span><span class="p">autēn</span><span class="e">it</span></div>
+        </div>
+      </div>
+      <div class="card"><div class="hd"><span class="tw">▸</span>Context &amp; cross-references <span class="k">3</span></div></div>
+      <div class="card"><div class="hd"><span class="tw">▸</span>Stats · word selector <span class="k">4</span></div></div>
+      <div class="card"><div class="hd"><span class="tw">▸</span>Notes <span class="k">5</span></div></div>
+    </div>
+  </div>
+  <div class="cap">buttons = a choice (Type A) · inline underline = single word (Type B) · interlinear = read the whole verse</div>
+</div>
+
+<p class="subtitle" style="margin-top:12px">Type A keeps the two comparison buttons; Type B's ψυχή is now inline-underlined (still clickable). The Original card reads as an interlinear. Land it?</p>

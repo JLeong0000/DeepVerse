@@ -12,4 +12,10 @@ test('OT Hebrew morph -> hbo', () => {
 });
 test('OT Aramaic morph (leading A) -> arc', () => {
   assert.equal(deriveLang('AVqp3ms', 'hbo'), 'arc');
+  assert.equal(deriveLang('ANgmpd/Ta', 'hbo'), 'arc'); // compound Aramaic morph
+});
+test('Hebrew ADJECTIVE morph (HA...) stays hbo, not arc', () => {
+  // 'HAcmsc' = Hebrew(H) Adjective(A) — the leading H is the language, the A is part-of-speech.
+  assert.equal(deriveLang('HAcmsc', 'hbo'), 'hbo');
+  assert.equal(deriveLang('HAcfsa', 'hbo'), 'hbo');
 });

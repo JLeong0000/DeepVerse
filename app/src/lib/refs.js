@@ -29,3 +29,15 @@ export function formatRef(ref) {
   if (v == null) return ch == null ? name : `${name} ${ch}`;
   return `${name} ${ch}:${v}`;
 }
+
+// A cross-reference target may be a range ("Luke.9.23-Luke.9.27"); render the explicit span
+// ("Luke 9:23–27") rather than an abbreviation.
+export function formatCrossRef(toRef) {
+  const [a, b] = String(toRef).split('-');
+  if (!b) return formatRef(a);
+  const [ab, ac] = a.split('.');
+  const [bb, bc, bv] = b.split('.');
+  if (ab === bb && ac === bc) return `${formatRef(a)}–${bv}`;   // same chapter
+  if (ab === bb) return `${formatRef(a)}–${bc}:${bv}`;          // same book, spans chapters
+  return `${formatRef(a)}–${formatRef(b)}`;                     // spans books
+}

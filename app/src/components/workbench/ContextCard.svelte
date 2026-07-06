@@ -1,7 +1,7 @@
 <script>
   import { getCrossRefs, getChapterCrossRefStats, getRefPreview } from '../../lib/db.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
-  import { formatRef, bookName, bookOrder } from '../../lib/refs.js';
+  import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
 
   const LIMIT = 14;
   let chapStats = $derived(getChapterCrossRefStats(study.book, study.chapter));
@@ -49,7 +49,7 @@
         <div class="grplbl">{label}</div>
         {#each list as r}
           <button class="xref" onclick={() => jump(r.firstRef)}>
-            <span class="rtop"><span class="ref">{formatRef(r.firstRef)}{r.range ? ' ff.' : ''}</span>
+            <span class="rtop"><span class="ref">{formatCrossRef(r.to_ref)}</span>
               {#if r.votes > 0}<span class="votes" title="community relevance votes">{r.votes}</span>{/if}</span>
             {#if r.preview}<span class="prev">{r.preview.length > 120 ? r.preview.slice(0, 120) + '…' : r.preview}</span>{/if}
           </button>

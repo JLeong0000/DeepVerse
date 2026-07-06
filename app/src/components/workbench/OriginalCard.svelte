@@ -22,11 +22,20 @@
     if (!w?.strongs) return null;
     return { word: w, lex: getLexicon(w.strongs), conc: countLemma(w.strongs) };
   });
-  // STEPBible definitions cram all senses into one line with "__" markers; split them for readability.
+  // STEPBible definitions cram all senses onto one line, separated by "__" markers, with a 3-level
+  // hierarchy: Roman (I., II.) > arabic (1., 2.) > lettered ((a), (b)). Parse each into a level + marker
+  // so we can indent instead of bulleting.
   let defSenses = $derived.by(() => {
     const d = detail?.lex?.definition;
     if (!d) return [];
-    return d.split(/\s*__\s*/).map(s => s.trim()).filter(Boolean);
+    return d.split(/\s*__\s*/).map(s => s.trim()).filter(Boolean).map((s, i) => {
+      let m;
+      if (i === 0) return { level: -1, marker: '', text: s };            // lead: headword + etymology
+      if ((m = s.match(/^([IVX]+)\.\s*/))) return { level: 0, marker: m[1] + '.', text: s.slice(m[0].length) };
+      if ((m = s.match(/^(\d+)\.\s*/))) return { level: 1, marker: m[1] + '.', text: s.slice(m[0].length) };
+      if ((m = s.match(/^\(([^)]+)\)\s*/))) return { level: 2, marker: '(' + m[1] + ')', text: s.slice(m[0].length) };
+      return { level: -1, marker: '', text: s };
+    });
   });
 
   let detailEl = $state(null);
@@ -55,8 +64,12 @@
         <span class="strong">{detail.word.strongs}</span>{#if detail.word.morph} <span class="morph">{detail.word.morph}</span>{/if}</div>
       {#if detail.lex}
         {#if detail.lex.gloss}<div class="gloss">{detail.lex.gloss}</div>{/if}
-        {#each defSenses as sense, i}
-          <div class="sense">{#if defSenses.length > 1 && i > 0}<span class="dot">·</span>{/if}{sense}</div>
+        {#each defSenses as s}
+          {#if s.level === -1}
+            <div class="lead">{s.text}</div>
+          {:else}
+            <div class="sense lv{s.level}"><span class="mk">{s.marker}</span> {s.text}</div>
+          {/if}
         {/each}
       {:else}<div class="sense dim">No lexicon entry.</div>{/if}
       {#if detail.conc}<div class="conc">Occurs <b>{detail.conc.total}×</b> in the Bible ({detail.conc.byBook.length} books)</div>{/if}
@@ -82,8 +95,12 @@
   .tl { color: var(--dim); font-style: italic; }
   .strong { color: var(--dim); font-size: .85em; margin-left: 6px; } .morph { color: var(--dim); font-size: .85em; }
   .gloss { margin-top: 6px; font-weight: 600; }
-  .sense { margin-top: 4px; line-height: 1.55; padding-left: 10px; text-indent: -10px; } /* hanging indent per sense */
-  .sense.dim { color: var(--dim); font-style: italic; }
-  .sense .dot { color: var(--a); margin-right: 5px; font-weight: 700; }
+  .lead { margin-top: 4px; line-height: 1.5; color: var(--dim); }
+  .sense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; } /* hanging indent to the marker */
+  .sense.lv0 { padding-left: 18px; margin-top: 8px; } .sense.lv0 .mk { font-weight: 700; }
+  .sense.lv1 { padding-left: 20px; }
+  .sense.lv2 { padding-left: 40px; text-indent: -22px; }
+  .sense.dim { color: var(--dim); font-style: italic; padding-left: 0; text-indent: 0; }
+  .sense .mk { color: var(--a); font-weight: 600; margin-right: 6px; }
   .conc { margin-top: 8px; color: var(--dim); border-top: 1px solid var(--rule); padding-top: 7px; }
 </style>

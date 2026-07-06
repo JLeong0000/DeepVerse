@@ -73,7 +73,9 @@ export function getWordOfDay(seed = new Date().toISOString().slice(0, 10)) {
   const w = query('SELECT original, translit, gloss FROM words WHERE book=? AND chapter=? AND verse=? AND position=?',
     [book, +chapter, +verse, +position])[0] || {};
   return {
-    strongs: r.strongs, original: w.original || '', translit: w.translit || '',
+    strongs: r.strongs,
+    original: (w.original || '').replace(/[¶.,;:·’'"]+$/u, '').trim(), // drop trailing markers for display
+    translit: w.translit || '',
     senses: JSON.parse(r.detail).senses,
     ref: { version: 'NIV', book, chapter: +chapter, verse: +verse },
   };
@@ -133,8 +135,12 @@ export function getChapterDifferenceMap(book, chapter) {
 // each in reading order (matches the mockup: John 12:25 -> "loves"/A + "life"/B). The Differences
 // card still lists every difference for the selected verse; the interlinear exposes all words.
 export function selectUnderlines(diffs) {
-  const a = (diffs || []).find(d => d.type === 'A');
-  const b = (diffs || []).find(d => d.type === 'B');
+  const list = diffs || [];
+  const a = list.find(d => d.type === 'A');
+  // prefer a Type B on a DIFFERENT word than the A, so two distinct words get surfaced
+  // (e.g. John 12:25 -> "loves"/A + "life"/B, not just "loves" which is both).
+  const b = list.find(d => d.type === 'B' && (!a || d.position !== a.position))
+    || list.find(d => d.type === 'B');
   return [a, b].filter(Boolean);
 }
 

@@ -1,4 +1,5 @@
 // build/lib/differences.mjs
+import { senseKey } from './gloss.mjs';
 // Precompute the interpretive-difference table (Greek NT for v2; OT arrives with macula-hebrew).
 //
 // Type A (synonym collapse): a content word whose Strong's has a Greek near-synonym (different Strong's)
@@ -54,7 +55,8 @@ export function computeDifferences(db) {
     nearSynCache.set(strongs, out); return out;
   }
 
-  // --- Type B precompute: lemma -> distinct normalized glosses (grc only for v2) ---
+  // --- Type B precompute: cluster a lemma's glosses into distinct senses (collapse inflections),
+  //     keep senses that are >=SENSE_MIN_FRAC of the lemma's occurrences, need >=2 (grc only for v2) ---
   const senseByStrong = new Map(); // strongs -> {senses:[{gloss,count}], total}
   const byStrong = new Map();
   for (const r of db.prepare(`SELECT strongs, gloss_norm, COUNT(*) c FROM words
@@ -65,8 +67,17 @@ export function computeDifferences(db) {
   for (const [strongs, gs] of byStrong) {
     const total = gs.reduce((n, g) => n + g.c, 0);
     if (total < SENSE_MIN_LEMMA_OCC) continue;
-    const senses = gs.filter(g => g.c / total >= SENSE_MIN_FRAC).sort((a, b) => b.c - a.c);
-    if (senses.length >= 2) senseByStrong.set(strongs, { senses: senses.map(s => ({ gloss: s.gloss_norm, count: s.c })), total });
+    // cluster gloss_norm variants by sense key; representative gloss = most frequent member
+    const clusters = new Map(); // key -> { gloss, count, top }
+    for (const g of gs) {
+      const key = senseKey(g.gloss_norm);
+      const c = clusters.get(key) || { gloss: g.gloss_norm, count: 0, top: 0 };
+      c.count += g.c;
+      if (g.c > c.top) { c.top = g.c; c.gloss = g.gloss_norm; }
+      clusters.set(key, c);
+    }
+    const senses = [...clusters.values()].filter(s => s.count / total >= SENSE_MIN_FRAC).sort((a, b) => b.count - a.count);
+    if (senses.length >= 2) senseByStrong.set(strongs, { senses: senses.map(s => ({ gloss: s.gloss, count: s.count })), total });
   }
 
   // --- walk every Greek content word, emit A and/or B ---

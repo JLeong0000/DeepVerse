@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "build": "node build-db.mjs && node validate-db.mjs"
   },
   "keywords": [],
   "author": "",

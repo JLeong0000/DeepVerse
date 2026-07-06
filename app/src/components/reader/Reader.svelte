@@ -13,6 +13,15 @@
   let maxChapter = $derived(books.find(b => b.book === study.book)?.chapters || 1);
   let range = $derived(selectedRange()); // [lo, hi] | null
 
+  // scroll the selected verse into view when it changes programmatically (e.g. a cross-ref jump).
+  let engEl = $state(null);
+  $effect(() => {
+    const v = study.verse; study.book; study.chapter;
+    if (v == null || !engEl) return;
+    const el = engEl.querySelector(`[data-verse="${v}"]`);
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  });
+
   // count a reading day once per chapter open (depends only on version/book/chapter, NOT verse)
   $effect(() => {
     const { version, book, chapter } = study;
@@ -39,7 +48,7 @@
     </select>
   </div>
 
-  <div class="eng">
+  <div class="eng" bind:this={engEl}>
     {#each verses as row (row.verse)}
       <VerseLine verse={row.verse} text={row.text} diffs={diffMap.get(row.verse) || []}
         selected={range != null && row.verse >= range[0] && row.verse <= range[1]} onselect={selectVerse} />

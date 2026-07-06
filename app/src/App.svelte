@@ -3,6 +3,7 @@
   import { toggleTheme, isDark } from './lib/theme.js';
   import { loadDb } from './lib/db.js';
   import { route, go } from './lib/router.svelte.js';
+  import { study } from './lib/study.svelte.js';
   import Home from './routes/Home.svelte';
   import Study from './routes/Study.svelte';
   import Comparison from './routes/Comparison.svelte';
@@ -12,8 +13,44 @@
   let loaded = $state(false);
   let error = $state(null);
 
+  // ---- URL <-> state sync (browser back/forward + shareable links) ----
+  // #/home  ·  #/study/John/12[/25]  ·  #/compare/John/12  ·  #/notes
+  function serialize() {
+    const v = route.view;
+    if (v === 'study') return `#/study/${study.book}/${study.chapter}${study.verse ? '/' + study.verse : ''}`;
+    if (v === 'compare') return `#/compare/${study.book}/${study.chapter}`;
+    return `#/${v}`;
+  }
+  function applyHash() {
+    const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+    const view = ['home', 'study', 'compare', 'notes'].includes(parts[0]) ? parts[0] : 'home';
+    route.view = view;
+    if ((view === 'study' || view === 'compare') && parts[1] && parts[2]) {
+      study.book = parts[1];
+      study.chapter = +parts[2];
+      study.verse = parts[3] ? +parts[3] : null;
+      study.verseEnd = null; study.word = null;
+    }
+    navKey = keyOf();
+  }
+  const keyOf = () => `${route.view}/${study.book}/${study.chapter}`; // a new history entry per view/chapter
+  let navKey = keyOf();
+
+  // A new view/book/chapter pushes a history entry; a verse-only change replaces (no history spam).
+  // applyHash() resyncs navKey, so a back/forward/manual hash change only replaces (never re-pushes).
+  $effect(() => {
+    void `${route.view}/${study.book}/${study.chapter}/${study.verse}`; // establish reactive deps
+    const url = serialize();
+    if (keyOf() !== navKey) { history.pushState(null, '', url); navKey = keyOf(); }
+    else { history.replaceState(null, '', url); }
+  });
+
   onMount(async () => {
     dark = isDark();
+    if (location.hash.length > 2) applyHash();
+    // hashchange fires on back/forward (hash URLs) and manual edits/bookmarks; our own pushState
+    // does not fire it, so this only reacts to real navigation.
+    window.addEventListener('hashchange', applyHash);
     try { await loadDb(); loaded = true; }
     catch (e) { error = String(e); }
   });

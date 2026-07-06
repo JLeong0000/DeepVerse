@@ -34,6 +34,18 @@
 {:else if rows.length === 0}
   <div class="empty">No interpretive differences flagged in this verse.</div>
 {:else}
+  <div class="explain">
+    <span class="q">ⓘ</span> where the English hides a distinction the original makes
+    <div class="tip">
+      <p><b class="ca">A · synonym collapse.</b> The boxed word is the <b>actual word in this verse</b>. The
+      alternatives after “not” are <b>distinct</b> near-synonyms — different Strong’s words in the same
+      Louw-Nida semantic domain — that this English word doesn’t distinguish (e.g. φιλέω vs ἀγαπάω, both
+      “love”). They come from a precomputed semantic-distance matrix, not from other verses’ wording.</p>
+      <p><b class="cb">B · sense-spread.</b> One original word that the translation renders several different
+      ways across the NT (e.g. ψυχή → soul / life). The bar shows that spread.</p>
+      <p>Tap any word to see its lexicon entry in the Original card.</p>
+    </div>
+  </div>
   {#each shown as r (r.position)}
     <div class="drow">
       {#if r.a}
@@ -84,6 +96,16 @@
 
 <style>
   .empty { color: var(--dim); font-size: 12px; font-style: italic; padding: 9px 11px; }
+  .explain { position: relative; padding: 8px 11px; font-size: 11px; color: var(--dim); font-style: italic;
+    border-bottom: 1px solid var(--rule); }
+  .explain .q { font-style: normal; cursor: help; color: var(--b); margin-right: 3px; }
+  .explain .tip { position: absolute; z-index: 40; left: 11px; right: 11px; top: 100%; margin-top: 2px;
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4); font-style: normal; font-size: 12px; line-height: 1.5; color: var(--ink);
+    opacity: 0; visibility: hidden; transition: opacity .12s; }
+  .explain:hover .tip { opacity: 1; visibility: visible; }
+  .explain .tip p { margin: 0 0 7px; } .explain .tip p:last-child { margin-bottom: 0; }
+  .explain .tip .ca { color: var(--a); } .explain .tip .cb { color: var(--b); }
   .drow { padding: 9px 11px; } .drow + .drow { border-top: 1px solid var(--rule); }
   .bdg { font-size: .72em; font-weight: 700; padding: 1px 6px; border-radius: 3px; font-variant: small-caps; letter-spacing: .04em; }
   .bA { background: var(--abg); color: var(--a); } .bB { background: var(--bbg); color: var(--b); }
@@ -104,7 +126,7 @@
   .spread i { display: block; }
   .spread .s1 { background: var(--b); } .spread .s2 { background: color-mix(in srgb, var(--b) 55%, var(--bg)); }
   .spread .s3 { background: var(--rule); }
-  .repcap { padding: 8px 11px 0; font-size: 11px; color: var(--dim); font-style: italic; }
+  .repcap { padding: 10px 11px 12px; font-size: 11px; color: var(--dim); font-style: italic; }
   .showall { display: block; width: 100%; text-align: left; padding: 8px 11px; border: none; border-top: 1px solid var(--rule);
     background: transparent; color: var(--b); cursor: pointer; font-family: inherit; font-size: 12px; }
   .showall:hover { text-decoration: underline; }

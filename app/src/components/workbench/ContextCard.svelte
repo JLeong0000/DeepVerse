@@ -31,8 +31,16 @@
 {#if study.verse == null}
   <div class="empty">Select a verse.</div>
 {:else}
-  <div class="hd">Passages that connect to <b>{bookName(study.book)} {study.chapter}:{study.verse}</b>
-    <span class="sub">· {total} cross-references, ranked by community relevance votes</span></div>
+  <div class="hd">
+    <span class="q">ⓘ</span> Passages that connect to <b>{bookName(study.book)} {study.chapter}:{study.verse}</b>
+    <span class="sub">· {total} cross-references, ranked by relevance</span>
+    <div class="tip">
+      Cross-references are curated links between passages that quote, echo, or teach the same thing —
+      a NT verse pointing back to the OT it fulfils, gospel parallels, a shared theme. They are not the
+      Bible referencing itself; they come from <b>OpenBible.info</b>’s community-compiled dataset, and the
+      number is how many people voted a link relevant (higher = stronger). Click one to jump there.
+    </div>
+  </div>
   {#if groups.length === 0}
     <div class="empty">No cross-references for this verse.</div>
   {:else}
@@ -55,8 +63,14 @@
 
 <style>
   .empty { color: var(--dim); font-size: 12px; font-style: italic; padding: 9px 11px; }
-  .hd { padding: 9px 11px 4px; font-size: 12px; color: var(--ink); line-height: 1.5; }
+  .hd { position: relative; padding: 9px 11px 4px; font-size: 12px; color: var(--ink); line-height: 1.5; }
   .hd .sub { color: var(--dim); font-size: .92em; }
+  .hd .q { cursor: help; color: var(--b); margin-right: 2px; }
+  .hd .tip { position: absolute; z-index: 40; left: 11px; right: 11px; top: 100%; margin-top: 2px;
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 12px; line-height: 1.5; color: var(--ink);
+    opacity: 0; visibility: hidden; transition: opacity .12s; }
+  .hd:hover .tip { opacity: 1; visibility: visible; }
   .grp { padding: 4px 11px 6px; }
   .grplbl { font-variant: small-caps; letter-spacing: .05em; font-size: 10.5px; color: var(--dim); margin: 6px 0 4px; }
   .xref { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; text-align: left;

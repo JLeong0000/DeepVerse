@@ -15,7 +15,7 @@
   const cls = (t) => (t === 'A' ? 'wA' : t === 'B' ? 'wB' : t === 'AB' ? 'wAB' : '');
 </script>
 
-<div class="v" class:sel={selected} onclick={(e) => onselect(verse, e.shiftKey)}
+<div class="v" class:sel={selected} data-verse={verse} onclick={(e) => onselect(verse, e.shiftKey)}
   onmousedown={(e) => { if (e.shiftKey) e.preventDefault(); }} role="button" tabindex="0">
   <span class="n">{verse}</span>{#each segments as seg}{#if seg.type}<span class={cls(seg.type)}>{seg.text}</span>{:else}{seg.text}{/if}{/each}
 </div>

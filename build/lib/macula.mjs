@@ -24,3 +24,12 @@ export function parseProximityLine(line) {
   if (!c[0] || !c[1] || Number.isNaN(distance)) return null;
   return { a: c[0].trim(), b: c[1].trim(), distance };
 }
+// Hebrew/Aramaic key normalizer. words.strongs "H7225G", Proximity "H2416d", and macula
+// strongnumberx "0871a" all disambiguate homographs with DIFFERENT suffix schemes that do not map
+// to each other, so we key on the base number: strip prefix/suffix -> "H" + 4-digit. Greek keeps
+// padStrong (its keys are already canonical); baseHeb returns null for non-H input.
+export function baseHeb(raw) {
+  const first = String(raw || '').split(',')[0].trim();
+  const m = first.replace(/^H/i, '').match(/^\d+/);
+  return m ? 'H' + m[0].padStart(4, '0') : null;
+}

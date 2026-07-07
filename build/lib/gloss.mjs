@@ -25,3 +25,16 @@ export function senseKey(gloss) {
   const head = words[words.length - 1] || normalizeGloss(gloss);
   return stemHead(head);
 }
+
+// Hebrew/Aramaic interlinear glosses carry grammatical baggage that senseKey (tuned for Greek/English)
+// misreads as distinct senses: pronominal suffixes ("heart/ my"), construct particles ("god of"), and
+// bracket markers ("<obj.>", "<to>"). Strip those, then reuse the shared senseKey stemmer. Used ONLY on
+// the hbo/arc path so the Greek Type-B calibration and its tests are untouched.
+const HEB_PRONOUN = /\/\s*(my|your|his|her|its|our|their|you|him|them|me|us)\b/g;
+export function hebrewSenseKey(gloss) {
+  const cleaned = String(gloss || '').toLowerCase()
+    .replace(/<[^>]*>/g, ' ')     // <obj.>, <to>, <the>
+    .replace(HEB_PRONOUN, ' ')    // pronominal suffix
+    .replace(/\bof\b/g, ' ');     // construct chain
+  return senseKey(cleaned);
+}

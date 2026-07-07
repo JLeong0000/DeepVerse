@@ -34,31 +34,14 @@ export function renderMarkdown(md) {
   return html;
 }
 
-// Apply a formatting action to a <textarea>'s current selection, in place.
-export function applyFormat(ta, type) {
-  const { selectionStart: s, selectionEnd: e, value } = ta;
-  const sel = value.slice(s, e);
-  let before = value.slice(0, s), after = value.slice(e), insert = sel, ns = s, ne = e;
+// HTML for a note body. Notes are now authored as HTML (WYSIWYG contenteditable); older notes were
+// saved as markdown, so render those on the fly.
+export function noteHtml(body) {
+  const s = String(body || '');
+  return /<[a-z][\s\S]*>/i.test(s) ? s : renderMarkdown(s);
+}
 
-  const wrap = (mark, ph) => { const t = sel || ph; insert = mark + t + mark; ns = s + mark.length; ne = ns + t.length; };
-  const perLine = (fn) => {
-    const ls = value.lastIndexOf('\n', s - 1) + 1;
-    const leIdx = value.indexOf('\n', e);
-    const end = leIdx === -1 ? value.length : leIdx;
-    const block = value.slice(ls, end).split('\n').map(fn).join('\n');
-    before = value.slice(0, ls); after = value.slice(end); insert = block; ns = ls; ne = ls + block.length;
-  };
-
-  switch (type) {
-    case 'bold': wrap('**', 'bold'); break;
-    case 'italic': wrap('*', 'italic'); break;
-    case 'code': wrap('`', 'code'); break;
-    case 'heading': perLine((l) => (l.startsWith('## ') ? l.slice(3) : '## ' + l)); break;
-    case 'bullet': perLine((l) => (/^[-*]\s/.test(l) ? l.replace(/^[-*]\s/, '') : '- ' + l)); break;
-    case 'number': perLine((l, i) => (/^\d+\.\s/.test(l) ? l.replace(/^\d+\.\s/, '') : `${i + 1}. ` + l)); break;
-  }
-  ta.value = before + insert + after;
-  ta.focus();
-  ta.setSelectionRange(ns, ne);
-  ta.dispatchEvent(new Event('input', { bubbles: true }));
+// True if a note body has no visible text (used for placeholders / empty checks).
+export function noteIsEmpty(body) {
+  return !String(body || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }

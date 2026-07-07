@@ -2,7 +2,7 @@
   import { allNotes, updateNote, deleteNote, exportNotes, importNotes } from '../lib/store.js';
   import { formatRef, bookName, bookOrder } from '../lib/refs.js';
   import { openStudy } from '../lib/router.svelte.js';
-  import { renderMarkdown } from '../lib/markdown.js';
+  import { noteHtml, noteIsEmpty } from '../lib/markdown.js';
   import NoteEditor from '../components/notes/NoteEditor.svelte';
 
   let notes = $state([]);
@@ -33,10 +33,9 @@
 
   function startEdit(note) { editingId = note.id; editBuf = note.body; }
   async function commitEdit(note) {
-    const body = editBuf.trim();
     editingId = null;
-    if (!body) { await deleteNote(note.id); await load(); }
-    else if (body !== note.body) { await updateNote(note.id, body); await load(); }
+    if (noteIsEmpty(editBuf)) { await deleteNote(note.id); await load(); }
+    else if (editBuf !== note.body) { await updateNote(note.id, editBuf); await load(); }
   }
   function jump(note) {
     const [book, chapter, verse] = note.ref.split('.');
@@ -87,7 +86,7 @@
               {#if editingId === note.id}
                 <NoteEditor bind:value={editBuf} onsave={() => commitEdit(note)} autofocus />
               {:else}
-                <div class="body md" onclick={() => startEdit(note)} role="button" tabindex="0">{@html renderMarkdown(note.body)}</div>
+                <div class="body md" onclick={() => startEdit(note)} role="button" tabindex="0">{@html noteHtml(note.body)}</div>
               {/if}
               <div class="d">{new Date(note.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
             </div>

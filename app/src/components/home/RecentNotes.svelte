@@ -2,7 +2,7 @@
   import { recentNotes } from '../../lib/store.js';
   import { formatRef } from '../../lib/refs.js';
   import { openStudy } from '../../lib/router.svelte.js';
-  import { renderMarkdown } from '../../lib/markdown.js';
+  import { noteHtml } from '../../lib/markdown.js';
 
   let notes = $state([]);
   $effect(() => { recentNotes(8).then(n => (notes = n)); });
@@ -30,7 +30,7 @@
     {#each notes as note}
       <div class="sticky" onclick={() => open(note)} role="button" tabindex="0">
         <div class="r">{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''}</div>
-        <div class="t md">{@html renderMarkdown(note.body)}</div>
+        <div class="t md">{@html noteHtml(note.body)}</div>
         <div class="d">{relDate(note.updated_at)}</div>
       </div>
     {/each}

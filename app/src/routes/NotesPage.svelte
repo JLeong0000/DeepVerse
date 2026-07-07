@@ -2,10 +2,14 @@
   import { allNotes, updateNote, deleteNote, exportNotes, importNotes } from '../lib/store.js';
   import { formatRef, bookName, bookOrder } from '../lib/refs.js';
   import { openStudy } from '../lib/router.svelte.js';
+  import { renderMarkdown } from '../lib/markdown.js';
+  import NoteEditor from '../components/notes/NoteEditor.svelte';
 
   let notes = $state([]);
   let filter = $state('');
   let fileInput;
+  let editingId = $state(null);
+  let editBuf = $state('');
 
   async function load() { notes = await allNotes(); notes.reverse(); } // newest first
   $effect(() => { load(); });
@@ -27,10 +31,12 @@
     return [...m.entries()].sort((a, b) => bookOrder(a[0]) - bookOrder(b[0]));
   });
 
-  async function edit(note, e) {
-    const body = e.target.value.trim();
+  function startEdit(note) { editingId = note.id; editBuf = note.body; }
+  async function commitEdit(note) {
+    const body = editBuf.trim();
+    editingId = null;
     if (!body) { await deleteNote(note.id); await load(); }
-    else if (body !== note.body) { await updateNote(note.id, body); }
+    else if (body !== note.body) { await updateNote(note.id, body); await load(); }
   }
   function jump(note) {
     const [book, chapter, verse] = note.ref.split('.');
@@ -78,7 +84,11 @@
               <div class="r" onclick={() => jump(note)} role="button" tabindex="0">
                 {formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''} →
               </div>
-              <textarea class="body" value={note.body} onblur={(e) => edit(note, e)}></textarea>
+              {#if editingId === note.id}
+                <NoteEditor bind:value={editBuf} onsave={() => commitEdit(note)} autofocus />
+              {:else}
+                <div class="body md" onclick={() => startEdit(note)} role="button" tabindex="0">{@html renderMarkdown(note.body)}</div>
+              {/if}
               <div class="d">{new Date(note.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
             </div>
           {/each}
@@ -104,6 +114,11 @@
   .sticky { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 11px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
   .r { font-size: 12px; font-variant: small-caps; letter-spacing: .04em; color: var(--a); cursor: pointer; }
   .r:hover { text-decoration: underline; }
-  .body { font-family: inherit; font-size: 13px; line-height: 1.5; border: none; background: transparent; color: var(--ink); resize: vertical; min-height: 46px; padding: 0; outline: none; }
+  .body.md { font-size: 13px; line-height: 1.5; color: var(--ink); cursor: text; min-height: 24px; }
+  .body.md:hover { color: var(--ink); }
   .d { font-size: 10px; color: var(--dim); }
+  .md :global(p) { margin: 0 0 6px; } .md :global(p:last-child) { margin-bottom: 0; }
+  .md :global(ul), .md :global(ol) { margin: 4px 0; padding-left: 20px; } .md :global(li) { margin: 2px 0; }
+  .md :global(h3), .md :global(h4), .md :global(h5) { margin: 6px 0 4px; font-size: 1.05em; }
+  .md :global(code) { font-family: ui-monospace, Menlo, monospace; font-size: .9em; background: color-mix(in srgb, var(--panel) 60%, var(--bg)); padding: 1px 4px; border-radius: 3px; }
 </style>

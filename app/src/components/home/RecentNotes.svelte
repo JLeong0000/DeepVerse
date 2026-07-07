@@ -2,6 +2,7 @@
   import { recentNotes } from '../../lib/store.js';
   import { formatRef } from '../../lib/refs.js';
   import { openStudy } from '../../lib/router.svelte.js';
+  import { renderMarkdown } from '../../lib/markdown.js';
 
   let notes = $state([]);
   $effect(() => { recentNotes(8).then(n => (notes = n)); });
@@ -29,7 +30,7 @@
     {#each notes as note}
       <div class="sticky" onclick={() => open(note)} role="button" tabindex="0">
         <div class="r">{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''}</div>
-        <div class="t">{note.body}</div>
+        <div class="t md">{@html renderMarkdown(note.body)}</div>
         <div class="d">{relDate(note.updated_at)}</div>
       </div>
     {/each}
@@ -47,7 +48,11 @@
   .sticky:nth-child(4n+4) { background: var(--sy4); transform: rotate(2deg); }
   .sticky:hover { transform: rotate(0) scale(1.03); }
   .sticky .r { font-size: 11px; font-variant: small-caps; letter-spacing: .04em; opacity: .7; }
-  .sticky .t { font-size: 12.5px; margin-top: 3px; line-height: 1.35; }
+  .sticky .t { font-size: 12.5px; margin-top: 3px; line-height: 1.35; max-height: 8.5em; overflow: hidden; }
   .sticky .d { font-size: 9.5px; opacity: .55; margin-top: 7px; }
+  .md :global(p) { margin: 0 0 3px; } .md :global(p:last-child) { margin-bottom: 0; }
+  .md :global(ul), .md :global(ol) { margin: 2px 0; padding-left: 16px; } .md :global(li) { margin: 1px 0; }
+  .md :global(h3), .md :global(h4), .md :global(h5) { margin: 3px 0 2px; font-size: 1em; }
+  .md :global(strong) { font-weight: 700; }
   .empty { color: var(--dim); font-size: 13px; font-style: italic; margin-top: 8px; }
 </style>

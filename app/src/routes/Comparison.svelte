@@ -13,6 +13,21 @@
   let leftVerses = $derived(getChapter(left, study.book, study.chapter));
   let rightVerses = $derived(getChapter(right, study.book, study.chapter));
   let maxChapter = $derived(books.find(b => b.book === study.book)?.chapters || 1);
+
+  // synchronized scrolling: scrolling one pane scrolls the other to the same fraction.
+  let syncScroll = $state(true);
+  let textEls = $state([]);
+  let lock = false;
+  function sync(from) {
+    if (!syncScroll || lock) return;
+    const a = textEls[from], b = textEls[from === 0 ? 1 : 0];
+    if (!a || !b) return;
+    lock = true;
+    const denom = a.scrollHeight - a.clientHeight;
+    const ratio = denom > 0 ? a.scrollTop / denom : 0;
+    b.scrollTop = ratio * (b.scrollHeight - b.clientHeight);
+    requestAnimationFrame(() => { lock = false; });
+  }
 </script>
 
 <div class="compare">
@@ -25,17 +40,18 @@
     <span>{bookName(study.book)} {study.chapter}</span>
     <button onclick={() => study.chapter < maxChapter && goToPassage({ book: study.book, chapter: study.chapter + 1 })} disabled={study.chapter >= maxChapter}>›</button>
   </div>
+  <label class="synctoggle"><input type="checkbox" bind:checked={syncScroll} /> sync scroll</label>
 </div>
 
 <div class="cmp">
-  {#each [{ v: left, set: (x) => (left = x), verses: leftVerses }, { v: right, set: (x) => (right = x), verses: rightVerses }] as col}
+  {#each [{ v: left, set: (x) => (left = x), verses: leftVerses }, { v: right, set: (x) => (right = x), verses: rightVerses }] as col, i}
     <div class="col">
       <div class="colhd">
         <select class="chip" value={col.v} onchange={(e) => col.set(e.target.value)}>
           {#each VERSIONS as v}<option value={v}>{v}</option>{/each}
         </select>
       </div>
-      <div class="text">
+      <div class="text" bind:this={textEls[i]} onscroll={() => sync(i)}>
         {#each col.verses as row (row.verse)}
           <div class="v"><span class="n">{row.verse}</span>{row.text}</div>
         {/each}
@@ -52,6 +68,9 @@
   .nav { display: flex; align-items: center; gap: 8px; color: var(--dim); font-variant: small-caps; letter-spacing: .05em; }
   .nav button { border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 4px; width: 24px; height: 22px; cursor: pointer; }
   .nav button:disabled { opacity: .35; }
+  .synctoggle { margin-left: auto; display: flex; align-items: center; gap: 5px; color: var(--dim);
+    font-variant: small-caps; letter-spacing: .04em; font-size: 11px; cursor: pointer; }
+  .synctoggle input { accent-color: var(--a); cursor: pointer; }
   .cmp { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; }
   .col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-right: 1px solid var(--rule); }
   .col:last-child { border-right: none; }

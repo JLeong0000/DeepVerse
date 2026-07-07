@@ -84,7 +84,7 @@ function runLanguageGroup(db, insD, cfg) {
   const properNoun = new Set();   // base strongs whose majority morph is a proper noun (Np)
   const repSense = new Map();     // base strongs -> representative cleaned sense key (most common gloss)
   if (typeA && typeA.excludeProperNouns) {
-    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE '%Np%' THEN 1 ELSE 0 END) np, COUNT(*) tot
+    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%' THEN 1 ELSE 0 END) np, COUNT(*) tot
         FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
       const k = normKey(r.strongs); if (k && r.np > r.tot / 2) properNoun.add(k);
     }

@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { loadHebrewDomains } from '../lib/macula-hebrew.mjs';
 import { computeDifferences, isHebrewContent } from '../lib/differences.mjs';
-import { hebrewSenseKey } from '../lib/gloss.mjs';
 
 const HEB_DIR = '../sources/macula-hebrew/WLC/lowfat';
 let db;
@@ -77,10 +76,9 @@ test('Type A never fires on proper nouns (hamul H2538)', () => {
   assert.equal(n, 0);
 });
 
-test('Type A near-synonyms always differ in English sense (no identical-gloss pairs)', () => {
-  // spot check: a Hebrew Type A row's used word and its near-synonyms must not share the same cleaned sense.
+test('Type A near-synonyms: a word is never its own near-synonym, and near-synonyms are present', () => {
+  // spot check: a Hebrew Type A row's near-synonym list must exclude the word itself and be non-empty.
   const row = db.prepare("SELECT strongs, detail FROM differences WHERE type='A' AND strongs LIKE 'H1330%' LIMIT 1").get();
-  const used = hebrewSenseKey('virgin');
   const synKeys = JSON.parse(row.detail).nearSynonyms.map(s => s.strongs);
   assert.ok(!synKeys.includes('H1330'), 'a word is never its own near-synonym');
   assert.ok(synKeys.length >= 1);

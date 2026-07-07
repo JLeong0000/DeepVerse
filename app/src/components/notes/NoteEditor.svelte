@@ -1,12 +1,12 @@
 <script>
-  import { applyFormat } from '../../lib/markdown.js';
+  import { applyFormat, renderMarkdown } from '../../lib/markdown.js';
   let { value = $bindable(''), placeholder = 'Add a note… (markdown)', onsave, autofocus = false } = $props();
   let ta;
   // apply formatting without losing focus/selection (mousedown-preventDefault keeps the textarea focused)
   function fmt(type) { applyFormat(ta, type); value = ta.value; }
   const tools = [
-    ['bold', 'B', 'Bold', 'b'], ['italic', 'I', 'Italic', 'i'], ['heading', 'H', 'Heading', 'h'],
-    ['bullet', '•', 'Bullet list', 'b2'], ['number', '1.', 'Numbered list', 'n'], ['code', '‹›', 'Code', 'c'],
+    ['bold', 'B', 'Bold'], ['italic', 'I', 'Italic'], ['heading', 'H', 'Heading'],
+    ['bullet', '•', 'Bullet list'], ['number', '1.', 'Numbered list'], ['code', '‹›', 'Code'],
   ];
 </script>
 
@@ -17,8 +17,10 @@
     {/each}
   </div>
   <!-- svelte-ignore a11y_autofocus -->
-  <textarea bind:this={ta} bind:value {placeholder} {autofocus}
-    onblur={() => onsave?.()}></textarea>
+  <textarea bind:this={ta} bind:value {placeholder} {autofocus} onblur={() => onsave?.()}></textarea>
+  {#if value.trim()}
+    <div class="preview md" aria-label="preview">{@html renderMarkdown(value)}</div>
+  {/if}
 </div>
 
 <style>
@@ -30,5 +32,13 @@
   .tb:hover { border-color: var(--rule); background: var(--bg); }
   .tb.bold { font-weight: 700; } .tb.italic { font-style: italic; } .tb.heading { font-weight: 700; }
   textarea { font-family: inherit; font-size: 13px; line-height: 1.5; padding: 8px 9px; border: none; outline: none;
-    background: transparent; color: var(--ink); resize: vertical; min-height: 54px; }
+    background: transparent; color: var(--ink); resize: vertical; min-height: 50px; }
+  .preview { font-size: 13px; line-height: 1.5; padding: 8px 9px; border-top: 1px dashed var(--rule);
+    background: color-mix(in srgb, var(--panel) 45%, var(--bg)); }
+  /* rendered-markdown primitives */
+  .md :global(p) { margin: 0 0 6px; } .md :global(p:last-child) { margin-bottom: 0; }
+  .md :global(ul), .md :global(ol) { margin: 4px 0; padding-left: 20px; } .md :global(li) { margin: 2px 0; }
+  .md :global(h3), .md :global(h4), .md :global(h5) { margin: 6px 0 4px; font-size: 1.05em; }
+  .md :global(code) { font-family: ui-monospace, Menlo, monospace; font-size: .9em; background: color-mix(in srgb, var(--panel) 60%, var(--bg)); padding: 1px 4px; border-radius: 3px; }
+  .md :global(strong) { font-weight: 700; }
 </style>

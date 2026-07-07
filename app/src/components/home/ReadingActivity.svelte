@@ -5,7 +5,10 @@
   const map = activityMap();
   const iso = (d) => d.toISOString().slice(0, 10);
 
-  // Build WEEKS columns × 7 days ending today (last column = current week).
+  const fmtDay = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+
+  // Build WEEKS columns × 7 days ending today (last column = current week). Each cell carries its
+  // level + a hover label (chapters read that day).
   function buildColumns() {
     const today = new Date();
     const end = new Date(today); end.setDate(end.getDate() + (6 - end.getDay())); // Saturday of this week
@@ -15,7 +18,9 @@
       for (let d = 0; d < 7; d++) {
         const day = new Date(end);
         day.setDate(end.getDate() - (w * 7) + (d - 6));
-        col.push(day > today ? -1 : activityLevel(map[iso(day)] || 0));
+        if (day > today) { col.push({ lv: -1, title: '' }); continue; }
+        const n = map[iso(day)] || 0;
+        col.push({ lv: activityLevel(n), title: `${n === 0 ? 'No chapters' : n === 1 ? '1 chapter' : `${n} chapters`} · ${fmtDay(day)}` });
       }
       cols.push(col);
     }
@@ -39,8 +44,9 @@
   <div class="grid">
     {#each columns as col}
       <div class="col">
-        {#each col as lv}
-          <div class="cell" class:l1={lv === 1} class:l2={lv === 2} class:l3={lv === 3} class:l4={lv === 4} class:blank={lv === -1}></div>
+        {#each col as cell}
+          <div class="cell" class:l1={cell.lv === 1} class:l2={cell.lv === 2} class:l3={cell.lv === 3} class:l4={cell.lv === 4} class:blank={cell.lv === -1}
+            title={cell.title}></div>
         {/each}
       </div>
     {/each}

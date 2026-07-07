@@ -2,7 +2,17 @@
 
 > Running capture of what we're building and the ideas/decisions behind it.
 > This is the informal tracker; formal designs live in `docs/superpowers/specs/`.
-> Last updated: 2026-07-05
+> Last updated: 2026-07-07
+
+## ✅ Phase 1 shipped (2026-07-07)
+
+Segment 1 / Phase 1 (data-driven, no AI) is **done and committed**: `data/bible.db` v2 + the `app/` PWA.
+Built beyond the base plans through several rounds of user feedback — highlights: Type-A difference engine
+tightened (band + Louw-Nida sub-domain + frequency cap), Type-B sense-clustering (soul/life, love/kiss),
+map-aware reader underlines, verse-range notes, WYSIWYG rich-text notes, cross-refs with previews + jump,
+hierarchical lexicon definitions, URL history/deep-links, Compare verse-aligned grid ↔ gridless toggle,
+reading-activity hover, offline PWA, DeepVerse logo. Non-obvious decisions live in the memory files.
+**Next:** macula-hebrew (OT differences) → AI prose layer (Phase 2) → Map/Discover (Segment 2).
 
 ## The app in two segments
 

@@ -38,7 +38,23 @@ data) is that there are **two types** of difference:
 | **Raw sources** (CC-BY, gitignored) | `sources/STEPBible-Data`, `sources/openbible`, `sources/macula-greek`, `sources/morphhb` |
 | **Build scripts** | `build/` (Node, `node:sqlite`) |
 
-## Current state (what's done)
+## Status: PHASE 1 COMPLETE ✅ (2026-07-07)
+
+Both plans shipped and the app is built, verified in-browser, and committed (git initialized this
+phase). Gates green: `build/` `npm run build` exits 0; `app/` `npm run build` exits 0; tests 25/25
+(build) + 26/26 (app). Run the app: `cd app && npm run dev` → http://localhost:5173.
+
+- **bible.db v2 ✓** (Plan 1) — versification bug fixed (Dan 4/6 back), 3-way grc/hbo/arc, MACULA
+  semantic tables, precomputed **differences** (Type A tightened; Type B sense-clustered). Full DB
+  ~128 MB in `data/`; the shipped `app/public/bible.db` is slimmed to ~112 MB (build-only tables dropped).
+- **App ✓** (Plan 2, M0–M6 + many iterations) — Vite + Svelte 5 + sql.js + IndexedDB PWA, Scholarly-print
+  light/dark. Home, Study (reader + workbench cards: Differences/Original/Context/Stats/Notes),
+  Compare (verse-aligned grid ↔ gridless), Notes page. Offline verified. URL history + deep links.
+  WYSIWYG notes. DeepVerse logo/branding wired.
+- See memory `phase1-status`, `plan1-deviations`, `differences-engine-calibration` for the non-obvious
+  decisions (esp. the 6 plan bugs fixed and the Type-A/B calibration).
+
+## Data foundations (built earlier)
 
 - **Text data ✓** — NIV (1984), NKJV, NLT (current 2015) parsed to per-book JSON in `data/bibles/`.
   (NIV/NKJV/NLT were user-sourced PDFs; NLT current came from the free api.nlt.to. NIV is stuck at 1984 —
@@ -91,14 +107,21 @@ concordance, cross-refs.) OPFS/`wa-sqlite` is the mobile upgrade path.
 pre-generated Claude (grounded) is the plan; a lightweight local model is explicitly *not* recommended
 (weak on Koine Greek). See spec §1 and the tracker.
 
-## What to do next
+## What to do next (Phase 1 is done — this is Phase 2+)
 
-1. Read the spec (`docs/superpowers/specs/2026-07-05-study-bible-workflow-design.md`).
-2. Execute **Plan 1** (`docs/superpowers/plans/2026-07-05-bible-db-v2.md`) — rebuild `bible.db` v2. It has
-   a validation gate; `npm run build` must exit 0.
-3. Then execute **Plan 2** (`docs/superpowers/plans/2026-07-05-app-phase1.md`) — the app.
-4. Before UI work, open the mockups in a browser to see the target.
+Phase 1 is complete (see Status above). The two plans are executed; treat them as historical record.
+Next candidates, roughly in priority order:
 
-> This project is **not a git repo yet** — running `git init` was offered and not yet done. Do it before
-> the first commit (the plans assume git). `.gitignore` already excludes `sources/`, `node_modules/`,
-> `data/*.db`, `.superpowers/`.
+1. **macula-hebrew (OT differences).** Type A/B currently cover the **Greek NT only**. Fetch macula-hebrew
+   (needs git-lfs) and extend `build/lib/differences.mjs` + `word_domain` to Hebrew/Aramaic. Biggest data gap.
+2. **Type A quality.** Tightened but a few moderate-frequency common words (take, name, write) still fire;
+   consider a rarity-based ranking so the *representative* A is the most deliberate word. See
+   `differences-engine-calibration` memory.
+3. **Phase 2 — AI prose layer.** Pre-generated, RAG-grounded, human-reviewed Claude explanations ("why the
+   nuance matters") shipped as static data; plus Level-3 context (book/timeline/culture — needs new data).
+   Spec §1 + tracker. No live model in the core.
+4. **Segment 2 — Map / Discover** (OpenBible `ancient.jsonl` + DARE period tiles as PMTiles). Deferred.
+5. **Polish/mobile:** OPFS/`wa-sqlite` if the ~112 MB in-RAM DB strains mobile; further DB slimming.
+
+> Git is initialized; `.gitignore` excludes `sources/`, `node_modules/`, `data/*.db`, `app/node_modules/`,
+> `app/dist/`, `app/public/bible.db`, `.superpowers/`. Deploy: static bundle → Cloudflare Pages, or installed PWA.

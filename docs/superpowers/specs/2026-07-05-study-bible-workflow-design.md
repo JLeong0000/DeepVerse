@@ -1,7 +1,11 @@
 # Study Bible Workflow — Design (Phase 1)
 
-**Project:** DeepVerse · **Date:** 2026-07-05 · **Status:** for review
+**Project:** DeepVerse · **Date:** 2026-07-05 · **Status:** IMPLEMENTED (Phase 1 complete 2026-07-07)
 **Scope:** Segment 1 (Study Bible workflow), Phase 1 (data-driven, no AI).
+
+> Phase 1 shipped: `data/bible.db` v2 + the `app/` PWA (Home, Study, Compare, Notes). Deviations from
+> the plans and calibration decisions are recorded in the memory files (`phase1-status`, `plan1-deviations`,
+> `differences-engine-calibration`). This spec remains the authoritative design record.
 
 ---
 

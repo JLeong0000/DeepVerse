@@ -8,6 +8,7 @@ import { parseWordRef } from './lib/refs.mjs';
 import { deriveLang } from './lib/lang.mjs';
 import { normalizeGloss } from './lib/gloss.mjs';
 import { parseMaculaGreekLine, parseProximityLine, padStrong } from './lib/macula.mjs';
+import { loadHebrewDomains } from './lib/macula-hebrew.mjs';
 import { computeDifferences } from './lib/differences.mjs';
 
 const ROOT = '/Users/justinleong/Desktop/Coding/DeepVerse';
@@ -118,6 +119,10 @@ const maculaGreek = `${ROOT}/sources/macula-greek/SBLGNT/tsv/macula-greek-SBLGNT
   }});
 }
 console.log('word_domain:', db.prepare('SELECT COUNT(*) n FROM word_domain').get().n);
+
+// 5b) MACULA HEBREW: SDBH domains for Hebrew + Aramaic (word_domain hbo/arc)
+loadHebrewDomains(db, `${ROOT}/sources/macula-hebrew/WLC/lowfat`);
+console.log('word_domain (+Hebrew/Aramaic):', db.prepare('SELECT COUNT(*) n FROM word_domain').get().n);
 
 const proximity = `${ROOT}/sources/macula-greek/sources/Clear/synonyms/Proximity.tsv`;
 {

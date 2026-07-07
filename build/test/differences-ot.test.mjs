@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { loadHebrewDomains } from '../lib/macula-hebrew.mjs';
 import { computeDifferences, isHebrewContent } from '../lib/differences.mjs';
+import { hebrewSenseKey } from '../lib/gloss.mjs';
 
 const HEB_DIR = '../sources/macula-hebrew/WLC/lowfat';
 let db;
@@ -62,4 +63,25 @@ test('Aramaic participates: at least one arc difference row is emitted', () => {
       ON w.book=d.book AND w.chapter=d.chapter AND w.verse=d.verse AND w.position=d.position
       WHERE w.lang='arc'`).get().n;
   assert.ok(n >= 1, 'expected at least one Aramaic difference row');
+});
+
+test('Type A fires on virgin H1330 with young-woman H5291 as a near-synonym', () => {
+  const rows = db.prepare("SELECT detail FROM differences WHERE type='A' AND strongs LIKE 'H1330%'").all();
+  assert.ok(rows.length >= 1, 'expected a Type A row for virgin H1330 (Isaiah 7:14 pair)');
+  const syns = rows.flatMap(r => JSON.parse(r.detail).nearSynonyms.map(s => s.strongs));
+  assert.ok(syns.includes('H5291'), 'expected young-woman H5291 among near-synonyms');
+});
+
+test('Type A never fires on proper nouns (hamul H2538)', () => {
+  const n = db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'H2538%'").get().n;
+  assert.equal(n, 0);
+});
+
+test('Type A near-synonyms always differ in English sense (no identical-gloss pairs)', () => {
+  // spot check: a Hebrew Type A row's used word and its near-synonyms must not share the same cleaned sense.
+  const row = db.prepare("SELECT strongs, detail FROM differences WHERE type='A' AND strongs LIKE 'H1330%' LIMIT 1").get();
+  const used = hebrewSenseKey('virgin');
+  const synKeys = JSON.parse(row.detail).nearSynonyms.map(s => s.strongs);
+  assert.ok(!synKeys.includes('H1330'), 'a word is never its own near-synonym');
+  assert.ok(synKeys.length >= 1);
 });

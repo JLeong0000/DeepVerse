@@ -44,7 +44,8 @@ export function computeDifferences(db) {
   runLanguageGroup(db, insD, {
     langs: ['hbo', 'arc'], keyPrefix: 'H', normKey: baseHeb,
     isContent: isHebrewContent, senseKeyFn: hebrewSenseKey, topFn: hebTop,
-    typeA: null,   // Type B only in this task; Type A added in Task 6
+    typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX, freqMin: SENSE_MIN_LEMMA_OCC,
+             excludeProperNouns: true, requireDiffSense: true },
   });
 
   db.exec('CREATE INDEX idx_diff_ref ON differences(book,chapter,verse);');
@@ -79,6 +80,26 @@ function runLanguageGroup(db, insD, cfg) {
     const k = normKey(r.strongs); if (k) freq.set(k, (freq.get(k) || 0) + r.n);
   }
 
+  // --- OT-only Type-A precision filters (empty/no-op unless the group requests them) ---
+  const properNoun = new Set();   // base strongs whose majority morph is a proper noun (Np)
+  const repSense = new Map();     // base strongs -> representative cleaned sense key (most common gloss)
+  if (typeA && typeA.excludeProperNouns) {
+    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE '%Np%' THEN 1 ELSE 0 END) np, COUNT(*) tot
+        FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
+      const k = normKey(r.strongs); if (k && r.np > r.tot / 2) properNoun.add(k);
+    }
+  }
+  if (typeA && typeA.requireDiffSense) {
+    const top = new Map(); // k -> {c, key}
+    for (const r of db.prepare(`SELECT strongs, gloss_norm, COUNT(*) c FROM words
+        WHERE lang IN (${inClause}) AND gloss_norm<>'' GROUP BY strongs, gloss_norm`).all()) {
+      const k = normKey(r.strongs); if (!k) continue;
+      const e = top.get(k);
+      if (!e || r.c > e.c) top.set(k, { c: r.c, key: senseKeyFn(r.gloss_norm) });
+    }
+    for (const [k, e] of top) repSense.set(k, e.key);
+  }
+
   // --- near-synonyms of a strongs: same top domain, different full domain, distance in band, nearest first ---
   const nearSynCache = new Map();
   function nearSyn(strongs) {
@@ -87,7 +108,11 @@ function runLanguageGroup(db, insD, cfg) {
     let out = [];
     if (typeA && dom && adj.has(strongs)) {
       out = [...adj.get(strongs)]
-        .filter(([o, d]) => d >= typeA.synMin && d <= typeA.synMax && lnTop.get(o) === dom && lnFull.get(o) !== sub)
+        .filter(([o, d]) => d >= typeA.synMin && d <= typeA.synMax
+          && lnTop.get(o) === dom && lnFull.get(o) !== sub
+          && (!typeA.freqMin || ((freq.get(o) || 0) >= typeA.freqMin && (freq.get(strongs) || 0) >= typeA.freqMin))
+          && (!typeA.excludeProperNouns || (!properNoun.has(o) && !properNoun.has(strongs)))
+          && (!typeA.requireDiffSense || (repSense.get(o) && repSense.get(strongs) && repSense.get(o) !== repSense.get(strongs))))
         .sort((x, y) => x[1] - y[1]).slice(0, 4)
         .map(([o, d]) => ({ strongs: o, distance: Number(d.toFixed(3)) }));
     }

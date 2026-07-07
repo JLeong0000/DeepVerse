@@ -1,5 +1,6 @@
 // build/lib/differences.mjs
-import { senseKey } from './gloss.mjs';
+import { senseKey, hebrewSenseKey } from './gloss.mjs';
+import { baseHeb } from './macula.mjs';
 // Precompute the interpretive-difference table. Type A (synonym collapse): a content word whose Strong's
 // has a near-synonym (different Strong's) sharing its top-level semantic domain but a different sub-domain,
 // with a proximity distance in a BAND [synMin, synMax]. Type B (sense spread): a lemma whose glosses
@@ -18,6 +19,16 @@ const SENSE_MIN_LEMMA_OCC = 8;
 const isGreekContent = m => /^(N-|V-|A-|N|V)/.test(String(m || '')) && !/^(ADV|CONJ|PREP|PRT|T-)/.test(m);
 const grcTop = ln => String(ln || '').split('.')[0];
 
+// Hebrew/Aramaic content-word test: a leading H (Hebrew) or A (Aramaic) LANG marker is present only when
+// the next char is an uppercase POS letter; strip it, then accept common noun (Nc), verb (V), adjective (A).
+// This distinguishes the lang-marker 'A' from the adjective POS 'A' (which is followed by a lowercase class).
+export function isHebrewContent(morph) {
+  const m = String(morph || '');
+  const rest = /^[HA][A-Z]/.test(m) ? m.slice(1) : m;
+  return /^(Nc|V|A)/.test(rest);
+}
+const hebTop = ln => String(ln || '').slice(0, 3);
+
 export function computeDifferences(db) {
   db.exec(`DROP TABLE IF EXISTS differences;
     CREATE TABLE differences (book TEXT, chapter INTEGER, verse INTEGER, position INTEGER,
@@ -28,6 +39,12 @@ export function computeDifferences(db) {
     langs: ['grc'], keyPrefix: 'G', normKey: s => s,
     isContent: isGreekContent, senseKeyFn: senseKey, topFn: grcTop,
     typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX },
+  });
+
+  runLanguageGroup(db, insD, {
+    langs: ['hbo', 'arc'], keyPrefix: 'H', normKey: baseHeb,
+    isContent: isHebrewContent, senseKeyFn: hebrewSenseKey, topFn: hebTop,
+    typeA: null,   // Type B only in this task; Type A added in Task 6
   });
 
   db.exec('CREATE INDEX idx_diff_ref ON differences(book,chapter,verse);');

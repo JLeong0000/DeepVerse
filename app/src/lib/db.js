@@ -70,10 +70,11 @@ export function getWordOfDay(seed = new Date().toISOString().slice(0, 10)) {
   for (const c of String(seed)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
   const r = rows[h % rows.length];
   const [book, chapter, verse, position] = r.anchor.split('/');
-  const w = query('SELECT original, translit, gloss FROM words WHERE book=? AND chapter=? AND verse=? AND position=?',
+  const w = query('SELECT original, translit, gloss, lang FROM words WHERE book=? AND chapter=? AND verse=? AND position=?',
     [book, +chapter, +verse, +position])[0] || {};
   return {
     strongs: r.strongs,
+    lang: w.lang || '',
     original: (w.original || '').replace(/[¶.,;:·’'"]+$/u, '').trim(), // drop trailing markers for display
     translit: w.translit || '',
     senses: JSON.parse(r.detail).senses,

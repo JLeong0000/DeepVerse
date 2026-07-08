@@ -2,6 +2,7 @@
   import { getInterlinear, getVerseDifferences, getLexicon, countLemma, getChapterLanguages } from '../../lib/db.js';
   import { study, selectWord } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
+  import { parseDefinition, readTranslit } from '../../lib/display.js';
 
   let words = $derived(study.verse == null ? [] : getInterlinear(study.book, study.chapter, study.verse));
   let langs = $derived(getChapterLanguages(study.book, study.chapter));
@@ -22,21 +23,10 @@
     if (!w?.strongs) return null;
     return { word: w, lex: getLexicon(w.strongs), conc: countLemma(w.strongs) };
   });
-  // STEPBible definitions cram all senses onto one line, separated by "__" markers, with a 3-level
-  // hierarchy: Roman (I., II.) > arabic (1., 2.) > lettered ((a), (b)). Parse each into a level + marker
-  // so we can indent instead of bulleting.
-  let defSenses = $derived.by(() => {
-    const d = detail?.lex?.definition;
-    if (!d) return [];
-    return d.split(/\s*__\s*/).map(s => s.trim()).filter(Boolean).map((s, i) => {
-      let m;
-      if (i === 0) return { level: -1, marker: '', text: s };            // lead: headword + etymology
-      if ((m = s.match(/^([IVX]+)\.\s*/))) return { level: 0, marker: m[1] + '.', text: s.slice(m[0].length) };
-      if ((m = s.match(/^(\d+)\.\s*/))) return { level: 1, marker: m[1] + '.', text: s.slice(m[0].length) };
-      if ((m = s.match(/^\(([^)]+)\)\s*/))) return { level: 2, marker: '(' + m[1] + ')', text: s.slice(m[0].length) };
-      return { level: -1, marker: '', text: s };
-    });
-  });
+  // STEPBible definitions cram all senses onto one line. Greek uses "__" delimiters + Roman/arabic/lettered
+  // markers; Hebrew (BDB) uses inline "1) / 1a) / 1a1)" numbering. parseDefinition handles both and returns
+  // {level, marker, text} rows so we can indent instead of showing one run-on line.
+  let defSenses = $derived.by(() => parseDefinition(detail?.lex?.definition));
 
   let detailEl = $state(null);
   $effect(() => { if (detail && detailEl) detailEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
@@ -53,14 +43,14 @@
       <div class="iw {markClass(w.position)}" onclick={() => selectWord({ strongs: w.strongs, ...w })} role="button" tabindex="0"
         class:active={study.word?.position === w.position && study.word?.strongs === w.strongs}>
         <span class="g grk">{w.original}</span>
-        <span class="p">{w.translit}</span>
+        <span class="p">{readTranslit(w.translit)}</span>
         <span class="e">{w.gloss}</span>
       </div>
     {/each}
   </div>
   {#if detail}
     <div class="wdetail" bind:this={detailEl}>
-      <div class="wtop"><span class="grk big">{detail.word.original}</span> <span class="tl">{detail.word.translit}</span>
+      <div class="wtop"><span class="grk big">{detail.word.original}</span> <span class="tl">{readTranslit(detail.word.translit)}</span>
         <span class="strong">{detail.word.strongs}</span>{#if detail.word.morph} <span class="morph">{detail.word.morph}</span>{/if}</div>
       {#if detail.lex}
         {#if detail.lex.gloss}<div class="gloss">{detail.lex.gloss}</div>{/if}

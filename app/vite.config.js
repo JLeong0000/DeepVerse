@@ -12,6 +12,7 @@ export default defineConfig({
         // precache the app shell + wasm; the 135 MB bible.db is too big to precache, so it is
         // runtime-cached (CacheFirst) — after the first load the whole app works offline.
         globPatterns: ['**/*.{js,css,html,wasm}'],
+        globIgnores: ['**/tts/**'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
@@ -22,6 +23,11 @@ export default defineConfig({
               expiration: { maxEntries: 1 },
               cacheableResponse: { statuses: [0, 200] },
             },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/tts/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'tts-assets', expiration: { maxEntries: 8 } },
           },
         ],
       },
@@ -51,7 +57,12 @@ export default defineConfig({
         conditions: ['browser'],
         alias: { 'sql.js': fileURLToPath(new URL('./node_modules/sql.js/dist/sql-wasm.js', import.meta.url)) },
       }
-    : undefined,
+    // onnxruntime-web's default export condition resolves to the "bundle" build, which embeds a
+    // static `new URL('ort-*.wasm', import.meta.url)` reference that Vite bundles as a ~27 MB dist/
+    // asset — even though mms.js overrides ort.env.wasm.wasmPaths to load the vendored copy under
+    // /tts/ort/ instead. This condition switches to the "extern wasm" build, which has no such
+    // static reference, so nothing gets double-bundled.
+    : { conditions: ['onnxruntime-web-use-extern-wasm'] },
   test: {
     environment: 'jsdom',
     globals: true,

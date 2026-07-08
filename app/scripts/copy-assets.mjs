@@ -35,3 +35,12 @@ db.exec('VACUUM;');
 db.close();
 const after = fs.statSync(dbDest).size;
 console.log(`copy-assets: bible.db slimmed ${(before / 1e6).toFixed(1)} → ${(after / 1e6).toFixed(1)} MB`);
+
+// onnxruntime-web wasm — vendored so Hebrew TTS works offline (no CDN fetch).
+const ortSrc = path.resolve(appRoot, 'node_modules/onnxruntime-web/dist');
+const ortDest = path.join(publicDir, 'tts', 'ort');
+fs.mkdirSync(ortDest, { recursive: true });
+for (const f of fs.readdirSync(ortSrc)) {
+  if (f.endsWith('.wasm') || f.endsWith('.mjs')) fs.copyFileSync(path.join(ortSrc, f), path.join(ortDest, f));
+}
+console.log('copy-assets: onnxruntime-web wasm -> public/tts/ort/');

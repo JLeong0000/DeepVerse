@@ -7,6 +7,7 @@ export function go(view, params = {}) {
 }
 
 // Jump into Study mode at a target position (from Resume, a note, word-of-the-day).
-export function openStudy({ version = 'NIV', book, chapter, verse = null } = {}) {
-  go('study', { version, book, chapter, verse });
+// `word` (optional) pre-selects an interlinear word by { position } so its detail opens.
+export function openStudy({ version = 'NIV', book, chapter, verse = null, word = null } = {}) {
+  go('study', { version, book, chapter, verse, word });
 }

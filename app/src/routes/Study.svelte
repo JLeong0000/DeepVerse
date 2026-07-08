@@ -1,7 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { route } from '../lib/router.svelte.js';
-  import { study, goToPassage, selectVerse } from '../lib/study.svelte.js';
+  import { study, goToPassage, selectVerse, selectWord } from '../lib/study.svelte.js';
+  import { getInterlinear } from '../lib/db.js';
   import { getPref, setPref } from '../lib/store.js';
   import Reader from '../components/reader/Reader.svelte';
   import Workbench from '../components/workbench/Workbench.svelte';
@@ -16,6 +17,10 @@
     const p = route.params;
     if (p?.book) { goToPassage({ version: p.version, book: p.book, chapter: p.chapter, verse: p.verse ?? null }); }
     if (p?.verse) selectVerse(p.verse);
+    if (p?.word && p?.verse) {
+      const iw = getInterlinear(p.book, p.chapter, p.verse).find(x => x.position === p.word.position);
+      if (iw) selectWord(iw);
+    }
   });
 
   function cycleOrientation() { orientation = orientation === 'lr' ? 'tb' : 'lr'; setPref('splitOrientation', orientation); }

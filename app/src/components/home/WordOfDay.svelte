@@ -10,7 +10,7 @@
 </script>
 
 {#if w}
-  <section class="wotd" onclick={() => openStudy(w.ref)} role="button" tabindex="0">
+  <section class="wotd" onclick={() => openStudy({ ...w.ref, word: { position: w.position } })} role="button" tabindex="0">
     <div class="head">
       <span class="lbl">Word of the day</span>
       <span class="tag">B · sense-spread</span>

@@ -26,7 +26,10 @@ reading-activity hover, offline PWA, DeepVerse logo. Non-obvious decisions live 
   (BDB `1) 1a) 1a1)` hierarchy); transliteration renders the morpheme `/` as a hyphen for pronunciation.
 - **Study mode** — reader/workbench split is now **resizable** (drag the divider + `⠿` grip, persisted).
 - **Home** — **jump-to-verse** on the greeting line (free-form refs, `parseReference`); more greetings
-  (6→35); word-of-day drops its canned closing line.
+  (6→35); word-of-day drops its canned closing line. The greeting **verse subtitle is now clickable**
+  (opens its cited verse; the non-verse subline stays plain text), and clicking **Word of the day** now
+  also selects that day's anchor word in the **Original** interlinear card + scrolls its definition into
+  view (reuses the existing word-selection effects, so no new plumbing).
 - **Compare** — aligned-grid rules now line up across versions (paired cells share row height).
 - **Type-A quality pass** — reader underline + Differences card now surface the **rarest** (most deliberate)
   Type-A/B word per verse, not the first by position ("intelligent" over "written", "nephesh" over "said").

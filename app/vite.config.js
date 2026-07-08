@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -40,6 +41,17 @@ export default defineConfig({
       },
     }),
   ],
+  // Under Vitest, resolve Svelte's browser build (not the server/SSR one) so
+  // @testing-library/svelte's mount() works — first component test in this repo needed this.
+  // sql.js's own package.json also keys its export map off the "browser" condition, which
+  // would otherwise flip it to its fetch-based browser build (fails under jsdom); alias it
+  // straight to the Node build so the existing db.smoke/db.queries tests keep working.
+  resolve: process.env.VITEST
+    ? {
+        conditions: ['browser'],
+        alias: { 'sql.js': fileURLToPath(new URL('./node_modules/sql.js/dist/sql-wasm.js', import.meta.url)) },
+      }
+    : undefined,
   test: {
     environment: 'jsdom',
     globals: true,

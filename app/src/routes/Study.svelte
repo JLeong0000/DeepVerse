@@ -59,7 +59,9 @@
     <div class="pane reader-pane"><Reader /></div>
     <div class="divider" class:dragging onpointerdown={startDrag} ondblclick={resetSplit}
       role="separator" aria-label="Drag to resize panes (double-click to reset)"
-      aria-orientation={orientation === 'tb' ? 'horizontal' : 'vertical'}></div>
+      aria-orientation={orientation === 'tb' ? 'horizontal' : 'vertical'}>
+      <span class="grip" aria-hidden="true"></span>
+    </div>
     <div class="pane wb-pane"><Workbench /></div>
   </div>
 </div>
@@ -82,11 +84,20 @@
   .pane { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
   .reader-pane { flex: 0 0 var(--reader-basis, 42%); }
 
-  /* draggable divider: a hairline with a wider invisible grab zone via ::before */
-  .divider { background: var(--rule); flex: 0 0 1px; position: relative; touch-action: none; z-index: 5; }
+  /* draggable divider: a hairline with a wider invisible grab zone (::before) and a visible grip tab */
+  .divider { background: var(--rule); flex: 0 0 1px; position: relative; touch-action: none; z-index: 5;
+    display: flex; align-items: center; justify-content: center; }
   .divider::before { content: ''; position: absolute; inset: -5px 0; cursor: row-resize; }
   .split:not(.tb) .divider::before { inset: 0 -5px; cursor: col-resize; }
   .divider:hover, .divider.dragging { background: var(--a); }
+  /* the grip tab straddling the line — same ⠿ motif the draggable cards use */
+  .grip { position: absolute; background: var(--panel); border: 1px solid var(--rule); border-radius: 4px;
+    color: var(--dim); pointer-events: none; display: grid; place-items: center; font-size: 10px; line-height: 0; }
+  .grip::before { content: '⠿'; }
+  .split:not(.tb) .grip { width: 10px; height: 34px; }
+  .split:not(.tb) .grip::before { transform: rotate(90deg); }
+  .split.tb .grip { width: 34px; height: 10px; }
+  .divider:hover .grip, .divider.dragging .grip { color: var(--a); border-color: var(--a); }
 
   @media (max-width: 720px) {
     .split, .split.swap { flex-direction: column; }

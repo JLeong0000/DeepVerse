@@ -76,6 +76,17 @@ test('Type A never fires on proper nouns (hamul H2538)', () => {
   assert.equal(n, 0);
 });
 
+test('Type A excludes identical-gloss pairs (requireDiffSense): trembling H7578/H2731 never pair', () => {
+  // Both lemmas gloss as "trembling"; the diff-sense filter must not pair them with each other.
+  const h7578 = db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'H7578%'").get().n;
+  assert.equal(h7578, 0, 'H7578 (trembling) should not fire Type A');
+  const rows = db.prepare("SELECT detail FROM differences WHERE type='A' AND strongs LIKE 'H2731%'").all();
+  for (const r of rows) {
+    const syns = JSON.parse(r.detail).nearSynonyms.map(s => s.strongs);
+    assert.ok(!syns.includes('H7578'), 'H2731 must not list identical-gloss H7578 as a near-synonym');
+  }
+});
+
 test('Type A near-synonyms: a word is never its own near-synonym, and near-synonyms are present', () => {
   // spot check: a Hebrew Type A row's near-synonym list must exclude the word itself and be non-empty.
   const row = db.prepare("SELECT strongs, detail FROM differences WHERE type='A' AND strongs LIKE 'H1330%' LIMIT 1").get();

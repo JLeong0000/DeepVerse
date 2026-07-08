@@ -4,11 +4,14 @@
   let { verse, text, diffs = [], selected = false, onselect } = $props();
 
   // sparse underlines: one A + one distinct B per verse, but ONLY difference words whose gloss
-  // actually appears in this translation's wording (map-aware, so underlines are consistent).
+  // actually appears in this translation's wording (map-aware, so underlines are consistent). Among the
+  // candidates, pick the RAREST (most deliberate) word, not the first by reading order.
   let picked = $derived.by(() => {
-    const a = diffs.find(d => d.type === 'A' && glossInText(text, d.gloss));
-    const b = diffs.find(d => d.type === 'B' && glossInText(text, d.gloss) && (!a || d.position !== a.position))
-      || diffs.find(d => d.type === 'B' && glossInText(text, d.gloss));
+    const rarest = (type, excludePos) => diffs
+      .filter(d => d.type === type && glossInText(text, d.gloss) && d.position !== excludePos)
+      .sort((x, y) => (x.freq ?? Infinity) - (y.freq ?? Infinity))[0];
+    const a = rarest('A');
+    const b = rarest('B', a?.position) || rarest('B');
     return [a, b].filter(Boolean);
   });
   let segments = $derived(underlineSpans(text, picked));

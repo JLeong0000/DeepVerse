@@ -45,3 +45,12 @@ test('hebrewSenseKey does not alter the Greek senseKey behavior', () => {
   // sanity: the shared senseKey still stems normally
   assert.equal(senseKey('loving'), senseKey('loves'));
 });
+
+test('stemHead does not over-strip short words (king/thing keep their stems)', () => {
+  assert.equal(senseKey('the king'), senseKey('the kings'));      // singular & plural collapse
+  assert.equal(senseKey('a thing'), senseKey('things'));
+  assert.notEqual(senseKey('king'), senseKey('kin'));             // 'king' must not become 'k'
+});
+test('stemHead still collapses genuine inflections', () => {
+  assert.equal(senseKey('loving'), senseKey('loves'));           // -> lov
+});

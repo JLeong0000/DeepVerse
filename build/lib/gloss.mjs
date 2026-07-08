@@ -16,8 +16,13 @@ const SENSE_STOP = new Set(['i', 'you', 'he', 'she', 'it', 'we', 'they', 'him', 
   'shall', 'should', 'can', 'could', 'be', 'being', 'been', 'is', 'was', 'are', 'were', 'that', 'this',
   'not', 'so', 'as', 'then', 'who', 'whom', 'for', 'with', 'on', 'at', 'by', 'up']);
 function stemHead(w) {
-  w = w.replace(/(ing|edly|ed|en|ly)$/, '');
-  w = w.replace(/(?<!s)es$/, '').replace(/(?<!s)s$/, ''); // don't strip the s of kiss/class
+  // Guard each strip so it never leaves a too-short stem: "king"/"thing" must NOT lose "-ing"
+  // (that mis-read singular king->"k" vs plural kings->"king" as two senses). Real inflections
+  // like "loving"/"loves"->"lov" still collapse.
+  const strip = re => { const t = w.replace(re, ''); return t.length >= 3 ? t : w; };
+  w = strip(/(ing|edly|ed|en|ly)$/);
+  w = strip(/(?<!s)es$/);
+  w = strip(/(?<!s)s$/);
   return w.replace(/e$/, '');
 }
 export function senseKey(gloss) {

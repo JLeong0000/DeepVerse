@@ -19,6 +19,24 @@ export const BOOKS = [
 const NAME = new Map(BOOKS.map(([code, name]) => [code, name]));
 const ORDER = new Map(BOOKS.map(([code], i) => [code, i]));
 
+// Parse a free-form reference ("John 3:16", "1 John 2", "Ps 23", "gen 1:1", "Genesis") into
+// { book: OSIS code, chapter, verse|null }, or null if the book can't be matched. Book is matched by
+// OSIS code or display name (spaces ignored), exact first then prefix ("gen" -> Genesis, "1jo" -> 1 John).
+export function parseReference(input) {
+  const raw = String(input || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!raw) return null;
+  const m = raw.match(/^(.*?)\s*(\d+)(?::(\d+))?\s*$/); // trailing "chapter" or "chapter:verse"
+  let bookText, chapter, verse;
+  if (m && m[1].trim()) { bookText = m[1].trim(); chapter = +m[2]; verse = m[3] ? +m[3] : null; }
+  else { bookText = raw; chapter = 1; verse = null; } // book only -> chapter 1
+  const key = bookText.replace(/\s+/g, '');
+  const nn = ([, name]) => name.toLowerCase().replace(/\s+/g, '');
+  let hit = BOOKS.find(([c]) => c.toLowerCase() === key) || BOOKS.find(b => nn(b) === key)
+    || BOOKS.find(([c]) => c.toLowerCase().startsWith(key)) || BOOKS.find(b => nn(b).startsWith(key));
+  if (!hit) return null;
+  return { book: hit[0], chapter: Math.max(1, chapter), verse };
+}
+
 export function bookName(code) { return NAME.get(code) || code; }
 export function bookOrder(code) { return ORDER.has(code) ? ORDER.get(code) : 999; }
 

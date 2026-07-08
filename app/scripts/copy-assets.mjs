@@ -1,7 +1,7 @@
 // Copy the built bible.db and the sql.js wasm into public/ so they ship as static assets.
 // The shipped DB is SLIMMED: the app queries only verses/words/lexicon/cross_refs/differences, so
-// the build-only `synonyms` table and the unused gloss_norm index are dropped (saves ~15 MB). The
-// full data/bible.db keeps them for the build/tests. Runs before dev/build (see package.json).
+// the build-only `synonyms`, `word_domain`, and `word_sense` tables and the unused gloss_norm index
+// are dropped (saves ~15 MB). The full data/bible.db keeps them for the build/tests. Runs before dev/build (see package.json).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +28,8 @@ fs.copyFileSync(dbSrc, dbDest);
 const before = fs.statSync(dbDest).size;
 const db = new DatabaseSync(dbDest);
 db.exec('DROP TABLE IF EXISTS synonyms;');       // build-only: differences already embeds near-synonyms
+db.exec('DROP TABLE IF EXISTS word_domain;');    // build-only: differences already embeds domains/near-synonyms
+db.exec('DROP TABLE IF EXISTS word_sense;');     // build-only
 db.exec('DROP INDEX IF EXISTS idx_words_glossnorm;'); // unused at runtime
 db.exec('VACUUM;');
 db.close();

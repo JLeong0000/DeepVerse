@@ -1,27 +1,33 @@
 // build/lib/differences.mjs
-import { senseKey } from './gloss.mjs';
-// Precompute the interpretive-difference table (Greek NT for v2; OT arrives with macula-hebrew).
+import { senseKey, hebrewSenseKey } from './gloss.mjs';
+import { baseHeb } from './macula.mjs';
+// Precompute the interpretive-difference table. Type A (synonym collapse): a content word whose Strong's
+// has a near-synonym (different Strong's) sharing its top-level semantic domain but a different sub-domain,
+// with a proximity distance in a BAND [synMin, synMax]. Type B (sense spread): a lemma whose glosses
+// cluster into >=2 distinct senses, each >= SENSE_MIN_FRAC of its occurrences.
 //
-// Type A (synonym collapse): a content word whose Strong's has a Greek near-synonym (different Strong's)
-//   that shares its top-level Louw-Nida domain, sits in a proximity-distance BAND [SYN_MIN, SYN_MAX],
-//   and occupies a DIFFERENT LN sub-domain. The band + sub-domain rule is the "tightening": pairs that
-//   are too close (distance < SYN_MIN) or in the identical sub-domain are used near-interchangeably —
-//   the distinction is trivial (legō/eipon "say" @0.286; kosmos/oikoumenē "world" both LN 1.39;
-//   cognates like agapaō/agapē). Only moderately-distant, genuinely-distinct pairs survive
-//   (agapaō/phileō @0.583, LN 25.43 vs 25.103). Spec §8: "distance < threshold and/or shared LN domain".
-// Type B (semantic-range spread): a content word whose lemma maps to >=2 distinct normalized English
-//   glosses across the corpus, each >= SENSE_MIN_FRAC of the lemma's occurrences.
-//
-// Fixtures: agapaō G0025 (near-synonym phileō G5368 @0.583) fires A; psyche G5590 (soul/life) fires B;
-// function words (kai G2532) and near-identical synonyms (legō, kosmos) never fire.
-const SYN_MIN = 0.45;          // below this, a near-synonym is used near-interchangeably (trivial)
-const SYN_MAX = 0.60;          // above this, it's not really a synonym
-const A_FREQ_MAX = 300;        // Type A: skip common words (copula/quantifiers/"say"/"God"/"day") — their
-                               // synonym choice is grammatical, not interpretive (agapaō ~143×, eimi ~2400×)
+// The engine runs once per language group. Greek (grc) uses Louw-Nida domains (dotted, "25.43" -> top "25")
+// and clean glosses. Hebrew/Aramaic (hbo/arc, added later) use SDBH lexdomain (undotted, first 3-digit group
+// is the top), a base-Strong key normalizer, a Hebrew-aware content test, gloss cleanup, and extra Type-A
+// precision filters. Greek behavior here is byte-identical to the pre-refactor engine.
+const SYN_MIN = 0.45;        // below this a near-synonym is used near-interchangeably (trivial)
+const SYN_MAX = 0.60;        // above this it is not really a synonym
+const A_FREQ_MAX = 300;      // Type A: skip common words (copula/quantifiers/"say"/"God") — grammatical, not interpretive
 const SENSE_MIN_FRAC = 0.05;
-const SENSE_MIN_LEMMA_OCC = 8; // ignore rare lemmas for Type B
-function isContent(morph) { return /^(N-|V-|A-|N|V)/.test(String(morph||'')) && !/^(ADV|CONJ|PREP|PRT|T-)/.test(morph); }
-const topDomain = ln => String(ln || '').split('.')[0];
+const SENSE_MIN_LEMMA_OCC = 8;
+
+const isGreekContent = m => /^(N-|V-|A-|N|V)/.test(String(m || '')) && !/^(ADV|CONJ|PREP|PRT|T-)/.test(m);
+const grcTop = ln => String(ln || '').split('.')[0];
+
+// Hebrew/Aramaic content-word test: a leading H (Hebrew) or A (Aramaic) LANG marker is present only when
+// the next char is an uppercase POS letter; strip it, then accept common noun (Nc), verb (V), adjective (A).
+// This distinguishes the lang-marker 'A' from the adjective POS 'A' (which is followed by a lowercase class).
+export function isHebrewContent(morph) {
+  const m = String(morph || '');
+  const rest = /^[HA][A-Z]/.test(m) ? m.slice(1) : m;
+  return /^(Nc|V|A)/.test(rest);
+}
+const hebTop = ln => String(ln || '').slice(0, 3);
 
 export function computeDifferences(db) {
   db.exec(`DROP TABLE IF EXISTS differences;
@@ -29,80 +35,123 @@ export function computeDifferences(db) {
       type TEXT CHECK(type IN ('A','B')), strongs TEXT, detail TEXT);`);
   const insD = db.prepare('INSERT INTO differences VALUES (?,?,?,?,?,?,?)');
 
-  // --- Louw-Nida domain per strongs (Greek): keep the full first sense (e.g. "25.43") + its top ("25") ---
+  runLanguageGroup(db, insD, {
+    langs: ['grc'], keyPrefix: 'G', normKey: s => s,
+    isContent: isGreekContent, senseKeyFn: senseKey, topFn: grcTop,
+    typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX },
+  });
+
+  runLanguageGroup(db, insD, {
+    langs: ['hbo', 'arc'], keyPrefix: 'H', normKey: baseHeb,
+    isContent: isHebrewContent, senseKeyFn: hebrewSenseKey, topFn: hebTop,
+    typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX, freqMin: SENSE_MIN_LEMMA_OCC,
+             excludeProperNouns: true, requireDiffSense: true },
+  });
+
+  db.exec('CREATE INDEX idx_diff_ref ON differences(book,chapter,verse);');
+}
+
+function runLanguageGroup(db, insD, cfg) {
+  const { langs, keyPrefix, normKey, isContent, senseKeyFn, topFn, typeA } = cfg;
+  const inClause = langs.map(l => `'${l}'`).join(',');
+
+  // --- domain per normalized strongs: full domain string + top-level ---
   const lnFull = new Map();
   for (const r of db.prepare("SELECT strongs, ln FROM word_domain WHERE ln<>''").all()) {
-    if (!lnFull.has(r.strongs)) lnFull.set(r.strongs, String(r.ln).trim());
+    if (!String(r.strongs).startsWith(keyPrefix)) continue;
+    const k = normKey(r.strongs);
+    if (k && !lnFull.has(k)) lnFull.set(k, String(r.ln).trim());
   }
-  const lnTop = new Map([...lnFull].map(([s, ln]) => [s, topDomain(ln)]));
+  const lnTop = new Map([...lnFull].map(([s, ln]) => [s, topFn(ln)]));
 
-  // --- symmetric Greek synonym adjacency (Proximity stores each pair once, in one direction) ---
-  const adj = new Map(); // strongs -> Map(otherStrongs -> minDistance)
-  const link = (a, b, d) => {
-    if (!adj.has(a)) adj.set(a, new Map());
-    const m = adj.get(a); if (!m.has(b) || d < m.get(b)) m.set(b, d);
-  };
+  // --- symmetric synonym adjacency (normalized keys) ---
+  const adj = new Map();
+  const link = (a, b, d) => { if (!adj.has(a)) adj.set(a, new Map()); const m = adj.get(a); if (!m.has(b) || d < m.get(b)) m.set(b, d); };
   for (const r of db.prepare('SELECT strongs_a a, strongs_b b, distance d FROM synonyms').all()) {
-    if (!String(r.a).startsWith('G') || !String(r.b).startsWith('G') || r.a === r.b) continue;
-    link(r.a, r.b, r.d); link(r.b, r.a, r.d);
+    if (!String(r.a).startsWith(keyPrefix) || !String(r.b).startsWith(keyPrefix)) continue;
+    const a = normKey(r.a), b = normKey(r.b);
+    if (!a || !b || a === b) continue;
+    link(a, b, r.d); link(b, a, r.d);
   }
-  // near-synonyms of a strongs: Greek, same top LN domain but DIFFERENT sub-domain, distance in the
-  // [SYN_MIN, SYN_MAX] band (genuinely distinct, not near-identical), nearest first, capped.
+
+  // --- frequency per normalized strongs (gates Type A; also used by the OT frequency floor later) ---
+  const freq = new Map();
+  for (const r of db.prepare(`SELECT strongs, COUNT(*) n FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
+    const k = normKey(r.strongs); if (k) freq.set(k, (freq.get(k) || 0) + r.n);
+  }
+
+  // --- OT-only Type-A precision filters (empty/no-op unless the group requests them) ---
+  const properNoun = new Set();   // base strongs whose majority morph is a proper noun (Np)
+  const repSense = new Map();     // base strongs -> representative cleaned sense key (most common gloss)
+  if (typeA && typeA.excludeProperNouns) {
+    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%' THEN 1 ELSE 0 END) np, COUNT(*) tot
+        FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
+      const k = normKey(r.strongs); if (k && r.np > r.tot / 2) properNoun.add(k);
+    }
+  }
+  if (typeA && typeA.requireDiffSense) {
+    const top = new Map(); // k -> {c, key}
+    for (const r of db.prepare(`SELECT strongs, gloss_norm, COUNT(*) c FROM words
+        WHERE lang IN (${inClause}) AND gloss_norm<>'' GROUP BY strongs, gloss_norm`).all()) {
+      const k = normKey(r.strongs); if (!k) continue;
+      const e = top.get(k);
+      if (!e || r.c > e.c) top.set(k, { c: r.c, key: senseKeyFn(r.gloss_norm) });
+    }
+    for (const [k, e] of top) repSense.set(k, e.key);
+  }
+
+  // --- near-synonyms of a strongs: same top domain, different full domain, distance in band, nearest first ---
   const nearSynCache = new Map();
   function nearSyn(strongs) {
     if (nearSynCache.has(strongs)) return nearSynCache.get(strongs);
     const dom = lnTop.get(strongs), sub = lnFull.get(strongs);
     let out = [];
-    if (dom && adj.has(strongs)) {
+    if (typeA && dom && adj.has(strongs)) {
       out = [...adj.get(strongs)]
-        .filter(([other, d]) => d >= SYN_MIN && d <= SYN_MAX && lnTop.get(other) === dom && lnFull.get(other) !== sub)
+        .filter(([o, d]) => d >= typeA.synMin && d <= typeA.synMax
+          && lnTop.get(o) === dom && lnFull.get(o) !== sub
+          && (!typeA.freqMin || ((freq.get(o) || 0) >= typeA.freqMin && (freq.get(strongs) || 0) >= typeA.freqMin))
+          && (!typeA.excludeProperNouns || (!properNoun.has(o) && !properNoun.has(strongs)))
+          && (!typeA.requireDiffSense || (repSense.get(o) && repSense.get(strongs) && repSense.get(o) !== repSense.get(strongs))))
         .sort((x, y) => x[1] - y[1]).slice(0, 4)
-        .map(([other, d]) => ({ strongs: other, distance: Number(d.toFixed(3)) }));
+        .map(([o, d]) => ({ strongs: o, distance: Number(d.toFixed(3)) }));
     }
     nearSynCache.set(strongs, out); return out;
   }
 
-  // --- Type B precompute: cluster a lemma's glosses into distinct senses (collapse inflections),
-  //     keep senses that are >=SENSE_MIN_FRAC of the lemma's occurrences, need >=2 (grc only for v2) ---
-  const senseByStrong = new Map(); // strongs -> {senses:[{gloss,count}], total}
+  // --- Type B: cluster a lemma's glosses into distinct senses (>= SENSE_MIN_FRAC each, >=2 total) ---
+  const senseByStrong = new Map();
   const byStrong = new Map();
   for (const r of db.prepare(`SELECT strongs, gloss_norm, COUNT(*) c FROM words
-      WHERE lang='grc' AND strongs<>'' AND gloss_norm<>'' GROUP BY strongs, gloss_norm`).all()) {
-    if (!byStrong.has(r.strongs)) byStrong.set(r.strongs, []);
-    byStrong.get(r.strongs).push(r);
+      WHERE lang IN (${inClause}) AND strongs<>'' AND gloss_norm<>'' GROUP BY strongs, gloss_norm`).all()) {
+    const k = normKey(r.strongs); if (!k) continue;
+    if (!byStrong.has(k)) byStrong.set(k, new Map());
+    const gm = byStrong.get(k); gm.set(r.gloss_norm, (gm.get(r.gloss_norm) || 0) + r.c);
   }
-  for (const [strongs, gs] of byStrong) {
-    const total = gs.reduce((n, g) => n + g.c, 0);
+  for (const [k, gm] of byStrong) {
+    const total = [...gm.values()].reduce((n, c) => n + c, 0);
     if (total < SENSE_MIN_LEMMA_OCC) continue;
-    // cluster gloss_norm variants by sense key; representative gloss = most frequent member
-    const clusters = new Map(); // key -> { gloss, count, top }
-    for (const g of gs) {
-      const key = senseKey(g.gloss_norm);
-      const c = clusters.get(key) || { gloss: g.gloss_norm, count: 0, top: 0 };
-      c.count += g.c;
-      if (g.c > c.top) { c.top = g.c; c.gloss = g.gloss_norm; }
-      clusters.set(key, c);
+    const clusters = new Map();
+    for (const [gloss, c] of gm) {
+      const key = senseKeyFn(gloss);
+      const cl = clusters.get(key) || { gloss, count: 0, top: 0 };
+      cl.count += c; if (c > cl.top) { cl.top = c; cl.gloss = gloss; }
+      clusters.set(key, cl);
     }
     const senses = [...clusters.values()].filter(s => s.count / total >= SENSE_MIN_FRAC).sort((a, b) => b.count - a.count);
-    if (senses.length >= 2) senseByStrong.set(strongs, { senses: senses.map(s => ({ gloss: s.gloss, count: s.count })), total });
+    if (senses.length >= 2) senseByStrong.set(k, { senses: senses.map(s => ({ gloss: s.gloss, count: s.count })), total });
   }
 
-  // --- NT frequency per Strong's (to gate Type A on common words) ---
-  const freq = new Map();
-  for (const r of db.prepare("SELECT strongs, COUNT(*) n FROM words WHERE lang='grc' AND strongs<>'' GROUP BY strongs").all())
-    freq.set(r.strongs, r.n);
-
-  // --- walk every Greek content word, emit A and/or B ---
-  const words = db.prepare("SELECT book,chapter,verse,position,strongs,morph FROM words WHERE lang='grc' AND strongs<>''").all();
+  // --- walk content words, emit A and/or B (row stores the ORIGINAL words.strongs, joined by position) ---
+  const words = db.prepare(`SELECT book,chapter,verse,position,strongs,morph FROM words WHERE lang IN (${inClause}) AND strongs<>''`).all();
   db.exec('BEGIN');
   for (const w of words) {
     if (!isContent(w.morph)) continue;
-    const syn = (freq.get(w.strongs) || 0) <= A_FREQ_MAX ? nearSyn(w.strongs) : [];
-    if (syn.length) insD.run(w.book, w.chapter, w.verse, w.position, 'A', w.strongs,
-      JSON.stringify({ nearSynonyms: syn }));
-    const b = senseByStrong.get(w.strongs);
+    const k = normKey(w.strongs); if (!k) continue;
+    const syn = (typeA && (freq.get(k) || 0) <= typeA.freqMax) ? nearSyn(k) : [];
+    if (syn.length) insD.run(w.book, w.chapter, w.verse, w.position, 'A', w.strongs, JSON.stringify({ nearSynonyms: syn }));
+    const b = senseByStrong.get(k);
     if (b) insD.run(w.book, w.chapter, w.verse, w.position, 'B', w.strongs, JSON.stringify(b));
   }
   db.exec('COMMIT');
-  db.exec('CREATE INDEX idx_diff_ref ON differences(book,chapter,verse);');
 }

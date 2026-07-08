@@ -20,3 +20,9 @@ test('function words never produce a difference', () => {
   const r = db.prepare("SELECT COUNT(*) n FROM differences WHERE strongs='G2532'").get();
   assert.equal(r.n, 0);
 });
+test('Greek Type A/B row counts stay in the expected range (regression guard)', () => {
+  const a = db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'G%'").get().n;
+  const b = db.prepare("SELECT COUNT(*) n FROM differences WHERE type='B' AND strongs LIKE 'G%'").get().n;
+  assert.ok(a > 18000 && a < 26000, `Greek Type A count ${a} out of range`);
+  assert.ok(b > 30000 && b < 40000, `Greek Type B count ${b} out of range`);
+});

@@ -7,16 +7,6 @@
   // top two distinct senses for the "behind both X and Y" line
   const senses = w ? w.senses.slice(0, 2).map(s => cleanGloss(s.gloss)) : [];
   const lang = w ? langLabel(w.lang || w.strongs) : '';
-  // Rotate the closing line so it isn't always the same sentence. Seed by the word so it's stable
-  // for the day (the word itself is date-seeded), not flickering on every visit.
-  const CLOSERS = [
-    'English must pick one each time.',
-    'One English word can’t hold both.',
-    'The translation flattens it to one.',
-    'English chooses; the original doesn’t.',
-    'The same word, split across renderings.',
-  ];
-  const closer = w ? CLOSERS[[...String(w.strongs)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % CLOSERS.length] : '';
 </script>
 
 {#if w}
@@ -27,8 +17,8 @@
     </div>
     <div class="row"><span class="grk">{w.original}</span><span class="tl">{readTranslit(w.translit)}</span></div>
     <div class="body">
-      One {lang} word behind both <b>“{senses[0]}”</b>{#if senses[1]} and <b>“{senses[1]}”</b>{/if} —
-      {closer} <span class="go">Study →</span>
+      One {lang} word behind both <b>“{senses[0]}”</b>{#if senses[1]} and <b>“{senses[1]}”</b>{/if}.
+      <span class="go">Study →</span>
     </div>
   </section>
 {/if}

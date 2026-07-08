@@ -80,7 +80,9 @@
 
   /* aligned grid */
   .gridwrap { flex: 1; min-height: 0; overflow-y: auto; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  /* align-items: stretch (grid default) so both cells of a verse fill the shared row height — this is
+     what makes the per-verse rules line up across columns even when the two renderings differ in length. */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; }
   .ghead { position: sticky; top: 0; z-index: 5; padding: 7px 14px; border-bottom: 1px solid var(--rule);
     background: color-mix(in srgb, var(--panel) 82%, var(--bg)); }
   .ghead + .ghead, .gcell.gright { border-left: 1px solid var(--rule); }

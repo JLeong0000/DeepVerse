@@ -3,7 +3,10 @@ export const GREETINGS = [
   'Welcome back', 'Good to see you', 'Grace and peace', 'Back to the Word', 'The Word awaits',
   'Ready to dig in', 'Peace be with you', 'Grace to you', 'Come and see', 'Draw near',
   'Settle in', 'Glad you’re here', 'The lamp is lit', 'Let’s open the Word', 'Good to have you',
-  'Welcome home', 'Time in the Word', 'The scroll is open',
+  'Welcome home', 'Time in the Word', 'The scroll is open', 'Blessings', 'Rise and shine',
+  'Here for the Word', 'Let’s begin', 'Take a seat', 'The page is turned', 'Well met',
+  'Come and read', 'Open the book', 'Seek and you’ll find', 'Onward in the Word', 'A good day for it',
+  'Let’s study', 'The desk is ready', 'Pull up a chair', 'Dwell here a while', 'Good morning to you',
 ];
 export const SUBLINES = [
   '“Your word is a lamp to my feet.” — Psalm 119:105',

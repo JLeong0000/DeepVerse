@@ -2,7 +2,7 @@
 
 > Running capture of what we're building and the ideas/decisions behind it.
 > This is the informal tracker; formal designs live in `docs/superpowers/specs/`.
-> Last updated: 2026-07-07
+> Last updated: 2026-07-08
 
 ## ✅ Phase 1 shipped (2026-07-07)
 
@@ -12,7 +12,24 @@ tightened (band + Louw-Nida sub-domain + frequency cap), Type-B sense-clustering
 map-aware reader underlines, verse-range notes, WYSIWYG rich-text notes, cross-refs with previews + jump,
 hierarchical lexicon definitions, URL history/deep-links, Compare verse-aligned grid ↔ gridless toggle,
 reading-activity hover, offline PWA, DeepVerse logo. Non-obvious decisions live in the memory files.
-**Next:** macula-hebrew (OT differences) → AI prose layer (Phase 2) → Map/Discover (Segment 2).
+
+## ✅ OT difference engine + app polish (2026-07-08)
+
+- **OT (Hebrew/Aramaic) interpretive-difference engine** — Type A/B now cover the whole Bible, not just
+  the Greek NT. Uses macula-hebrew's **SDBH** semantic domains (not Louw-Nida). Aramaic covered too.
+  Spec `specs/2026-07-07-ot-differences-engine-design.md`, plan `plans/2026-07-07-ot-differences-engine.md`,
+  memory `ot-differences-engine`. Real fixtures: ruach spirit/wind, nephesh person/life, erets land/earth,
+  virgin↔young-woman (Isaiah 7:14). Type A ≈ 25k, Type B ≈ 124k rows (Type B dominated by the accepted
+  verb-inflection residual). Greek output preserved.
+- **App made OT-aware** — language-aware copy (Hebrew/Aramaic/Greek, OT/NT) replacing hardcoded Greek/NT;
+  Hebrew gloss cleanup (strips attached particles); Hebrew lexicon definitions formatted like Greek
+  (BDB `1) 1a) 1a1)` hierarchy); transliteration renders the morpheme `/` as a hyphen for pronunciation.
+- **Study mode** — reader/workbench split is now **resizable** (drag the divider + `⠿` grip, persisted).
+- **Home** — **jump-to-verse** on the greeting line (free-form refs, `parseReference`); more greetings
+  (6→35); word-of-day drops its canned closing line.
+- **Compare** — aligned-grid rules now line up across versions (paired cells share row height).
+
+**Next:** AI prose layer (Phase 2) → Level-3 context → Map/Discover (Segment 2).
 
 ## The app in two segments
 

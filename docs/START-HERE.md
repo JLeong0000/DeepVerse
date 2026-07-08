@@ -38,7 +38,12 @@ data) is that there are **two types** of difference:
 | **Raw sources** (CC-BY, gitignored) | `sources/STEPBible-Data`, `sources/openbible`, `sources/macula-greek`, `sources/morphhb` |
 | **Build scripts** | `build/` (Node, `node:sqlite`) |
 
-## Status: PHASE 1 COMPLETE ✅ (2026-07-07)
+## Status: PHASE 1 COMPLETE ✅ (2026-07-07) · OT engine + app polish shipped (2026-07-08)
+
+> **Update 2026-07-08:** the interpretive-difference engine now covers the **Hebrew/Aramaic OT** (macula-hebrew
+> SDBH), and the app was made OT-aware + polished (resizable study columns, jump-to-verse, Compare-grid fix).
+> See `docs/FEATURES-AND-IDEAS.md` and memory `ot-differences-engine`. Details below describe the Phase-1 base.
+
 
 Both plans shipped and the app is built, verified in-browser, and committed (git initialized this
 phase). Gates green: `build/` `npm run build` exits 0; `app/` `npm run build` exits 0; tests 25/25
@@ -112,8 +117,12 @@ pre-generated Claude (grounded) is the plan; a lightweight local model is explic
 Phase 1 is complete (see Status above). The two plans are executed; treat them as historical record.
 Next candidates, roughly in priority order:
 
-1. **macula-hebrew (OT differences).** Type A/B currently cover the **Greek NT only**. Fetch macula-hebrew
-   (needs git-lfs) and extend `build/lib/differences.mjs` + `word_domain` to Hebrew/Aramaic. Biggest data gap.
+1. ~~**macula-hebrew (OT differences).**~~ ✅ **DONE (2026-07-08).** Type A/B now cover the Hebrew/Aramaic
+   OT via macula-hebrew **SDBH** domains (it was already on disk — no git-lfs needed). See spec/plan
+   `2026-07-07-ot-differences-engine*` and memory `ot-differences-engine`. Also made the app OT-aware
+   (language copy, Hebrew def formatting, translit hyphen) + added resizable study columns, jump-to-verse,
+   and a Compare-grid alignment fix. **Remaining follow-up:** OT Type-B is dense (accepted verb-inflection
+   residual); could suppress Type B on very-high-frequency verbs if it reads noisy.
 2. **Type A quality.** Tightened but a few moderate-frequency common words (take, name, write) still fire;
    consider a rarity-based ranking so the *representative* A is the most deliberate word. See
    `differences-engine-calibration` memory.

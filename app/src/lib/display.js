@@ -28,6 +28,13 @@ export function cleanGloss(g) {
   return s || String(g || '').trim();
 }
 
+// Render a transliteration for pronunciation: the "/" morpheme boundary (a prefix/suffix particle
+// attached to the root, matching the Hebrew script) reads better as a hyphen — "be./ta.Ba.'at" ->
+// "be-ta.Ba.'at". The "." syllable separators are kept. No-op for Greek (no "/").
+export function readTranslit(t) {
+  return String(t || '').replace(/\s*\.?\s*\/\s*/g, '-');
+}
+
 // Parse a STEPBible lexicon definition into indentable {level, marker, text} rows.
 // Greek definitions are "__"-delimited with Roman (I.) > arabic (1.) > lettered ((a)) markers.
 // Hebrew (BDB) definitions have no "__": senses are numbered inline "1) … 1a) … 1a1) …" with (Stem)

@@ -1,7 +1,7 @@
 <script>
   import { getVerseDifferences } from '../../lib/db.js';
   import { study, selectWord } from '../../lib/study.svelte.js';
-  import { cleanGloss, testamentLabel } from '../../lib/display.js';
+  import { cleanGloss, testamentLabel, readTranslit } from '../../lib/display.js';
 
   let showAll = $state(false);
   $effect(() => { study.verse; study.book; study.chapter; showAll = false; }); // reset on verse change
@@ -54,19 +54,19 @@
           <span class="bdg bA">A · synonym</span>
           <b>“{cleanGloss(r.gloss)}”</b> uses
           <button class="gbtn" onclick={() => selectWord({ strongs: r.strongs, ...r.a })}>
-            <span class="grk">{r.original}</span><span class="tl">{r.translit}</span>
+            <span class="grk">{r.original}</span><span class="tl">{readTranslit(r.translit)}</span>
           </button>
           {#if r.a.detail.nearSynonyms?.length}
             <span class="vs">not</span>
             {#each r.a.detail.nearSynonyms.slice(0, 2) as syn}
               <button class="gbtn" onclick={() => selectWord({ strongs: syn.strongs, original: syn.lemma, translit: syn.translit })}>
-                <span class="grk">{syn.lemma}</span><span class="tl">{syn.translit}</span>
+                <span class="grk">{syn.lemma}</span><span class="tl">{readTranslit(syn.translit)}</span>
               </button>
             {/each}
           {/if}
         </div>
         {#if r.a.detail.nearSynonyms?.[0]?.gloss}
-          <div class="ex">{r.translit}: {cleanGloss(r.gloss)} · {r.a.detail.nearSynonyms[0].translit}: {cleanGloss(r.a.detail.nearSynonyms[0].gloss)}</div>
+          <div class="ex">{readTranslit(r.translit)}: {cleanGloss(r.gloss)} · {readTranslit(r.a.detail.nearSynonyms[0].translit)}: {cleanGloss(r.a.detail.nearSynonyms[0].gloss)}</div>
         {/if}
       {/if}
       {#if r.b}
@@ -74,7 +74,7 @@
           <span class="bdg bB">B · sense-spread</span>
           <b>“{cleanGloss(r.gloss)}”</b> is
           <span class="wordB" onclick={() => selectWord({ strongs: r.strongs, ...r.b })} role="button" tabindex="0">
-            <span class="grk">{r.original}</span> <span class="tl">{r.translit}</span>
+            <span class="grk">{r.original}</span> <span class="tl">{readTranslit(r.translit)}</span>
           </span>
         </div>
         <div class="exn">Rendered across {testamentLabel(r.strongs)} as:</div>

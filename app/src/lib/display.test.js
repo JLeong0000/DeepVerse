@@ -1,5 +1,14 @@
 import { test, expect, describe } from 'vitest';
-import { langLabel, testamentLabel, cleanGloss, parseDefinition } from './display.js';
+import { langLabel, testamentLabel, cleanGloss, parseDefinition, readTranslit } from './display.js';
+
+describe('readTranslit', () => {
+  test('renders the "/" morpheme boundary as a hyphen, keeps syllable dots', () => {
+    expect(readTranslit("be./ta.Ba.'at")).toBe("be-ta.Ba.'at");
+    expect(readTranslit("va/i.yi.ka.re.'U")).toBe("va-i.yi.ka.re.'U");
+    expect(readTranslit('ha./ri.Shon')).toBe('ha-ri.Shon');
+    expect(readTranslit('psy.che')).toBe('psy.che'); // Greek: no "/", unchanged
+  });
+});
 
 describe('langLabel', () => {
   test('from Strong prefix and explicit lang', () => {

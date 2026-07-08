@@ -1,7 +1,7 @@
 <script>
   import { getWordOfDay } from '../../lib/db.js';
   import { openStudy } from '../../lib/router.svelte.js';
-  import { langLabel, cleanGloss } from '../../lib/display.js';
+  import { langLabel, cleanGloss, readTranslit } from '../../lib/display.js';
 
   const w = getWordOfDay();
   // top two distinct senses for the "behind both X and Y" line
@@ -15,7 +15,7 @@
       <span class="lbl">Word of the day</span>
       <span class="tag">B · sense-spread</span>
     </div>
-    <div class="row"><span class="grk">{w.original}</span><span class="tl">{w.translit}</span></div>
+    <div class="row"><span class="grk">{w.original}</span><span class="tl">{readTranslit(w.translit)}</span></div>
     <div class="body">
       One {lang} word behind both <b>“{senses[0]}”</b>{#if senses[1]} and <b>“{senses[1]}”</b>{/if} —
       English must pick one each time. <span class="go">Study →</span>

@@ -2,7 +2,7 @@
   import { getInterlinear, getVerseDifferences, getLexicon, countLemma, getChapterLanguages } from '../../lib/db.js';
   import { study, selectWord } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
-  import { parseDefinition } from '../../lib/display.js';
+  import { parseDefinition, readTranslit } from '../../lib/display.js';
 
   let words = $derived(study.verse == null ? [] : getInterlinear(study.book, study.chapter, study.verse));
   let langs = $derived(getChapterLanguages(study.book, study.chapter));
@@ -43,14 +43,14 @@
       <div class="iw {markClass(w.position)}" onclick={() => selectWord({ strongs: w.strongs, ...w })} role="button" tabindex="0"
         class:active={study.word?.position === w.position && study.word?.strongs === w.strongs}>
         <span class="g grk">{w.original}</span>
-        <span class="p">{w.translit}</span>
+        <span class="p">{readTranslit(w.translit)}</span>
         <span class="e">{w.gloss}</span>
       </div>
     {/each}
   </div>
   {#if detail}
     <div class="wdetail" bind:this={detailEl}>
-      <div class="wtop"><span class="grk big">{detail.word.original}</span> <span class="tl">{detail.word.translit}</span>
+      <div class="wtop"><span class="grk big">{detail.word.original}</span> <span class="tl">{readTranslit(detail.word.translit)}</span>
         <span class="strong">{detail.word.strongs}</span>{#if detail.word.morph} <span class="morph">{detail.word.morph}</span>{/if}</div>
       {#if detail.lex}
         {#if detail.lex.gloss}<div class="gloss">{detail.lex.gloss}</div>{/if}

@@ -78,6 +78,7 @@ export function getWordOfDay(seed = new Date().toISOString().slice(0, 10)) {
     lang: w.lang || '',
     original: (w.original || '').replace(/[¶.,;:·’'"]+$/u, '').trim(), // drop trailing markers for display
     translit: w.translit || '',
+    position: +position,
     senses: JSON.parse(r.detail).senses,
     ref: { version: 'NIV', book, chapter: +chapter, verse: +verse },
   };

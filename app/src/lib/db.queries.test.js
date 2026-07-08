@@ -35,6 +35,11 @@ describe('1.3 interlinear', () => {
     expect(words[0].translit).toBe('houtōs');
     expect(words.every((w, i) => i === 0 || w.position > words[i - 1].position)).toBe(true);
   });
+  test('getInterlinear returns a lang for each word', () => {
+    const words = db.getInterlinear('John', 1, 1);
+    expect(words.length).toBeGreaterThan(0);
+    expect(words[0].lang).toBe('grc');
+  });
   test('getLexicon resolves G0025 and falls back past a homograph letter', () => {
     expect(db.getLexicon('G0025').definition.toLowerCase()).toContain('love');
     expect(db.getLexicon('H0996G')).not.toBeNull(); // base H0996 lookup after stripping trailing G

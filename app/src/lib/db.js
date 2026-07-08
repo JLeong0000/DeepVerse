@@ -84,7 +84,7 @@ export function getWordOfDay(seed = new Date().toISOString().slice(0, 10)) {
 
 // --- 1.3 Interlinear ---
 export function getInterlinear(book, chapter, verse) {
-  return query(`SELECT position, original, translit, gloss, strongs, morph, lemma
+  return query(`SELECT position, original, translit, gloss, strongs, morph, lemma, lang
     FROM words WHERE book=? AND chapter=? AND verse=? ORDER BY position`, [book, chapter, verse]);
 }
 export function getLexicon(strongs) {

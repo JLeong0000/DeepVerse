@@ -28,8 +28,12 @@ reading-activity hover, offline PWA, DeepVerse logo. Non-obvious decisions live 
 - **Home** — **jump-to-verse** on the greeting line (free-form refs, `parseReference`); more greetings
   (6→35); word-of-day drops its canned closing line.
 - **Compare** — aligned-grid rules now line up across versions (paired cells share row height).
+- **Type-A quality pass** — reader underline + Differences card now surface the **rarest** (most deliberate)
+  Type-A/B word per verse, not the first by position ("intelligent" over "written", "nephesh" over "said").
+  Absorbs the OT-Type-B-density concern without a separate prune. Display-only (memoized freq), no rebuild.
+- **`./start.sh`** launcher added (installs deps if needed → `npm run dev --open`).
 
-**Next:** AI prose layer (Phase 2) → Level-3 context → Map/Discover (Segment 2).
+**Phase-1 polish is effectively complete.** **Next:** AI prose layer (Phase 2) → Level-3 context → Map/Discover (Segment 2).
 
 ## The app in two segments
 

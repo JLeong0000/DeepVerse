@@ -29,6 +29,7 @@ export function query(sql, params = []) {
 // test seam: let tests inject an in-memory Database
 export function _setDbForTest(instance) {
   db = instance;
+  _wordFreq = null; // drop the memoized frequency map when the db is swapped
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +99,19 @@ export function getLexicon(strongs) {
 }
 
 // --- 1.4 Differences (read side of the engine) ---
+
+// Corpus frequency per Strong's (memoized, one GROUP BY). Used to rank a verse's difference words by
+// rarity so the RAREST (most deliberate authorial choice) becomes the representative underline / card
+// row — e.g. surface "propitiation" over "take", or Hebrew "nephesh (soul/life)" over "amar (said)".
+let _wordFreq = null;
+export function wordFreq(strongs) {
+  if (!_wordFreq) {
+    _wordFreq = new Map();
+    for (const r of query("SELECT strongs, COUNT(*) n FROM words WHERE strongs<>'' GROUP BY strongs")) _wordFreq.set(r.strongs, r.n);
+  }
+  return _wordFreq.get(strongs) ?? Infinity; // unknown -> treat as common (never picked as the rarest)
+}
+
 export function getVerseDifferences(book, chapter, verse) {
   const rows = query(`SELECT d.position, d.type, d.strongs, d.detail, w.original, w.translit, w.gloss
     FROM differences d JOIN words w
@@ -111,7 +125,7 @@ export function getVerseDifferences(book, chapter, verse) {
         return { ...s, lemma: lex?.lemma || '', translit: lex?.translit || '', gloss: lex?.gloss || '' };
       });
     }
-    return { position: r.position, type: r.type, strongs: r.strongs, detail,
+    return { position: r.position, type: r.type, strongs: r.strongs, detail, freq: wordFreq(r.strongs),
       original: r.original, translit: r.translit, gloss: r.gloss };
   });
 }
@@ -119,14 +133,14 @@ export function getVerseDifferences(book, chapter, verse) {
 // Per-verse difference words for a chapter, to drive reader underlines.
 // Returns Map<verse, [{position, type, gloss}]>.
 export function getChapterDifferenceMap(book, chapter) {
-  const rows = query(`SELECT d.verse, d.position, d.type, w.gloss
+  const rows = query(`SELECT d.verse, d.position, d.type, d.strongs, w.gloss
     FROM differences d JOIN words w
       ON w.book=d.book AND w.chapter=d.chapter AND w.verse=d.verse AND w.position=d.position
     WHERE d.book=? AND d.chapter=? ORDER BY d.verse, d.position`, [book, chapter]);
   const map = new Map();
   for (const r of rows) {
     if (!map.has(r.verse)) map.set(r.verse, []);
-    map.get(r.verse).push({ position: r.position, type: r.type, gloss: r.gloss });
+    map.get(r.verse).push({ position: r.position, type: r.type, gloss: r.gloss, strongs: r.strongs, freq: wordFreq(r.strongs) });
   }
   return map;
 }
@@ -137,11 +151,15 @@ export function getChapterDifferenceMap(book, chapter) {
 // card still lists every difference for the selected verse; the interlinear exposes all words.
 export function selectUnderlines(diffs) {
   const list = diffs || [];
-  const a = list.find(d => d.type === 'A');
+  // rank by rarity (rarest = most deliberate) rather than reading order, so the representative is the
+  // marked word, not whichever common word comes first.
+  const rarest = (type, excludePos) => list
+    .filter(d => d.type === type && d.position !== excludePos)
+    .sort((x, y) => (x.freq ?? Infinity) - (y.freq ?? Infinity))[0];
+  const a = rarest('A');
   // prefer a Type B on a DIFFERENT word than the A, so two distinct words get surfaced
   // (e.g. John 12:25 -> "loves"/A + "life"/B, not just "loves" which is both).
-  const b = list.find(d => d.type === 'B' && (!a || d.position !== a.position))
-    || list.find(d => d.type === 'B');
+  const b = rarest('B', a?.position) || rarest('B');
   return [a, b].filter(Boolean);
 }
 

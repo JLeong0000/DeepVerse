@@ -121,11 +121,12 @@ Next candidates, roughly in priority order:
    OT via macula-hebrew **SDBH** domains (it was already on disk — no git-lfs needed). See spec/plan
    `2026-07-07-ot-differences-engine*` and memory `ot-differences-engine`. Also made the app OT-aware
    (language copy, Hebrew def formatting, translit hyphen) + added resizable study columns, jump-to-verse,
-   and a Compare-grid alignment fix. **Remaining follow-up:** OT Type-B is dense (accepted verb-inflection
-   residual); could suppress Type B on very-high-frequency verbs if it reads noisy.
-2. **Type A quality.** Tightened but a few moderate-frequency common words (take, name, write) still fire;
-   consider a rarity-based ranking so the *representative* A is the most deliberate word. See
-   `differences-engine-calibration` memory.
+   and a Compare-grid alignment fix.
+2. ~~**Type A quality.**~~ ✅ **DONE (2026-07-08).** The reader underline + Differences card now pick the
+   **rarest** (most deliberate) Type-A/B word per verse instead of the first by position (memoized corpus
+   frequency in `app/src/lib/db.js`; display-only, no rebuild). This also absorbed the OT-Type-B-density
+   concern — the representative you see is now a genuine sense-spread, not the verb-inflection residual, so
+   no separate OT-Type-B prune is needed. **Phase-1 polish is effectively complete.** (Run the app: `./start.sh`.)
 3. **Phase 2 — AI prose layer.** Pre-generated, RAG-grounded, human-reviewed Claude explanations ("why the
    nuance matters") shipped as static data; plus Level-3 context (book/timeline/culture — needs new data).
    Spec §1 + tracker. No live model in the core.

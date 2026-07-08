@@ -12,20 +12,24 @@
     const diffs = getVerseDifferences(study.book, study.chapter, study.verse);
     const byPos = new Map();
     for (const d of diffs) {
-      const r = byPos.get(d.position) || { position: d.position, gloss: d.gloss, original: d.original, translit: d.translit, strongs: d.strongs, a: null, b: null };
+      const r = byPos.get(d.position) || { position: d.position, gloss: d.gloss, original: d.original, translit: d.translit, strongs: d.strongs, freq: d.freq, a: null, b: null };
       if (d.type === 'A') r.a = d; else r.b = d;
       byPos.set(d.position, r);
     }
     return [...byPos.values()].sort((x, y) => x.position - y.position);
   });
 
-  // representative subset (matches the reader underlines): first word with an A + first word with a
-  // B — preferring two DISTINCT words (a word that is both A and B shouldn't hide the sense-spread one).
+  // representative subset (matches the reader underlines): the RAREST word with an A + the rarest word
+  // with a B — rarity ≈ deliberate authorial choice, so the marked word surfaces over a common one
+  // (e.g. "propitiation" over "take", "nephesh" over "said"). Prefer two DISTINCT words.
   let shown = $derived.by(() => {
     if (showAll) return rows;
-    const firstA = rows.find(r => r.a);
-    const firstB = rows.find(r => r.b && r !== firstA) || rows.find(r => r.b);
-    const rep = new Set([firstA, firstB].filter(Boolean));
+    const rarest = (has, exclude) => rows
+      .filter(r => has(r) && r !== exclude)
+      .sort((x, y) => (x.freq ?? Infinity) - (y.freq ?? Infinity))[0];
+    const repA = rarest(r => r.a);
+    const repB = rarest(r => r.b, repA) || rarest(r => r.b);
+    const rep = new Set([repA, repB].filter(Boolean));
     return rows.filter(r => rep.has(r));
   });
 </script>

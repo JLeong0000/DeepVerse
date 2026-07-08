@@ -1,6 +1,7 @@
 <script>
   import { getVerseDifferences } from '../../lib/db.js';
   import { study, selectWord } from '../../lib/study.svelte.js';
+  import { cleanGloss, testamentLabel } from '../../lib/display.js';
 
   let showAll = $state(false);
   $effect(() => { study.verse; study.book; study.chapter; showAll = false; }); // reset on verse change
@@ -42,7 +43,7 @@
       Louw-Nida semantic domain — that this English word doesn’t distinguish (e.g. φιλέω vs ἀγαπάω, both
       “love”). They come from a precomputed semantic-distance matrix, not from other verses’ wording.</p>
       <p><b class="cb">B · sense-spread.</b> One original word that the translation renders several different
-      ways across the NT (e.g. ψυχή → soul / life). The bar shows that spread.</p>
+      ways across Scripture (e.g. ψυχή → soul / life). The bar shows that spread.</p>
       <p>Tap any word to see its lexicon entry in the Original card.</p>
     </div>
   </div>
@@ -51,7 +52,7 @@
       {#if r.a}
         <div class="lead">
           <span class="bdg bA">A · synonym</span>
-          <b>“{r.gloss.trim()}”</b> uses
+          <b>“{cleanGloss(r.gloss)}”</b> uses
           <button class="gbtn" onclick={() => selectWord({ strongs: r.strongs, ...r.a })}>
             <span class="grk">{r.original}</span><span class="tl">{r.translit}</span>
           </button>
@@ -65,22 +66,22 @@
           {/if}
         </div>
         {#if r.a.detail.nearSynonyms?.[0]?.gloss}
-          <div class="ex">{r.translit}: {r.gloss.trim()} · {r.a.detail.nearSynonyms[0].translit}: {r.a.detail.nearSynonyms[0].gloss}</div>
+          <div class="ex">{r.translit}: {cleanGloss(r.gloss)} · {r.a.detail.nearSynonyms[0].translit}: {cleanGloss(r.a.detail.nearSynonyms[0].gloss)}</div>
         {/if}
       {/if}
       {#if r.b}
         <div class="lead" class:mt={r.a}>
           <span class="bdg bB">B · sense-spread</span>
-          <b>“{r.gloss.trim()}”</b> is
+          <b>“{cleanGloss(r.gloss)}”</b> is
           <span class="wordB" onclick={() => selectWord({ strongs: r.strongs, ...r.b })} role="button" tabindex="0">
             <span class="grk">{r.original}</span> <span class="tl">{r.translit}</span>
           </span>
         </div>
-        <div class="exn">Rendered across the NT as:</div>
+        <div class="exn">Rendered across {testamentLabel(r.strongs)} as:</div>
         <div class="spread">
           {#each r.b.detail.senses.slice(0, 3) as p, i}<i class="s{i + 1}" style="flex:{p.count}"></i>{/each}
         </div>
-        <div class="ex">{#each r.b.detail.senses.slice(0, 3) as p, i}<b>{p.gloss}</b> {p.count}×{#if i < Math.min(r.b.detail.senses.length, 3) - 1} · {/if}{/each}</div>
+        <div class="ex">{#each r.b.detail.senses.slice(0, 3) as p, i}<b>{cleanGloss(p.gloss)}</b> {p.count}×{#if i < Math.min(r.b.detail.senses.length, 3) - 1} · {/if}{/each}</div>
       {/if}
     </div>
   {/each}

@@ -2,6 +2,7 @@
   import { getInterlinear, getVerseDifferences, getLexicon, countLemma, getChapterLanguages } from '../../lib/db.js';
   import { study, selectWord } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
+  import { parseDefinition } from '../../lib/display.js';
 
   let words = $derived(study.verse == null ? [] : getInterlinear(study.book, study.chapter, study.verse));
   let langs = $derived(getChapterLanguages(study.book, study.chapter));
@@ -22,21 +23,10 @@
     if (!w?.strongs) return null;
     return { word: w, lex: getLexicon(w.strongs), conc: countLemma(w.strongs) };
   });
-  // STEPBible definitions cram all senses onto one line, separated by "__" markers, with a 3-level
-  // hierarchy: Roman (I., II.) > arabic (1., 2.) > lettered ((a), (b)). Parse each into a level + marker
-  // so we can indent instead of bulleting.
-  let defSenses = $derived.by(() => {
-    const d = detail?.lex?.definition;
-    if (!d) return [];
-    return d.split(/\s*__\s*/).map(s => s.trim()).filter(Boolean).map((s, i) => {
-      let m;
-      if (i === 0) return { level: -1, marker: '', text: s };            // lead: headword + etymology
-      if ((m = s.match(/^([IVX]+)\.\s*/))) return { level: 0, marker: m[1] + '.', text: s.slice(m[0].length) };
-      if ((m = s.match(/^(\d+)\.\s*/))) return { level: 1, marker: m[1] + '.', text: s.slice(m[0].length) };
-      if ((m = s.match(/^\(([^)]+)\)\s*/))) return { level: 2, marker: '(' + m[1] + ')', text: s.slice(m[0].length) };
-      return { level: -1, marker: '', text: s };
-    });
-  });
+  // STEPBible definitions cram all senses onto one line. Greek uses "__" delimiters + Roman/arabic/lettered
+  // markers; Hebrew (BDB) uses inline "1) / 1a) / 1a1)" numbering. parseDefinition handles both and returns
+  // {level, marker, text} rows so we can indent instead of showing one run-on line.
+  let defSenses = $derived.by(() => parseDefinition(detail?.lex?.definition));
 
   let detailEl = $state(null);
   $effect(() => { if (detail && detailEl) detailEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });

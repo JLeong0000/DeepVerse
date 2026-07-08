@@ -1,10 +1,12 @@
 <script>
   import { getWordOfDay } from '../../lib/db.js';
   import { openStudy } from '../../lib/router.svelte.js';
+  import { langLabel, cleanGloss } from '../../lib/display.js';
 
   const w = getWordOfDay();
   // top two distinct senses for the "behind both X and Y" line
-  const senses = w ? w.senses.slice(0, 2).map(s => s.gloss) : [];
+  const senses = w ? w.senses.slice(0, 2).map(s => cleanGloss(s.gloss)) : [];
+  const lang = w ? langLabel(w.lang || w.strongs) : '';
 </script>
 
 {#if w}
@@ -15,7 +17,7 @@
     </div>
     <div class="row"><span class="grk">{w.original}</span><span class="tl">{w.translit}</span></div>
     <div class="body">
-      One Greek word behind both <b>“{senses[0]}”</b>{#if senses[1]} and <b>“{senses[1]}”</b>{/if} —
+      One {lang} word behind both <b>“{senses[0]}”</b>{#if senses[1]} and <b>“{senses[1]}”</b>{/if} —
       English must pick one each time. <span class="go">Study →</span>
     </div>
   </section>

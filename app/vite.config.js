@@ -60,9 +60,11 @@ export default defineConfig({
     // onnxruntime-web's default export condition resolves to the "bundle" build, which embeds a
     // static `new URL('ort-*.wasm', import.meta.url)` reference that Vite bundles as a ~27 MB dist/
     // asset — even though mms.js overrides ort.env.wasm.wasmPaths to load the vendored copy under
-    // /tts/ort/ instead. This condition switches to the "extern wasm" build, which has no such
-    // static reference, so nothing gets double-bundled.
-    : { conditions: ['onnxruntime-web-use-extern-wasm'] },
+    // /tts/ort/ instead. Aliasing straight to the "extern wasm" build (which has no such static
+    // reference) avoids the double-bundling without touching resolve.conditions globally — setting
+    // resolve.conditions here would replace (not extend) Vite's default conditions array, dropping
+    // "browser" and breaking svelte-vite-plugin's browser/client resolution of the svelte package.
+    : { alias: { 'onnxruntime-web': fileURLToPath(new URL('./node_modules/onnxruntime-web/dist/ort.min.mjs', import.meta.url)) } },
   test: {
     environment: 'jsdom',
     globals: true,

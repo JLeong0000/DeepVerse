@@ -17,8 +17,8 @@
     </div>
     <div class="row"><span class="grk">{w.original}</span><span class="tl">{readTranslit(w.translit)}</span></div>
     <div class="body">
-      One {lang} word behind both <b>“{senses[0]}”</b>{#if senses[1]} and <b>“{senses[1]}”</b>{/if} —
-      English must pick one each time. <span class="go">Study →</span>
+      One {lang} word behind both <b>“{senses[0]}”</b>{#if senses[1]} and <b>“{senses[1]}”</b>{/if}.
+      <span class="go">Study →</span>
     </div>
   </section>
 {/if}

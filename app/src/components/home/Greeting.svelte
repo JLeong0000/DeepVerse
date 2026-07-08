@@ -12,11 +12,13 @@
   }
 </script>
 
-<div class="hello">
-  {phrase}, <span class="name" contenteditable="true" spellcheck="false"
-    onblur={saveName}>{name}</span>
+<div class="greetblock">
+  <div class="hello">
+    {phrase}, <span class="name" contenteditable="true" spellcheck="false"
+      onblur={saveName}>{name}</span>
+  </div>
+  <div class="hellosub">{subline}</div>
 </div>
-<div class="hellosub">{subline}</div>
 
 <style>
   .hello { font-size: 30px; margin-bottom: 2px; }

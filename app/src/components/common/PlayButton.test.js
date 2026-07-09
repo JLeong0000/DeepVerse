@@ -2,9 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import PlayButton from './PlayButton.svelte';
 
-const { speak } = vi.hoisted(() => ({ speak: vi.fn(async () => {}) }));
+// Minimal writable-compatible store inline (svelte/store can't be imported inside vi.hoisted,
+// which runs before imports). PlayButton auto-subscribes via `$playing`, so it only needs subscribe/set.
+const { speak, playing } = vi.hoisted(() => {
+  let value = false;
+  const subs = new Set();
+  return {
+    speak: vi.fn(async () => {}),
+    playing: {
+      subscribe(fn) { fn(value); subs.add(fn); return () => subs.delete(fn); },
+      set(v) { value = v; subs.forEach((fn) => fn(value)); },
+    },
+  };
+});
 vi.mock('../../lib/tts/index.js', () => ({
   speak,
+  playing,
   canSpeak: (lang) => lang === 'grc' || lang === 'hbo' || String(lang)[0] === 'G' || String(lang)[0] === 'H',
 }));
 

@@ -1,17 +1,68 @@
 import { getContext } from './player.js';
 
-let engine = null; // memoized text2wav fn
+// Greek TTS via espeak-ng compiled to WASM (the "espeakng.js" emscripten build), running in a
+// Web Worker entirely in-browser. The `grc` voice gives ancient/Koine pronunciation of polytonic
+// NT text. The worker + its ~2.4MB voice data live under public/tts/espeak/ (lazy-fetched on first
+// use, runtime-cached for offline). espeak-ng and the worker glue are GPL-3.0; this thin ESM wrapper
+// is derived from espeakng.js (Copyright 2014-2017 Eitan Isaacson, GPL-3.0).
+const WORKER_URL = '/tts/espeak/espeakng.worker.js';
+const SAMPLE_RATE = 22050; // espeak-ng emscripten output rate
 
-async function load() {
-  if (!engine) engine = (await import('text2wav')).default;
-  return engine;
+let enginePromise = null;
+
+// Resolve once the worker reports 'ready', wiring up its callback-dispatch protocol.
+function createEngine() {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(WORKER_URL);
+    const callbacks = {};
+    worker.onmessage = (e) => {
+      if (e.data !== 'ready') return;
+      worker.onmessage = null;
+      worker.addEventListener('message', (evt) => {
+        const cb = callbacks[evt.data.callback];
+        if (!cb) return;
+        cb(...evt.data.result);
+        if (evt.data.done) delete callbacks[evt.data.callback];
+      });
+      resolve({ worker, callbacks });
+    };
+    worker.onerror = (e) => reject(new Error(`espeak worker failed: ${e.message || e}`));
+  });
 }
 
-// Greek: espeak-ng 'grc' (ancient) reads polytonic NT text with ancient vowel values.
+// Post a method call to the worker; if `cb` is given, register it under a unique key the worker
+// echoes back on each result (streamed synthesis calls it repeatedly, with done=true on the last).
+function call({ worker, callbacks }, method, args, cb) {
+  const message = { method, args };
+  if (cb) {
+    const key = `_${method}_${Math.random().toString().slice(2)}_cb`;
+    callbacks[key] = cb;
+    message.callback = key;
+  }
+  worker.postMessage(message);
+}
+
+async function getEngine() {
+  if (!enginePromise) enginePromise = createEngine();
+  return enginePromise;
+}
+
 export async function synthesize(text) {
-  const t2w = await load();
-  const wav = await t2w(String(text), { voice: 'grc' }); // Uint8Array, WAV bytes
-  // decodeAudioData needs an ArrayBuffer copy (not a shared view)
-  const buf = wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength);
-  return await getContext().decodeAudioData(buf);
+  const engine = await getEngine();
+  call(engine, 'set_voice', ['grc']);
+  const chunks = [];
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('espeak synthesize timed out')), 15000);
+    call(engine, 'synthesize', [String(text)], (samples) => {
+      if (samples) { chunks.push(new Float32Array(samples)); return; } // streamed chunk
+      clearTimeout(timer); // null samples => done
+      const total = chunks.reduce((n, c) => n + c.length, 0);
+      const pcm = new Float32Array(total);
+      let offset = 0;
+      for (const c of chunks) { pcm.set(c, offset); offset += c.length; }
+      const buffer = getContext().createBuffer(1, pcm.length || 1, SAMPLE_RATE);
+      buffer.copyToChannel(pcm, 0);
+      resolve(buffer);
+    });
+  });
 }

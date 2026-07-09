@@ -1,8 +1,12 @@
 <script>
-  import { speak, canSpeak } from '../../lib/tts/index.js';
+  import { speak, canSpeak, playing } from '../../lib/tts/index.js';
 
   let { text, lang } = $props();
   let state = $state('idle'); // 'idle' | 'loading' | 'playing' | 'error'
+
+  // Playback is shared (one voice at a time via the player). When it stops — whether this word
+  // finished or another word took over — drop our 'playing' highlight back to idle.
+  $effect(() => { if (!$playing && state === 'playing') state = 'idle'; });
 
   async function onClick(e) {
     e.stopPropagation();

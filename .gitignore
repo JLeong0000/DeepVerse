@@ -9,5 +9,6 @@ app/dist/
 app/dev-dist/
 app/public/bible.db
 app/public/sql-wasm.wasm
+app/public/tts/ort/
 .playwright-mcp/
 app/.playwright-mcp/

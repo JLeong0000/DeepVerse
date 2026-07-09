@@ -3,6 +3,7 @@
   import { study, selectWord } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
   import { parseDefinition, readTranslit } from '../../lib/display.js';
+  import PlayButton from '../common/PlayButton.svelte';
 
   let words = $derived(study.verse == null ? [] : getInterlinear(study.book, study.chapter, study.verse));
   let langs = $derived(getChapterLanguages(study.book, study.chapter));
@@ -51,6 +52,7 @@
   {#if detail}
     <div class="wdetail" bind:this={detailEl}>
       <div class="wtop"><span class="grk big">{detail.word.original}</span> <span class="tl">{readTranslit(detail.word.translit)}</span>
+        <PlayButton text={detail.word.original} lang={detail.word.lang || detail.word.strongs} />
         <span class="strong">{detail.word.strongs}</span>{#if detail.word.morph} <span class="morph">{detail.word.morph}</span>{/if}</div>
       {#if detail.lex}
         {#if detail.lex.gloss}<div class="gloss">{detail.lex.gloss}</div>{/if}

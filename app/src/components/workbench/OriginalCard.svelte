@@ -74,7 +74,10 @@
   .langnote { font-size: 11px; color: var(--dim); padding: 8px 11px 0; font-style: italic; }
   .interlin { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 3px; padding: 11px; }
   .iw { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px;
-    padding: 5px 4px; border: 1px solid transparent; border-radius: 5px; cursor: pointer; text-align: center; }
+    padding: 5px 4px; border: 1px solid transparent; border-radius: 5px; cursor: pointer; text-align: center;
+    min-width: 0; }
+  /* long words (e.g. ζωοποιηθήσονται) must wrap inside their cell, not bleed into the neighbor */
+  .iw .g, .iw .p, .iw .e { max-width: 100%; overflow-wrap: anywhere; }
   .iw:hover { border-color: var(--rule); background: color-mix(in srgb, var(--panel) 50%, var(--bg)); }
   .iw.active { border-color: var(--a); background: color-mix(in srgb, var(--panel) 60%, var(--bg)); }
   .iw .g { font-family: var(--greek); font-size: 16px; }

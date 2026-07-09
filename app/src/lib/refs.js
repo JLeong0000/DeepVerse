@@ -38,6 +38,8 @@ export function parseReference(input) {
 }
 
 export function bookName(code) { return NAME.get(code) || code; }
+// Compact label for headers: keep the short code but space a leading numeral ("1Cor" -> "1 Cor").
+export function bookShort(code) { return String(code || '').replace(/^([1-3])(?=[A-Za-z])/, '$1 '); }
 export function bookOrder(code) { return ORDER.has(code) ? ORDER.get(code) : 999; }
 
 // Format an OSIS ref like "John.12.25" for display: "John 12:25". Handles chapter-only "John.12".

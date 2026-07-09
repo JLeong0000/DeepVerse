@@ -1,5 +1,15 @@
 import { test, expect, describe } from 'vitest';
-import { parseReference } from './refs.js';
+import { parseReference, bookShort } from './refs.js';
+
+describe('bookShort', () => {
+  test('spaces a leading numeral, leaves others intact', () => {
+    expect(bookShort('1Cor')).toBe('1 Cor');
+    expect(bookShort('2Sam')).toBe('2 Sam');
+    expect(bookShort('3John')).toBe('3 John');
+    expect(bookShort('Rom')).toBe('Rom');
+    expect(bookShort('Song')).toBe('Song');
+  });
+});
 
 describe('parseReference', () => {
   test('book name + chapter:verse', () => {

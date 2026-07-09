@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import PlayButton from './PlayButton.svelte';
 
 // Minimal writable-compatible store inline (svelte/store can't be imported inside vi.hoisted,
@@ -7,13 +8,12 @@ import PlayButton from './PlayButton.svelte';
 const { speak, playing } = vi.hoisted(() => {
   let value = false;
   const subs = new Set();
-  return {
-    speak: vi.fn(async () => {}),
-    playing: {
-      subscribe(fn) { fn(value); subs.add(fn); return () => subs.delete(fn); },
-      set(v) { value = v; subs.forEach((fn) => fn(value)); },
-    },
+  const playing = {
+    subscribe(fn) { fn(value); subs.add(fn); return () => subs.delete(fn); },
+    set(v) { value = v; subs.forEach((fn) => fn(value)); },
   };
+  // Mirror the real flow: speak() ultimately drives player.play(), which sets playing=true.
+  return { speak: vi.fn(async () => { playing.set(true); }), playing };
 });
 vi.mock('../../lib/tts/index.js', () => ({
   speak,
@@ -21,7 +21,7 @@ vi.mock('../../lib/tts/index.js', () => ({
   canSpeak: (lang) => lang === 'grc' || lang === 'hbo' || String(lang)[0] === 'G' || String(lang)[0] === 'H',
 }));
 
-beforeEach(() => speak.mockClear());
+beforeEach(() => { speak.mockClear(); playing.set(false); });
 
 describe('PlayButton', () => {
   it('renders nothing for Aramaic', () => {
@@ -44,5 +44,14 @@ describe('PlayButton', () => {
     container.parentNode.addEventListener('click', parent);
     await fireEvent.click(getByRole('button'));
     expect(parent).not.toHaveBeenCalled();
+  });
+  it('returns to idle when playback ends', async () => {
+    const { getByRole } = render(PlayButton, { text: 'λόγος', lang: 'grc' });
+    const btn = getByRole('button');
+    await fireEvent.click(btn);            // speak() sets playing=true → button enters 'playing'
+    expect(btn.className).toContain('playing');
+    playing.set(false);                     // playback ends
+    await tick();
+    expect(btn.className).not.toContain('playing');
   });
 });

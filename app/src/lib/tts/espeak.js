@@ -34,16 +34,23 @@ function createEngine() {
 // echoes back on each result (streamed synthesis calls it repeatedly, with done=true on the last).
 function call({ worker, callbacks }, method, args, cb) {
   const message = { method, args };
+  let key;
   if (cb) {
-    const key = `_${method}_${Math.random().toString().slice(2)}_cb`;
+    key = `_${method}_${Math.random().toString().slice(2)}_cb`;
     callbacks[key] = cb;
     message.callback = key;
   }
   worker.postMessage(message);
+  return key;
 }
 
 async function getEngine() {
-  if (!enginePromise) enginePromise = createEngine();
+  if (!enginePromise) {
+    enginePromise = createEngine();
+    // Fetching the ~2.4MB worker/data can fail (offline first-play, transient error). Don't memoize
+    // the rejection — clear it so the next play retries instead of being permanently dead.
+    enginePromise.catch(() => { enginePromise = null; });
+  }
   return enginePromise;
 }
 
@@ -52,8 +59,12 @@ export async function synthesize(text) {
   call(engine, 'set_voice', ['grc']);
   const chunks = [];
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('espeak synthesize timed out')), 15000);
-    call(engine, 'synthesize', [String(text)], (samples) => {
+    let key;
+    const timer = setTimeout(() => {
+      if (key) delete engine.callbacks[key]; // don't leak the closure if the worker never replies
+      reject(new Error('espeak synthesize timed out'));
+    }, 15000);
+    key = call(engine, 'synthesize', [String(text)], (samples) => {
       if (samples) { chunks.push(new Float32Array(samples)); return; } // streamed chunk
       clearTimeout(timer); // null samples => done
       const total = chunks.reduce((n, c) => n + c.length, 0);

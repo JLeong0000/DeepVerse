@@ -3,6 +3,7 @@
   import { route } from '../lib/router.svelte.js';
   import { study, goToPassage, selectVerse, selectWord } from '../lib/study.svelte.js';
   import { getInterlinear } from '../lib/db.js';
+  import { bookShort } from '../lib/refs.js';
   import { getPref, setPref } from '../lib/store.js';
   import Reader from '../components/reader/Reader.svelte';
   import Workbench from '../components/workbench/Workbench.svelte';
@@ -52,7 +53,7 @@
 
 <div class="study">
   <div class="studybar">
-    <span class="loc">Study · <b>{study.book} {study.chapter}</b></span>
+    <span class="loc">Study · <b>{bookShort(study.book)} {study.chapter}</b></span>
     <button class="ctl" onclick={cycleOrientation} title="Toggle split orientation">
       {orientation === 'lr' ? '⇔ side-by-side' : '⇕ stacked'}
     </button>

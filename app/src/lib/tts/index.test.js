@@ -1,26 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const espeakSynth = vi.fn(async () => 'greek-buffer');
-const mmsSynth = vi.fn(async () => 'hebrew-buffer');
+const mmsSynth = vi.fn(async () => 'buffer');
 const play = vi.fn();
-vi.mock('./espeak.js', () => ({ synthesize: espeakSynth }));
 vi.mock('./mms.js', () => ({ synthesize: mmsSynth }));
 vi.mock('./player.js', () => ({ play, stop: vi.fn(), playing: {} }));
 
-beforeEach(() => { espeakSynth.mockClear(); mmsSynth.mockClear(); play.mockClear(); });
+beforeEach(() => { mmsSynth.mockClear(); play.mockClear(); });
 
 describe('speak', () => {
-  it('routes Greek to espeak then plays', async () => {
+  it('routes Greek to the ell model then plays', async () => {
     const { speak } = await import('./index.js');
     await speak('λόγος', 'grc');
-    expect(espeakSynth).toHaveBeenCalledWith('λόγος');
-    expect(play).toHaveBeenCalledWith('greek-buffer');
+    expect(mmsSynth).toHaveBeenCalledWith('λόγος', 'ell');
+    expect(play).toHaveBeenCalledWith('buffer');
   });
-  it('routes Hebrew to mms then plays', async () => {
+  it('routes Hebrew to the heb model then plays', async () => {
     const { speak } = await import('./index.js');
     await speak('בראשית', 'hbo');
-    expect(mmsSynth).toHaveBeenCalledWith('בראשית');
-    expect(play).toHaveBeenCalledWith('hebrew-buffer');
+    expect(mmsSynth).toHaveBeenCalledWith('בראשית', 'heb');
+    expect(play).toHaveBeenCalledWith('buffer');
   });
   it('rejects unsupported language without playing', async () => {
     const { speak } = await import('./index.js');

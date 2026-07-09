@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { route, canSpeak } from './router.js';
 
 describe('tts router', () => {
-  it('routes Greek to espeak', () => {
-    expect(route('grc')).toBe('espeak');
-    expect(route('G3056')).toBe('espeak');
+  it('routes Greek to the ell model', () => {
+    expect(route('grc')).toBe('ell');
+    expect(route('G3056')).toBe('ell');
   });
-  it('routes Hebrew to mms', () => {
-    expect(route('hbo')).toBe('mms');
-    expect(route('H7225')).toBe('mms');
+  it('routes Hebrew to the heb model', () => {
+    expect(route('hbo')).toBe('heb');
+    expect(route('H7225')).toBe('heb');
   });
   it('returns null for Aramaic, empty, and unknown', () => {
     expect(route('arc')).toBe(null);

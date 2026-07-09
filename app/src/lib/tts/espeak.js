@@ -59,7 +59,7 @@ export async function synthesize(text) {
   call(engine, 'set_voice', ['grc']);
   // espeak-ng's grc default is low-pitched (~100Hz) and deliberate, which reads as a deep, slow
   // rumble. Nudge pitch and rate up for a more natural read (espeak stays robotic — formant synth).
-  call(engine, 'set_rate', [220]);  // words/min (default ~175) — faster reads less sluggish/robotic
+  call(engine, 'set_rate', [440]);  // words/min (espeak max ~450) — ~2x the prior 220 per user request
   call(engine, 'set_pitch', [70]);  // 0-99 (default 50) — higher = less deep
   const chunks = [];
   return new Promise((resolve, reject) => {

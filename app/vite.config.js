@@ -1,10 +1,36 @@
 import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Dev-only: onnxruntime-web loads its wasm glue via a runtime dynamic import of
+// `/tts/ort/*.mjs`. Vite's dev server injects a `?import` query onto same-origin dynamic
+// imports and then 500s trying to transform these emscripten glue files as source modules.
+// Serve them raw (stripping the query) so Hebrew TTS works in `npm run dev`. No effect on
+// the production build (apply: 'serve'), which serves public/ files statically already.
+const serveTtsMjsRaw = {
+  name: 'serve-tts-mjs-raw',
+  apply: 'serve',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const pathname = (req.url || '').split('?')[0];
+      if (pathname.startsWith('/tts/') && pathname.endsWith('.mjs')) {
+        const file = fileURLToPath(new URL(`./public${pathname}`, import.meta.url));
+        if (existsSync(file)) {
+          res.setHeader('Content-Type', 'text/javascript');
+          res.end(readFileSync(file));
+          return;
+        }
+      }
+      next();
+    });
+  },
+};
+
 export default defineConfig({
   plugins: [
+    serveTtsMjsRaw,
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',

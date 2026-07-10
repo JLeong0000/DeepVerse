@@ -29,6 +29,7 @@
   .continue { margin: -10px -12px 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer;
     transition: transform .35s ease, box-shadow .35s ease; }
   .continue:hover { transform: scale(1.008); box-shadow: 0 4px 14px rgba(0, 0, 0, .14); }
+  :global(html.dark) .continue:hover { box-shadow: 0 4px 14px rgba(255, 255, 255, .14); }
   .resume { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .resume .ref { font-size: 32px; color: var(--a); }
   .resume .meta { color: var(--dim); font-size: 12.5px; }

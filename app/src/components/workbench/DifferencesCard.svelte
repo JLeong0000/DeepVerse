@@ -32,6 +32,13 @@
     const rep = new Set([repA, repB].filter(Boolean));
     return rows.filter(r => rep.has(r));
   });
+
+  // B sense-spread: tint each sense chip by its share of the most-common sense, so relative
+  // frequency reads from colour depth (darkest = most common) at a fixed width, not bar length.
+  function tintPct(count, senses) {
+    const max = Math.max(...senses.slice(0, 3).map(p => p.count)) || 1;
+    return Math.round(8 + (count / max) * 54); // 8%..62% of --b mixed into the panel
+  }
 </script>
 
 {#if study.verse == null}
@@ -54,24 +61,23 @@
   {#each shown as r (r.position)}
     <div class="drow">
       {#if r.a}
-        <div class="lead">
+        <div class="lead alead">
           <span class="bdg bA">A · synonym</span>
-          <b>“{cleanGloss(r.gloss)}”</b> uses
-          <button class="gbtn" onclick={() => selectWord({ strongs: r.strongs, ...r.a })}>
-            <span class="grk">{r.original}</span><span class="tl">{readTranslit(r.translit)}</span>
+          <b>“{cleanGloss(r.gloss)}”</b>
+          <button class="chip chosen" onclick={() => selectWord({ strongs: r.strongs, ...r.a })}>
+            <span class="chw"><span class="grk">{r.original}</span><span class="tl">{readTranslit(r.translit)}</span></span>
+            <span class="chg">{cleanGloss(r.gloss)}</span>
           </button>
           {#if r.a.detail.nearSynonyms?.length}
-            <span class="vs">not</span>
+            <span class="vs">vs</span>
             {#each r.a.detail.nearSynonyms.slice(0, 2) as syn}
-              <button class="gbtn" onclick={() => selectWord({ strongs: syn.strongs, original: syn.lemma, translit: syn.translit })}>
-                <span class="grk">{syn.lemma}</span><span class="tl">{readTranslit(syn.translit)}</span>
+              <button class="chip rejected" onclick={() => selectWord({ strongs: syn.strongs, original: syn.lemma, translit: syn.translit })}>
+                <span class="chw"><span class="grk">{syn.lemma}</span><span class="tl">{readTranslit(syn.translit)}</span></span>
+                {#if syn.gloss}<span class="chg">{cleanGloss(syn.gloss)}</span>{/if}
               </button>
             {/each}
           {/if}
         </div>
-        {#if r.a.detail.nearSynonyms?.[0]?.gloss}
-          <div class="ex">{readTranslit(r.translit)}: {cleanGloss(r.gloss)} · {readTranslit(r.a.detail.nearSynonyms[0].translit)}: {cleanGloss(r.a.detail.nearSynonyms[0].gloss)}</div>
-        {/if}
       {/if}
       {#if r.b}
         <div class="lead" class:mt={r.a}>
@@ -81,11 +87,12 @@
             <span class="grk">{r.original}</span> <span class="tl">{readTranslit(r.translit)}</span>
           </span>
         </div>
-        <div class="exn">Rendered across {testamentLabel(r.strongs)} as:</div>
-        <div class="spread">
-          {#each r.b.detail.senses.slice(0, 3) as p, i}<i class="s{i + 1}" style="flex:{p.count}"></i>{/each}
+        <div class="tally">
+          <span class="tcap">across {testamentLabel(r.strongs)}:</span>
+          {#each r.b.detail.senses.slice(0, 3) as p}
+            <span class="schip" style="background: color-mix(in srgb, var(--b) {tintPct(p.count, r.b.detail.senses)}%, var(--panel))"><b>{cleanGloss(p.gloss)}</b> {p.count}×</span>
+          {/each}
         </div>
-        <div class="ex">{#each r.b.detail.senses.slice(0, 3) as p, i}<b>{cleanGloss(p.gloss)}</b> {p.count}×{#if i < Math.min(r.b.detail.senses.length, 3) - 1} · {/if}{/each}</div>
       {/if}
     </div>
   {/each}
@@ -115,22 +122,26 @@
   .bdg { font-size: .72em; font-weight: 700; padding: 1px 6px; border-radius: 3px; font-variant: small-caps; letter-spacing: .04em; }
   .bA { background: var(--abg); color: var(--a); } .bB { background: var(--bbg); color: var(--b); }
   .lead { font-size: 14px; margin-bottom: 4px; line-height: 1.9; } .lead.mt { margin-top: 8px; }
+  .lead.alead { line-height: 1.5; }
   .grk { font-family: var(--greek); }
   .tl { color: var(--dim); font-style: italic; font-size: .82em; }
-  .gbtn { display: inline-flex; align-items: baseline; gap: 5px; border: 1px solid var(--rule);
-    background: color-mix(in srgb, var(--panel) 50%, var(--bg)); border-radius: 5px; padding: 2px 8px; cursor: pointer;
-    color: var(--ink); font-family: inherit; }
-  .gbtn:hover { border-color: var(--a); } .gbtn .grk { font-size: 1.1em; }
-  .gbtn.used { border-color: var(--a); }
-  .vs { color: var(--dim); font-size: .85em; margin: 0 3px; }
+  .chip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0;
+    border: 1px solid var(--rule); border-radius: 5px; padding: 2px 8px; cursor: pointer;
+    color: var(--ink); font-family: inherit; vertical-align: middle; }
+  .chip .chw { display: inline-flex; align-items: baseline; gap: 5px; }
+  .chip .chw .grk { font-size: 1.1em; }
+  .chip .chg { font-size: .72em; color: var(--dim); font-style: italic; line-height: 1.25; }
+  .chip.chosen { border-color: var(--a); background: var(--abg); }
+  .chip.rejected { opacity: .5; background: color-mix(in srgb, var(--panel) 50%, var(--bg)); }
+  .chip.rejected:hover { opacity: .85; } .chip.chosen:hover { border-color: var(--a); }
+  .vs { color: var(--dim); font-size: .85em; margin: 0 2px; }
   .wordB { border-bottom: 2px solid var(--b); cursor: pointer; padding-bottom: 1px; }
   .wordB .grk { font-size: 1.1em; }
-  .ex { font-size: .86em; color: var(--dim); font-style: italic; }
-  .exn { font-size: .86em; color: var(--ink); margin-bottom: 2px; }
-  .spread { display: flex; gap: 2px; margin: 6px 0 4px; height: 10px; width: 190px; border-radius: 2px; overflow: hidden; }
-  .spread i { display: block; }
-  .spread .s1 { background: var(--b); } .spread .s2 { background: color-mix(in srgb, var(--b) 55%, var(--bg)); }
-  .spread .s3 { background: var(--rule); }
+  .tally { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 5px;
+    font-size: .86em; color: var(--dim); font-style: italic; }
+  .schip { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 7px; border-radius: 4px;
+    white-space: nowrap; color: var(--ink); }
+  .schip b { font-weight: 600; font-style: italic; }
   .repcap { padding: 10px 11px 12px; font-size: 11px; color: var(--dim); font-style: italic; }
   .showall { display: block; width: 100%; text-align: left; padding: 8px 11px; border: none; border-top: 1px solid var(--rule);
     background: transparent; color: var(--b); cursor: pointer; font-family: inherit; font-size: 12px; }

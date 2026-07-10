@@ -7,6 +7,7 @@ describe('readTranslit', () => {
     expect(readTranslit("va/i.yi.ka.re.'U")).toBe("va-i.yi.ka.re.'U");
     expect(readTranslit('ha./ri.Shon')).toBe('ha-ri.Shon');
     expect(readTranslit('psy.che')).toBe('psy.che'); // Greek: no "/", unchanged
+    expect(readTranslit("mit.na.ke.Rah\\׃")).toBe('mit.na.ke.Rah'); // strip trailing sof-passuq
   });
 });
 
@@ -37,7 +38,23 @@ describe('cleanGloss', () => {
   test('leaves clean glosses untouched and never returns empty', () => {
     expect(cleanGloss('he summoned')).toBe('he summoned');
     expect(cleanGloss('soul')).toBe('soul');
-    expect(cleanGloss('and/')).toBe('and/'); // nothing after the particle -> keep original
+    expect(cleanGloss('and/')).toBe('and'); // only a prefix -> unwrapped, slash-free fallback
+    expect(cleanGloss('to/ when?')).toBe('when'); // root that is itself a particle-word survives
+    expect(cleanGloss('<the>')).toBe('the'); // a pure grammatical-marker gloss unwraps, not "<the>"
+  });
+  test('strips trailing attached particles/pronouns and dangling slashes', () => {
+    expect(cleanGloss('downfall/ your')).toBe('downfall');
+    expect(cleanGloss('servants/ his')).toBe('servants');
+    expect(cleanGloss('gold/ the')).toBe('gold');
+    expect(cleanGloss('pay attention/')).toBe('pay attention');
+    expect(cleanGloss('the signet-ring of')).toBe('the signet-ring of'); // free "of" kept (construct)
+  });
+  test('removes brackets/markers and outer punctuation', () => {
+    expect(cleanGloss('[objects of] compassion')).toBe('objects of compassion');
+    expect(cleanGloss('[man] equipped')).toBe('man equipped');
+    expect(cleanGloss('¿/ have you murdered')).toBe('have you murdered');
+    expect(cleanGloss('immortality.')).toBe('immortality');
+    expect(cleanGloss('give thanks?')).toBe('give thanks');
   });
 });
 

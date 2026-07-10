@@ -17,22 +17,35 @@ export function testamentLabel(strongs) {
   return String(strongs || '')[0] === 'H' ? 'the OT' : 'the NT';
 }
 
-// Strip leading attached-particle morphemes from a gloss so the sense reads cleanly:
-// "and/ he called" -> "he called", "with/ the signet-ring of" -> "the signet-ring of",
-// "and/ the/ earth" -> "earth", "<the>/ first" -> "first". Display-only; never returns empty.
-const LEAD_PARTICLE = /^\s*(?:<[^>]*>|and|but|or|the|a|an|of|to|into|in|on|upon|with|for|from|as|when|then|so|that|which)\s*\/\s*/i;
+// Clean the interlinear-markup out of a gloss so it reads as plain English on the cards. The data
+// joins a Hebrew word's morphemes with "/" — leading particle prefixes (and/the/to/in…) and trailing
+// pronoun suffixes (my/his/it…) around the root — and wraps supplied/grammatical words in [..]/<..>.
+// Split on "/", drop the pure-particle segments at each end (the root is what's left), then strip
+// markers and outer punctuation: "with/ the signet-ring of" -> "the signet-ring of", "to the/ Tyrians"
+// -> "Tyrians", "downfall/ your" -> "downfall", "[man] equipped" -> "man equipped". Never returns empty.
+const PARTICLE = new Set(['and', 'but', 'or', 'the', 'a', 'an', 'of', 'to', 'into', 'in', 'on', 'onto',
+  'upon', 'with', 'for', 'from', 'as', 'like', 'when', 'then', 'so', 'that', 'which', 'at', 'by',
+  'my', 'your', 'his', 'her', 'its', 'our', 'their', 'me', 'him', 'them', 'us', 'it', 'i', 'he', 'she', 'we', 'they']);
+const cleanSeg = seg => seg.replace(/<[^>]*>/g, ' ').replace(/[[\]]/g, '').replace(/[¿¶\\]/g, ' ').replace(/\s+/g, ' ').trim();
+const isParticles = seg => seg !== '' && seg.split(/\s+/).every(w => PARTICLE.has(w.toLowerCase()));
 export function cleanGloss(g) {
-  let s = String(g || '').trim();
-  let prev;
-  do { prev = s; s = s.replace(LEAD_PARTICLE, '').trim(); } while (s !== prev && s);
-  return s || String(g || '').trim();
+  const segs = String(g || '').split('/').map(cleanSeg);
+  while (segs.length > 1 && (segs[0] === '' || isParticles(segs[0]))) segs.shift();
+  while (segs.length > 1 && (segs.at(-1) === '' || isParticles(segs.at(-1)))) segs.pop();
+  let s = segs.join(' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(/^[.,;:!?"'’)(־׃]+|[.,;:!?"'’)(־׃]+$/g, '').trim();   // outer punctuation (incl. Hebrew maqaf/sof-passuq)
+  // never reduce to nothing; a gloss that is ONLY markers/particles ("<the>", "and/ <obj.>") falls back
+  // to its unwrapped, slash-free contents rather than showing the raw markup.
+  const bare = String(g || '').replace(/[<>[\]¿¶\\]/g, '').replace(/\//g, ' ').replace(/\s+/g, ' ').trim();
+  return s || bare || String(g || '').trim();
 }
 
 // Render a transliteration for pronunciation: the "/" morpheme boundary (a prefix/suffix particle
 // attached to the root, matching the Hebrew script) reads better as a hyphen — "be./ta.Ba.'at" ->
-// "be-ta.Ba.'at". The "." syllable separators are kept. No-op for Greek (no "/").
+// "be-ta.Ba.'at". The "." syllable separators are kept. No-op for Greek (no "/"). Also drop the
+// trailing sof-passuq / pilcrow marks the interlinear leaves on the last word of a verse.
 export function readTranslit(t) {
-  return String(t || '').replace(/\s*\.?\s*\/\s*/g, '-');
+  return String(t || '').replace(/[\\׃¶]/g, '').replace(/\s*\.?\s*\/\s*/g, '-').trim();
 }
 
 // Parse a STEPBible lexicon definition into indentable {level, marker, text} rows.

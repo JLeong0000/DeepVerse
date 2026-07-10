@@ -14,6 +14,7 @@ const SYN_MIN = 0.45;        // below this a near-synonym is used near-interchan
 const SYN_MAX = 0.60;        // above this it is not really a synonym
 const A_FREQ_MAX = 300;      // Type A: skip common words (copula/quantifiers/"say"/"God") — grammatical, not interpretive
 const SENSE_MIN_FRAC = 0.05;
+const SENSE_MIN_COUNT = 3;   // a sense rendered <3× is anecdotal, not a real spread — drop the sliver
 const SENSE_MIN_LEMMA_OCC = 8;
 const VERB_FREQ_MAX = 1000;  // Type B (OT): a predominantly-verb lemma above this is a grammatical
                              // workhorse (say/be/go) whose gloss spread is inflection, not sense — drop it
@@ -48,7 +49,7 @@ export function computeDifferences(db) {
     isContent: isHebrewContent, senseKeyFn: hebrewSenseKey, topFn: hebTop,
     typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX, freqMin: SENSE_MIN_LEMMA_OCC,
              excludeProperNouns: true, requireDiffSense: true },
-    typeB: { suppressVerbsAboveFreq: VERB_FREQ_MAX },
+    typeB: { suppressVerbsAboveFreq: VERB_FREQ_MAX, excludeProperNouns: true },
   });
 
   db.exec('CREATE INDEX idx_diff_ref ON differences(book,chapter,verse);');
@@ -86,7 +87,7 @@ function runLanguageGroup(db, insD, cfg) {
   // --- OT-only Type-A precision filters (empty/no-op unless the group requests them) ---
   const properNoun = new Set();   // base strongs whose majority morph is a proper noun (Np)
   const repSense = new Map();     // base strongs -> representative cleaned sense key (most common gloss)
-  if (typeA && typeA.excludeProperNouns) {
+  if ((typeA && typeA.excludeProperNouns) || (typeB && typeB.excludeProperNouns)) {
     for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%' THEN 1 ELSE 0 END) np, COUNT(*) tot
         FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
       const k = normKey(r.strongs); if (k && r.np > r.tot / 2) properNoun.add(k);
@@ -140,16 +141,18 @@ function runLanguageGroup(db, insD, cfg) {
   }
   for (const [k, gm] of byStrong) {
     if (typeB && typeB.suppressVerbsAboveFreq && verbLemma.has(k) && (freq.get(k) || 0) > typeB.suppressVerbsAboveFreq) continue;
+    if (typeB && typeB.excludeProperNouns && properNoun.has(k)) continue;   // place/person names have no sense-spread
     const total = [...gm.values()].reduce((n, c) => n + c, 0);
     if (total < SENSE_MIN_LEMMA_OCC) continue;
     const clusters = new Map();
     for (const [gloss, c] of gm) {
       const key = senseKeyFn(gloss);
+      if (!key) continue;   // all-stopword gloss (pronoun/auxiliary) — no lexical sense to count
       const cl = clusters.get(key) || { gloss, count: 0, top: 0 };
       cl.count += c; if (c > cl.top) { cl.top = c; cl.gloss = gloss; }
       clusters.set(key, cl);
     }
-    const senses = [...clusters.values()].filter(s => s.count / total >= SENSE_MIN_FRAC).sort((a, b) => b.count - a.count);
+    const senses = [...clusters.values()].filter(s => s.count >= SENSE_MIN_COUNT && s.count / total >= SENSE_MIN_FRAC).sort((a, b) => b.count - a.count);
     if (senses.length >= 2) senseByStrong.set(k, { senses: senses.map(s => ({ gloss: s.gloss, count: s.count })), total });
   }
 

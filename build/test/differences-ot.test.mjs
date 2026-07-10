@@ -66,6 +66,30 @@ test('Type B preserved on lower-frequency verbs with real sense spread (shalach 
   assert.ok(row, 'H7971 (send, below the verb-frequency ceiling) should still produce Type B');
 });
 
+test('Tier 1: Type B no longer fires when the "senses" are one meaning (cherub/cherubim H3742)', () => {
+  // cherub vs cherubim is singular/plural of one word — the stronger stem merges them, so no Type B.
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM differences WHERE type='B' AND strongs LIKE 'H3742%'").get().n, 0);
+});
+
+test('Tier 3: Type B drops lemmas whose only extra senses are <3x slivers (mappelet H4658)', () => {
+  // mappelet: "downfall" 5x + "carcass" 1x + "fallen trunk" 1x — the 1x slivers are dropped, leaving one sense.
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM differences WHERE type='B' AND strongs LIKE 'H4658%'").get().n, 0);
+});
+
+test('Type B excludes proper nouns (place name Ramah H7414)', () => {
+  // "Ramah" vs "Ramah towards" is never interpretive sense-spread — a proper noun should not be Type B.
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM differences WHERE type='B' AND strongs LIKE 'H7414%'").get().n, 0);
+});
+
+test('genuine sense-spread survives the cleanup (baqar H1241: cattle/herd/oxen)', () => {
+  const row = db.prepare("SELECT detail FROM differences WHERE type='B' AND strongs LIKE 'H1241%' LIMIT 1").get();
+  assert.ok(row, 'baqar H1241 should still be Type B');
+  const glosses = JSON.parse(row.detail).senses.map(s => s.gloss).join(' | ');
+  assert.match(glosses, /cattle/i);
+  assert.match(glosses, /herd/i);
+  assert.match(glosses, /oxen/i);
+});
+
 test('function words never produce a difference (object-marker et H0853)', () => {
   const n = db.prepare("SELECT COUNT(*) n FROM differences WHERE strongs LIKE 'H0853%'").get().n;
   assert.equal(n, 0);

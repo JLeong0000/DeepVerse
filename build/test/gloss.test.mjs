@@ -54,3 +54,52 @@ test('stemHead does not over-strip short words (king/thing keep their stems)', (
 test('stemHead still collapses genuine inflections', () => {
   assert.equal(senseKey('loving'), senseKey('loves'));           // -> lov
 });
+
+// Tier 1: a stronger stem (Porter + irregular pre-map + -im plural) merges residual "senses" the
+// coarse stemmer left split — plurals, agent nouns, and irregular verbs of the SAME meaning.
+test('senseKey merges plurals/derivations/irregulars the coarse stemmer missed', () => {
+  assert.equal(senseKey('cherubim'), senseKey('cherub'));        // Hebrew-English -im plural
+  assert.equal(senseKey('apostasies'), senseKey('apostasy'));    // -ies plural
+  assert.equal(senseKey('killer'), senseKey('kill'));            // agent -er
+  assert.equal(senseKey('said'), senseKey('saying'));            // irregular past normalizes to lemma
+  assert.equal(senseKey('went'), senseKey('going'));             // irregular past normalizes to lemma
+});
+test('senseKey keeps Type-B keepers distinct (no over-merge from the stronger stem)', () => {
+  assert.notEqual(senseKey('cattle'), senseKey('herd'));
+  assert.notEqual(senseKey('herd'), senseKey('oxen'));
+  assert.notEqual(senseKey('worship'), senseKey('kneeling'));
+  assert.notEqual(senseKey('evil'), senseKey('harm'));
+});
+
+// A trailing function word (the/of/to) or a "/" morpheme boundary must never become the sense head —
+// that fragments ONE meaning into stray keys like "the"/"of"/"to". Split on "/", drop function words.
+test('senseKey ignores trailing function words when picking the head', () => {
+  assert.equal(senseKey('having been spoken of'), senseKey('spoken'));
+  assert.equal(senseKey('the temple of'), senseKey('temple'));
+  assert.notEqual(senseKey('spoken'), senseKey('of'));   // must not key on the particle
+});
+test('hebrewSenseKey collapses "/" particle segments and trailing slashes', () => {
+  assert.equal(hebrewSenseKey('and/ gold/ the'), hebrewSenseKey('gold'));
+  assert.equal(hebrewSenseKey('pay attention to/'), hebrewSenseKey('be attentive'));
+});
+test('cleaning does not merge genuinely distinct senses (chattat sin vs sin offering)', () => {
+  assert.notEqual(hebrewSenseKey('sins of'), hebrewSenseKey('a sin offering'));
+});
+
+test('reflexive pronouns are dropped, not treated as the sense', () => {
+  assert.equal(senseKey('gird yourselves'), senseKey('he girded'));
+  assert.equal(senseKey('gird themselves'), senseKey('he girded'));
+  assert.equal(senseKey('you yourselves'), senseKey('you'));   // emphatic pronoun collapses to one sense
+});
+test('more irregular verbs normalize to their lemma', () => {
+  assert.equal(senseKey('he flew'), senseKey('flying'));
+  assert.equal(senseKey('bound'), senseKey('bind'));
+  assert.equal(senseKey('they ate'), senseKey('eating'));
+  assert.equal(senseKey('has'), senseKey('having'));       // has/had -> have (not the "ha" mis-stem)
+  assert.equal(senseKey('they found'), senseKey('finding'));
+  assert.equal(senseKey('he heard'), senseKey('hearing'));
+});
+test('adverbial particles of phrasal verbs are dropped (pass over/away/through)', () => {
+  assert.equal(senseKey('pass away'), senseKey('passed over'));
+  assert.equal(senseKey('pass through'), senseKey('passing'));
+});

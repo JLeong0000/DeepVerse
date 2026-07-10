@@ -52,6 +52,20 @@ test('Type B fires on nephesh H5315 with life AND person senses', () => {
   assert.match(glosses, /life|person/i);
 });
 
+test('Type B suppressed on very-high-frequency verbs (halak H1980, amar H0559)', () => {
+  // These verbs' gloss "spread" is inflection/tense (he said/saying, go/went/walk), not sense.
+  for (const s of ['H1980', 'H0559']) {
+    const n = db.prepare(`SELECT COUNT(*) n FROM differences WHERE type='B' AND strongs LIKE '${s}%'`).get().n;
+    assert.equal(n, 0, `${s} is a >1000-occurrence verb; its Type B should be suppressed`);
+  }
+});
+
+test('Type B preserved on lower-frequency verbs with real sense spread (shalach H7971 send/stretch-out)', () => {
+  // shalach (~847 occ, below the ceiling) keeps a genuine causative sense (stretch out) — not suppressed.
+  const row = db.prepare("SELECT detail FROM differences WHERE type='B' AND strongs LIKE 'H7971%' LIMIT 1").get();
+  assert.ok(row, 'H7971 (send, below the verb-frequency ceiling) should still produce Type B');
+});
+
 test('function words never produce a difference (object-marker et H0853)', () => {
   const n = db.prepare("SELECT COUNT(*) n FROM differences WHERE strongs LIKE 'H0853%'").get().n;
   assert.equal(n, 0);

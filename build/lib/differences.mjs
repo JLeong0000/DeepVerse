@@ -15,6 +15,8 @@ const SYN_MAX = 0.60;        // above this it is not really a synonym
 const A_FREQ_MAX = 300;      // Type A: skip common words (copula/quantifiers/"say"/"God") — grammatical, not interpretive
 const SENSE_MIN_FRAC = 0.05;
 const SENSE_MIN_LEMMA_OCC = 8;
+const VERB_FREQ_MAX = 1000;  // Type B (OT): a predominantly-verb lemma above this is a grammatical
+                             // workhorse (say/be/go) whose gloss spread is inflection, not sense — drop it
 
 const isGreekContent = m => /^(N-|V-|A-|N|V)/.test(String(m || '')) && !/^(ADV|CONJ|PREP|PRT|T-)/.test(m);
 const grcTop = ln => String(ln || '').split('.')[0];
@@ -46,13 +48,14 @@ export function computeDifferences(db) {
     isContent: isHebrewContent, senseKeyFn: hebrewSenseKey, topFn: hebTop,
     typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX, freqMin: SENSE_MIN_LEMMA_OCC,
              excludeProperNouns: true, requireDiffSense: true },
+    typeB: { suppressVerbsAboveFreq: VERB_FREQ_MAX },
   });
 
   db.exec('CREATE INDEX idx_diff_ref ON differences(book,chapter,verse);');
 }
 
 function runLanguageGroup(db, insD, cfg) {
-  const { langs, keyPrefix, normKey, isContent, senseKeyFn, topFn, typeA } = cfg;
+  const { langs, keyPrefix, normKey, isContent, senseKeyFn, topFn, typeA, typeB } = cfg;
   const inClause = langs.map(l => `'${l}'`).join(',');
 
   // --- domain per normalized strongs: full domain string + top-level ---
@@ -87,6 +90,13 @@ function runLanguageGroup(db, insD, cfg) {
     for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%' THEN 1 ELSE 0 END) np, COUNT(*) tot
         FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
       const k = normKey(r.strongs); if (k && r.np > r.tot / 2) properNoun.add(k);
+    }
+  }
+  const verbLemma = new Set();    // base strongs whose majority morph is a verb (V) — for Type-B suppression
+  if (typeB && typeB.suppressVerbsAboveFreq) {
+    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'V%' OR morph LIKE 'HV%' OR morph LIKE 'AV%' THEN 1 ELSE 0 END) v, COUNT(*) tot
+        FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
+      const k = normKey(r.strongs); if (k && r.v > r.tot / 2) verbLemma.add(k);
     }
   }
   if (typeA && typeA.requireDiffSense) {
@@ -129,6 +139,7 @@ function runLanguageGroup(db, insD, cfg) {
     const gm = byStrong.get(k); gm.set(r.gloss_norm, (gm.get(r.gloss_norm) || 0) + r.c);
   }
   for (const [k, gm] of byStrong) {
+    if (typeB && typeB.suppressVerbsAboveFreq && verbLemma.has(k) && (freq.get(k) || 0) > typeB.suppressVerbsAboveFreq) continue;
     const total = [...gm.values()].reduce((n, c) => n + c, 0);
     if (total < SENSE_MIN_LEMMA_OCC) continue;
     const clusters = new Map();

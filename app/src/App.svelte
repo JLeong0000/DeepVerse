@@ -8,9 +8,13 @@
   import Study from './routes/Study.svelte';
   import Comparison from './routes/Comparison.svelte';
   import NotesPage from './routes/NotesPage.svelte';
+  import Loading from './components/common/Loading.svelte';
+  import { fade } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
 
   let dark = $state(false);
-  let loaded = $state(false);
+  let loaded = $state(false);   // db ready: routes render + book starts fading out (phase 1)
+  let splashUp = $state(true);  // splash overlay present: dropped after phase 1 to reveal UI (phase 2)
   let error = $state(null);
 
   // ---- URL <-> state sync (browser back/forward + shareable links) ----
@@ -51,7 +55,9 @@
     // hashchange fires on back/forward (hash URLs) and manual edits/bookmarks; our own pushState
     // does not fire it, so this only reacts to real navigation.
     window.addEventListener('hashchange', applyHash);
-    try { await loadDb(); loaded = true; }
+    // Sequential splash-out: db ready → book fades to blank (phase 1) → then the blank
+    // overlay is dropped so the UI fades in (phase 2). The delay clears the book fade first.
+    try { await loadDb(); loaded = true; setTimeout(() => { splashUp = false; }, 430); }
     catch (e) { error = String(e); }
   });
 
@@ -76,18 +82,29 @@
   <div class="content">
     {#if error}
       <div class="gate err">Failed to load bible.db: {error}</div>
-    {:else if !loaded}
-      <div class="gate dim">Loading bible.db…</div>
-    {:else if route.view === 'study'}
-      <Study />
-    {:else if route.view === 'compare'}
-      <Comparison />
-    {:else if route.view === 'notes'}
-      <NotesPage />
-    {:else}
-      <Home />
+    {:else if loaded}
+      {#if route.view === 'study'}
+        <Study />
+      {:else if route.view === 'compare'}
+        <Comparison />
+      {:else if route.view === 'notes'}
+        <NotesPage />
+      {:else}
+        <Home />
+      {/if}
     {/if}
   </div>
+
+  <!-- Splash overlay covers the header + UI while bible.db loads. On ready the book
+       fades to blank (.splash → .hide), then the blank overlay is dropped and its
+       out:fade reveals the UI — two sequential phases, not a crossfade. -->
+  {#if splashUp && !error}
+    <div class="loadscreen" out:fade={{ duration: 450, easing: cubicOut }}>
+      <div class="splash" class:hide={loaded}>
+        <Loading />
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -105,6 +122,12 @@
   .navlink.active { color: var(--a); }
   .toggle { margin-left: auto; }
   .gate { padding: 40px 30px; }
-  .dim { color: var(--dim); }
   .err { color: var(--a); }
+  .loadscreen {
+    position: fixed; inset: 0; z-index: 50;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+  }
+  .splash { flex: 1; min-height: 0; display: flex; flex-direction: column; transition: opacity 400ms ease; }
+  .splash.hide { opacity: 0; }
 </style>

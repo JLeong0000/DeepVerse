@@ -112,7 +112,7 @@
   .content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .top { flex: none; display: flex; align-items: center; gap: 18px; padding: 9px 22px; border-bottom: 1px solid var(--rule); }
   .plain { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 8px; }
-  .logo { border-radius: 5px; display: block; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .logo { border-radius: 5px; display: block; }
   nav { display: flex; gap: 4px; }
   .navlink {
     background: none; border: none; cursor: pointer; font-family: inherit; color: var(--dim);

@@ -3,6 +3,7 @@
   import JumpToVerse from '../components/home/JumpToVerse.svelte';
   import Resume from '../components/home/Resume.svelte';
   import WordOfDay from '../components/home/WordOfDay.svelte';
+  import HiddenTreasures from '../components/home/HiddenTreasures.svelte';
   import ReadingActivity from '../components/home/ReadingActivity.svelte';
   import ToStudy from '../components/home/ToStudy.svelte';
   import RecentNotes from '../components/home/RecentNotes.svelte';
@@ -18,10 +19,11 @@
   <div class="cols">
     <div class="main">
       <Resume />
-      <WordOfDay />
+      <ReadingActivity />
     </div>
     <div class="side">
-      <ReadingActivity />
+      <WordOfDay />
+      <HiddenTreasures />
     </div>
   </div>
 
@@ -37,7 +39,10 @@
   .greetrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .greetrow :global(.jump) { margin-top: 6px; } /* nudge the input onto the welcome line */
   .greetrule { border: none; border-top: 1px solid var(--rule); margin: 22px 0 24px; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
+  /* left column hugs the activity heatmap and the card takes the rest — otherwise two 1fr columns
+     leave a wide empty band between the narrow heatmap and the card. */
+  .cols { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 40px; align-items: start; }
+  .side { display: grid; gap: 16px; }
   @media (max-width: 640px) { .cols { grid-template-columns: 1fr; gap: 26px; } }
   .bottom { border-top: 1px solid var(--rule); margin-top: 26px; padding-top: 22px; display: grid; grid-template-columns: 1fr 2fr; gap: 36px; align-items: start; }
   @media (max-width: 640px) { .bottom { grid-template-columns: 1fr; gap: 26px; } }

@@ -73,13 +73,15 @@ export function getWordOfDay(seed = new Date().toISOString().slice(0, 10)) {
   const [book, chapter, verse, position] = r.anchor.split('/');
   const w = query('SELECT original, translit, gloss, lang FROM words WHERE book=? AND chapter=? AND verse=? AND position=?',
     [book, +chapter, +verse, +position])[0] || {};
+  const detail = JSON.parse(r.detail);
   return {
     strongs: r.strongs,
     lang: w.lang || '',
     original: (w.original || '').replace(/[¶.,;:·’'"]+$/u, '').trim(), // drop trailing markers for display
     translit: w.translit || '',
     position: +position,
-    senses: JSON.parse(r.detail).senses,
+    senses: detail.senses,
+    total: detail.total, // total corpus occurrences of the lemma, for the "word count" fact
     ref: { version: 'NIV', book, chapter: +chapter, verse: +verse },
   };
 }

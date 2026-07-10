@@ -5,13 +5,14 @@
   const map = activityMap();
   const iso = (d) => d.toISOString().slice(0, 10);
 
-  const fmtDay = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtDay = (d) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   // Build WEEKS columns × 7 days ending today (last column = current week). Each cell carries its
   // level + a hover label (chapters read that day).
   function buildColumns() {
     const today = new Date();
-    const end = new Date(today); end.setDate(end.getDate() + (6 - end.getDay())); // Saturday of this week
+    // Weeks run Monday (top) → Sunday (bottom); anchor each column on the Sunday that ends this week.
+    const end = new Date(today); end.setDate(end.getDate() + ((7 - end.getDay()) % 7)); // Sunday of this week
     const cols = [];
     for (let w = WEEKS - 1; w >= 0; w--) {
       const col = [];
@@ -49,19 +50,21 @@
     <div><div class="num">{s.num}</div><div class="cap">{s.cap}</div></div>
   {/each}
 </div>
-<div class="graphwrap">
-  <div class="grid">
-    {#each columns as col}
-      <div class="col">
-        {#each col as cell}
-          <div class="cell" class:l1={cell.lv === 1} class:l2={cell.lv === 2} class:l3={cell.lv === 3} class:l4={cell.lv === 4} class:blank={cell.lv === -1}
-            onmouseenter={(e) => showTip(e, cell)} onmouseleave={hideTip}></div>
-        {/each}
-      </div>
-    {/each}
+<div class="graph">
+  <div class="graphwrap">
+    <div class="grid">
+      {#each columns as col}
+        <div class="col">
+          {#each col as cell}
+            <div class="cell" class:l1={cell.lv === 1} class:l2={cell.lv === 2} class:l3={cell.lv === 3} class:l4={cell.lv === 4} class:blank={cell.lv === -1}
+              onmouseenter={(e) => showTip(e, cell)} onmouseleave={hideTip}></div>
+          {/each}
+        </div>
+      {/each}
+    </div>
   </div>
+  <div class="legend">less <span class="cell"></span><span class="cell l1"></span><span class="cell l2"></span><span class="cell l3"></span><span class="cell l4"></span> more</div>
 </div>
-<div class="legend">less <span class="cell"></span><span class="cell l1"></span><span class="cell l2"></span><span class="cell l3"></span><span class="cell l4"></span> more</div>
 
 {#if tip}
   <div class="acttip" style="left:{tip.x}px; top:{tip.y}px">{tip.text}</div>
@@ -71,6 +74,7 @@
   .streaks { display: flex; gap: 26px; margin: 8px 0 12px; }
   .streaks .num { font-size: 23px; }
   .streaks .cap { font-size: 10.5px; color: var(--dim); font-variant: small-caps; letter-spacing: .04em; }
+  .graph { width: max-content; max-width: 100%; }
   .graphwrap { overflow-x: auto; }
   .grid { display: flex; gap: 3px; }
   .col { display: flex; flex-direction: column; gap: 3px; }

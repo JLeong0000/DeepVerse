@@ -23,9 +23,19 @@ test('function words never produce a difference', () => {
 test('Greek Type A/B row counts stay in the expected range (regression guard)', () => {
   const a = db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'G%'").get().n;
   const b = db.prepare("SELECT COUNT(*) n FROM differences WHERE type='B' AND strongs LIKE 'G%'").get().n;
-  assert.ok(a > 18000 && a < 26000, `Greek Type A count ${a} out of range`);
+  // Type A lowered intentionally by the cognate + proper-noun filters.
+  assert.ok(a > 13000 && a < 20000, `Greek Type A count ${a} out of range`);
   // Type B lowered intentionally by the Tier 1 (stronger stem) + Tier 3 (min-count) sense cleanup.
   assert.ok(b > 25000 && b < 32000, `Greek Type B count ${b} out of range`);
+});
+
+test('Type A drops cognate "synonyms" (same root) and proper nouns, keeps agapao/phileo', () => {
+  // makarizo/makarios and smyrna/smyrnizo are one word in two forms — not a distinction English hides.
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'G3106%'").get().n, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'G4666%'").get().n, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'G0960%'").get().n, 0);  // Berea (proper noun)
+  // agapao/phileo (different roots, both glossed "love") must survive — the flagship Type A.
+  assert.ok(db.prepare("SELECT COUNT(*) n FROM differences WHERE type='A' AND strongs LIKE 'G0025%'").get().n > 0);
 });
 
 test('Type B no longer fires on pure plural/inflection residual (angel/angels G0032, agapao love G0025)', () => {

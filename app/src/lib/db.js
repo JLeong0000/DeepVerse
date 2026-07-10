@@ -94,6 +94,11 @@ export function getLexicon(strongs) {
     const base = strongs.replace(/[A-Za-z]$/, ''); // strip a trailing homograph letter (G0996G -> G0996)
     if (base !== strongs) rows = query('SELECT lemma, translit, gloss, definition FROM lexicon WHERE code=?', [base]);
   }
+  if (!rows.length) {
+    // Normalized codes (e.g. near-synonyms) are the bare Strong's H2654, but the lexicon may only carry
+    // homograph-split entries H2654A/H2654a — fall back to the first sense so the entry still resolves.
+    rows = query('SELECT lemma, translit, gloss, definition FROM lexicon WHERE code LIKE ? ORDER BY code LIMIT 1', [strongs + '%']);
+  }
   return rows[0] || null;
 }
 

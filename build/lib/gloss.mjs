@@ -21,6 +21,7 @@ const SENSE_STOP = new Set(['i', 'you', 'he', 'she', 'it', 'we', 'they', 'him', 
   'about', 'upon', 'when', 'if', 'which',
   // adverbial/directional particles of phrasal verbs ("pass away/through", "gird about") — not the sense
   'away', 'through', 'forth', 'again', 'apart', 'aside', 'toward', 'towards', 'around', 'upward', 'downward',
+  'before', 'after', 'together',
   // reflexive/emphatic pronouns — grammatical, never the "sense" ("gird yourselves" is still gird)
   'myself', 'yourself', 'yourselves', 'himself', 'herself', 'itself', 'ourselves', 'themselves', 'oneself']);
 // Irregular forms Porter can't reach. Normalized to the lemma spelling BEFORE stemming, so every
@@ -42,6 +43,7 @@ const IRREGULAR = {
   forgave: 'forgive', forgiven: 'forgive', arose: 'arise', arisen: 'arise', drove: 'drive',
   driven: 'drive', wrote: 'write', written: 'write', understood: 'understand', stood: 'stand',
   forsook: 'forsake', forsaken: 'forsake', slew: 'slay', slain: 'slay', swept: 'sweep',
+  sent: 'send', spent: 'spend', lent: 'lend', bent: 'bend', meant: 'mean', built: 'build', dug: 'dig',
   children: 'child', men: 'man', women: 'woman', feet: 'foot', teeth: 'tooth', oxen: 'ox',
   people: 'person', cherubim: 'cherub', seraphim: 'seraph',
 };

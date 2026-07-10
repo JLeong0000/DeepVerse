@@ -41,14 +41,15 @@ export function computeDifferences(db) {
   runLanguageGroup(db, insD, {
     langs: ['grc'], keyPrefix: 'G', normKey: s => s,
     isContent: isGreekContent, senseKeyFn: senseKey, topFn: grcTop,
-    typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX },
+    typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX,
+             excludeProperNouns: true, excludeCognates: true },
   });
 
   runLanguageGroup(db, insD, {
     langs: ['hbo', 'arc'], keyPrefix: 'H', normKey: baseHeb,
     isContent: isHebrewContent, senseKeyFn: hebrewSenseKey, topFn: hebTop,
     typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX, freqMin: SENSE_MIN_LEMMA_OCC,
-             excludeProperNouns: true, requireDiffSense: true },
+             excludeProperNouns: true, requireDiffSense: true, excludeCognates: true },
     typeB: { suppressVerbsAboveFreq: VERB_FREQ_MAX, excludeProperNouns: true },
   });
 
@@ -67,6 +68,35 @@ function runLanguageGroup(db, insD, cfg) {
     if (k && !lnFull.has(k)) lnFull.set(k, String(r.ln).trim());
   }
   const lnTop = new Map([...lnFull].map(([s, ln]) => [s, topFn(ln)]));
+
+  // --- cognate detection: a "near-synonym" that shares a ROOT with the word (makarizō/makarios,
+  // smyrna/smyrnizō) is the same word in another form, not a distinction English hides. Compare the
+  // diacritic-stripped dictionary lemmas; agapaō/phileō (different roots, same gloss "love") stay. ---
+  const stripDia = s => String(s || '').normalize('NFD').replace(/[̀-֑ͯ-ׇ]/g, '').toLowerCase();
+  const lemmaByKey = new Map();
+  if (typeA && typeA.excludeCognates) {
+    for (const r of db.prepare('SELECT code, lemma FROM lexicon').all()) {
+      if (!String(r.code).startsWith(keyPrefix) || !r.lemma) continue;
+      const k = normKey(r.code);
+      if (k && !lemmaByKey.has(k)) lemmaByKey.set(k, stripDia(r.lemma));
+    }
+  }
+  function longestCommon(a, b) {
+    let best = 0; const dp = Array(b.length + 1).fill(0);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = 0;
+      for (let j = 1; j <= b.length; j++) { const tmp = dp[j]; dp[j] = a[i - 1] === b[j - 1] ? prev + 1 : 0; if (dp[j] > best) best = dp[j]; prev = tmp; }
+    }
+    return best;
+  }
+  function areCognate(k1, k2) {
+    const a = lemmaByKey.get(k1), b = lemmaByKey.get(k2);
+    if (!a || !b) return false;
+    const lcs = longestCommon(a, b);
+    // >=3 catches short Greek/Hebrew roots (eri-, seb-, 3-consonant Hebrew roots); the half-length
+    // guard blocks coincidental overlap (agapaō/phileō share <3, so the flagship pair survives).
+    return lcs >= 3 && lcs >= Math.min(a.length, b.length) / 2;
+  }
 
   // --- symmetric synonym adjacency (normalized keys) ---
   const adj = new Map();
@@ -88,7 +118,9 @@ function runLanguageGroup(db, insD, cfg) {
   const properNoun = new Set();   // base strongs whose majority morph is a proper noun (Np)
   const repSense = new Map();     // base strongs -> representative cleaned sense key (most common gloss)
   if ((typeA && typeA.excludeProperNouns) || (typeB && typeB.excludeProperNouns)) {
-    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%' THEN 1 ELSE 0 END) np, COUNT(*) tot
+    // Hebrew/Aramaic proper nouns are morph 'Np…'; Greek tags them 'N-…-P' (person) / 'N-…-L' (place).
+    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%'
+          OR morph LIKE 'N-%-P' OR morph LIKE 'N-%-L' THEN 1 ELSE 0 END) np, COUNT(*) tot
         FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
       const k = normKey(r.strongs); if (k && r.np > r.tot / 2) properNoun.add(k);
     }
@@ -123,6 +155,7 @@ function runLanguageGroup(db, insD, cfg) {
           && lnTop.get(o) === dom && lnFull.get(o) !== sub
           && (!typeA.freqMin || ((freq.get(o) || 0) >= typeA.freqMin && (freq.get(strongs) || 0) >= typeA.freqMin))
           && (!typeA.excludeProperNouns || (!properNoun.has(o) && !properNoun.has(strongs)))
+          && (!typeA.excludeCognates || !areCognate(strongs, o))
           && (!typeA.requireDiffSense || (repSense.get(o) && repSense.get(strongs) && repSense.get(o) !== repSense.get(strongs))))
         .sort((x, y) => x[1] - y[1]).slice(0, 4)
         .map(([o, d]) => ({ strongs: o, distance: Number(d.toFixed(3)) }));

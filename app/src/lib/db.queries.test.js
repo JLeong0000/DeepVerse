@@ -43,6 +43,8 @@ describe('1.3 interlinear', () => {
   test('getLexicon resolves G0025 and falls back past a homograph letter', () => {
     expect(db.getLexicon('G0025').definition.toLowerCase()).toContain('love');
     expect(db.getLexicon('H0996G')).not.toBeNull(); // base H0996 lookup after stripping trailing G
+    // bare normalized code (near-synonym) with only homograph-split entries H2654A/H2654a resolves via prefix
+    expect(db.getLexicon('H2654')).not.toBeNull();
   });
 });
 

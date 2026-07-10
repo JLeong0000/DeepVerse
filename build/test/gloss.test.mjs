@@ -103,3 +103,7 @@ test('adverbial particles of phrasal verbs are dropped (pass over/away/through)'
   assert.equal(senseKey('pass away'), senseKey('passed over'));
   assert.equal(senseKey('pass through'), senseKey('passing'));
 });
+test('temporal adverbs and sent/send normalize so cognate glosses match', () => {
+  assert.equal(senseKey('having sinned before'), senseKey('sin'));   // "before" is not the sense
+  assert.equal(senseKey('we have sent'), senseKey('to send'));
+});

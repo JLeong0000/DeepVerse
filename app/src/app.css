@@ -28,20 +28,16 @@ body {
    Set the paper colour with `background: var(--syN)`. Add `.mini` for tiny previews. */
 .postit { position: relative; color: #25201a; box-shadow: 2px 3px 8px rgba(0,0,0,.16); }
 :root.dark .postit { color: var(--ink); box-shadow: 2px 3px 11px rgba(0,0,0,.45); }
-/* peeled corner: a curved crease (dark arc) + a lifted underside (lighter flap) that curls up,
-   with a soft cast shadow. Translucent black/white composite over the note's own colour. */
 .postit::after {
-  content: ""; position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; pointer-events: none;
-  border-bottom-right-radius: 13px;
-  background: radial-gradient(circle at top left,
-    transparent 0 60%,
-    rgba(0,0,0,.22) 62% 67%,          /* curved crease */
-    rgba(255,255,255,.55) 71%,        /* lifted paper back catches light */
-    rgba(255,255,255,.28) 100%);
-  filter: drop-shadow(-1.5px -1.5px 1.5px rgba(0,0,0,.22));
+  content: ""; position: absolute; right: 0; bottom: 0; width: 0; height: 0; pointer-events: none;
+  border-style: solid; border-width: 0 0 20px 20px;
+  border-color: transparent transparent var(--bg) var(--bg);
+  border-bottom-right-radius: inherit; box-shadow: -2px -2px 4px rgba(0,0,0,.12);
+  transition: border-width .2s ease, box-shadow .2s ease;
 }
-.postit.mini::after { width: 13px; height: 13px; border-bottom-right-radius: 7px;
-  filter: drop-shadow(-1px -1px 1px rgba(0,0,0,.22)); }
+/* the corner peels up a little further on hover */
+.postit:not(.mini):hover::after { border-width: 0 0 28px 28px; box-shadow: -3px -3px 7px rgba(0,0,0,.17); }
+.postit.mini::after { border-width: 0 0 11px 11px; box-shadow: -1px -1px 2px rgba(0,0,0,.14); }
 
 /* shared primitives */
 .lbl { font-variant: small-caps; letter-spacing: .09em; font-size: 11px; color: var(--dim); }

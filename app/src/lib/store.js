@@ -24,11 +24,14 @@ export async function addNote({ target_type, ref, body }) {
   await (await notesDb()).put('notes', note);
   return note;
 }
-export async function updateNote(id, body) {
+export async function updateNote(id, body, patch = {}) {
   const db = await notesDb();
   const note = await db.get('notes', id);
   if (!note) return null;
-  note.body = body; note.updated_at = new Date().toISOString();
+  note.body = body;
+  if (patch.ref !== undefined) note.ref = patch.ref;
+  if (patch.target_type !== undefined) note.target_type = patch.target_type;
+  note.updated_at = new Date().toISOString();
   await db.put('notes', note);
   return note;
 }

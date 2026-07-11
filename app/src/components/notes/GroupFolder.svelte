@@ -19,7 +19,7 @@
 </script>
 
 <div class="folder" oncontextmenu={(e) => { e.preventDefault(); oncontextmenu?.(e); }}>
-  <button class="square" onclick={() => onopen?.()} aria-label={`Open ${group.name}`}>
+  <button class="square" onclick={(e) => onopen?.(e)} aria-label={`Open ${group.name}`}>
     <div class="grid">
       {#each Array(4) as _, i}
         <div class="slot" class:filled={!!slots[i]}>

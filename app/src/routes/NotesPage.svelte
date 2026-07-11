@@ -8,12 +8,15 @@
   import { fade } from 'svelte/transition';
   import NoteEditor from '../components/notes/NoteEditor.svelte';
   import GroupFolder from '../components/notes/GroupFolder.svelte';
+  import GroupExpanded from '../components/notes/GroupExpanded.svelte';
   import ContextMenu from '../components/notes/ContextMenu.svelte';
 
   let notes = $state([]);
   let groups = $state([]);
   let filter = $state('');
   let fileInput;
+  let boardEl = $state();
+  let boardNonce = $state(0);
 
   // note create / edit
   let composing = $state(false);
@@ -121,9 +124,15 @@
   async function removeMany(ids) { for (const id of ids) await deleteNote(id); clearSelection(); await load(); }
   async function doRename(group, name) { renameGroup(group.id, name); await load(); }
 
-  // expansion — replaced in Task 6
-  let openGroupId = $state(null);
-  function openGroup(group) { openGroupId = group.id; }
+  // expansion — grow-to-fill group folder
+  let openGroup_ = $state(null); // { group, originRect }
+  function openGroup(group, e) {
+    const folderEl = e.currentTarget.closest('.folder');
+    const b = boardEl.getBoundingClientRect();
+    const r = folderEl.getBoundingClientRect();
+    openGroup_ = { group, originRect: { top: r.top - b.top, left: r.left - b.left, width: r.width, height: r.height } };
+  }
+  function closeGroup() { openGroup_ = null; boardNonce++; }
 
   async function doExport() {
     const blob = new Blob([await exportNotes()], { type: 'application/json' });
@@ -169,13 +178,15 @@
     <p class="empty">No notes yet. Add one with “+ Note”, or jot one against a verse in Study mode.</p>
   {:else}
     <!-- clicking empty board space clears selection -->
-    <div class="board" onclick={(e) => { if (e.target.classList.contains('board')) clearSelection(); }}
+    <div class="board" bind:this={boardEl}
+      onclick={(e) => { if (e.target.classList.contains('board')) clearSelection(); }}
       role="presentation">
+      {#key boardNonce}
       {#each visibleGroups as group, i (group.id)}
         <div in:fade={{ duration: 220, delay: i * 45 }}>
           <GroupFolder {group} notes={membersOf(group.id)}
             renaming={renamingId === group.id}
-            onopen={() => openGroup(group)}
+            onopen={(e) => openGroup(group, e)}
             onrename={(name) => doRename(group, name)}
             onrenamedone={() => (renamingId = null)}
             oncontextmenu={(e) => groupMenu(e, group)} />
@@ -201,6 +212,13 @@
           <div class="d">{new Date(note.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
         </div>
       {/each}
+      {/key}
+
+      {#if openGroup_}
+        <div class="dim-out"></div>
+        <GroupExpanded group={openGroup_.group} notes={membersOf(openGroup_.group.id)}
+          originRect={openGroup_.originRect} onclose={closeGroup} />
+      {/if}
     </div>
   {/if}
 </div></div>
@@ -222,7 +240,9 @@
   .empty { color: var(--dim); font-style: italic; margin-top: 20px; }
   .composer { margin: 14px 0 4px; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
   .crow { display: flex; gap: 8px; }
-  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 22px; align-items: start; }
+  .board { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 22px; align-items: start; }
+  .dim-out { position: absolute; inset: 0; background: var(--bg); opacity: .001; z-index: 10; animation: fadeOut .28s forwards; }
+  @keyframes fadeOut { to { opacity: .96; } }
   .sticky { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 11px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
   .sticky.sel { outline: 2px solid var(--a); outline-offset: 1px; }
   .r { font-size: 12px; font-variant: small-caps; letter-spacing: .04em; color: var(--a); cursor: pointer; }

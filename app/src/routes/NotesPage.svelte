@@ -139,6 +139,8 @@
   }
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && !menu && selected.size) clearSelection(); }} />
+
 <div class="scroll"><div class="page">
   <div class="head">
     <h1>Notes</h1>

@@ -33,7 +33,7 @@
   {#if editing}
     <input class="name-edit" bind:value={nameBuf} autofocus
       onclick={(e) => e.stopPropagation()}
-      onblur={commit} onkeydown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { editing = false; onrenamedone?.(); } }} />
+      onblur={commit} onkeydown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { nameBuf = group.name; editing = false; onrenamedone?.(); } }} />
   {:else}
     <button class="name" onclick={startRename}>{group.name}</button>
   {/if}

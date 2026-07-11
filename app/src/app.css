@@ -29,12 +29,12 @@ body {
 .postit { position: relative; color: #25201a; box-shadow: 2px 3px 8px rgba(0,0,0,.16); }
 :root.dark .postit { color: var(--ink); box-shadow: 2px 3px 11px rgba(0,0,0,.45); }
 .postit::after {
-  content: ""; position: absolute; right: 0; bottom: 0; width: 0; height: 0; pointer-events: none;
-  border-style: solid; border-width: 0 0 20px 20px;
-  border-color: transparent transparent color-mix(in srgb, var(--bg) 82%, #000) color-mix(in srgb, var(--bg) 94%, #000);
-  border-bottom-right-radius: inherit; box-shadow: -2px -2px 4px rgba(0,0,0,.12);
+  content: ""; position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; pointer-events: none;
+  border-bottom-right-radius: inherit;
+  background: radial-gradient(circle at top left, transparent 0 66%,
+    color-mix(in srgb, var(--bg) 88%, #000) 70%, color-mix(in srgb, var(--bg) 80%, #000) 100%);
 }
-.postit.mini::after { border-width: 0 0 11px 11px; box-shadow: -1px -1px 2px rgba(0,0,0,.14); }
+.postit.mini::after { width: 12px; height: 12px; }
 
 /* shared primitives */
 .lbl { font-variant: small-caps; letter-spacing: .09em; font-size: 11px; color: var(--dim); }

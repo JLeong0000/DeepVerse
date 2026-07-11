@@ -31,6 +31,7 @@ export async function updateNote(id, body, patch = {}) {
   note.body = body;
   if (patch.ref !== undefined) note.ref = patch.ref;
   if (patch.target_type !== undefined) note.target_type = patch.target_type;
+  if (patch.group_id !== undefined) note.group_id = patch.group_id;
   note.updated_at = new Date().toISOString();
   await db.put('notes', note);
   return note;
@@ -128,6 +129,32 @@ export function archiveStudy(id) {
 export function activeStudy() { return readStudy().filter(i => !i.completed_at); }
 export function archivedStudy() {
   return readStudy().filter(i => i.completed_at).sort((a, b) => b.completed_at.localeCompare(a.completed_at));
+}
+
+// ---------- Note groups (localStorage) ----------
+const GROUPS = 'note_groups';
+function readGroups() { try { return JSON.parse(localStorage.getItem(GROUPS)) || []; } catch { return []; } }
+function writeGroups(list) { localStorage.setItem(GROUPS, JSON.stringify(list)); }
+
+export function allGroups() {
+  return readGroups().sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+export function addGroup(name = 'New Group') {
+  const now = new Date().toISOString();
+  const g = { id: uuid(), name, created_at: now, updated_at: now };
+  const list = readGroups(); list.push(g); writeGroups(list);
+  return g;
+}
+export function renameGroup(id, name) {
+  const list = readGroups(); const g = list.find(x => x.id === id);
+  if (g) { g.name = name; g.updated_at = new Date().toISOString(); writeGroups(list); }
+}
+export async function deleteGroup(id) {
+  writeGroups(readGroups().filter(g => g.id !== id));
+  const db = await notesDb();
+  for (const n of await db.getAll('notes')) {
+    if (n.group_id === id) { n.group_id = null; await db.put('notes', n); }
+  }
 }
 
 // test seam

@@ -62,3 +62,41 @@ describe('to-study', () => {
     expect(store.activeStudy().length).toBe(0);
   });
 });
+
+describe('groups (localStorage) + free notes', () => {
+  test('addGroup / allGroups ordering / renameGroup', async () => {
+    const a = store.addGroup('Faith');
+    const b = store.addGroup();               // default name
+    expect(b.name).toBe('New Group');
+    const ids = store.allGroups().map(g => g.id);
+    expect(ids).toEqual([a.id, b.id]);        // created_at ascending
+    store.renameGroup(a.id, 'Grace');
+    expect(store.allGroups().find(g => g.id === a.id).name).toBe('Grace');
+  });
+
+  test('addNote supports a free note (null ref)', async () => {
+    const n = await store.addNote({ target_type: 'free', ref: null, body: 'loose thought' });
+    expect(n.ref).toBeNull();
+    expect((await store.allNotes()).map(x => x.id)).toContain(n.id);
+  });
+
+  test('updateNote assigns and unassigns group_id', async () => {
+    const g = store.addGroup('G');
+    const n = await store.addNote({ target_type: 'free', ref: null, body: 'x' });
+    await store.updateNote(n.id, 'x', { group_id: g.id });
+    expect((await store.allNotes()).find(x => x.id === n.id).group_id).toBe(g.id);
+    await store.updateNote(n.id, 'x', { group_id: null });
+    expect((await store.allNotes()).find(x => x.id === n.id).group_id).toBeNull();
+  });
+
+  test('deleteGroup unassigns member notes but keeps them', async () => {
+    const g = store.addGroup('G');
+    const n = await store.addNote({ target_type: 'free', ref: null, body: 'keep me' });
+    await store.updateNote(n.id, 'keep me', { group_id: g.id });
+    await store.deleteGroup(g.id);
+    expect(store.allGroups()).toEqual([]);
+    const note = (await store.allNotes()).find(x => x.id === n.id);
+    expect(note).toBeTruthy();
+    expect(note.group_id).toBeNull();
+  });
+});

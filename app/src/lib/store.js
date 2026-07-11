@@ -18,9 +18,9 @@ function notesDb() {
 }
 const uuid = () => (crypto?.randomUUID ? crypto.randomUUID() : 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2));
 
-export async function addNote({ target_type, ref, body, group_id = null }) {
+export async function addNote({ target_type, ref, body, group_id = null, color = null }) {
   const now = new Date().toISOString();
-  const note = { id: uuid(), target_type, ref, body, group_id, created_at: now, updated_at: now };
+  const note = { id: uuid(), target_type, ref, body, group_id, color, created_at: now, updated_at: now };
   await (await notesDb()).put('notes', note);
   return note;
 }
@@ -32,6 +32,7 @@ export async function updateNote(id, body, patch = {}) {
   if (patch.ref !== undefined) note.ref = patch.ref;
   if (patch.target_type !== undefined) note.target_type = patch.target_type;
   if (patch.group_id !== undefined) note.group_id = patch.group_id;
+  if (patch.color !== undefined) note.color = patch.color;
   note.updated_at = new Date().toISOString();
   await db.put('notes', note);
   return note;

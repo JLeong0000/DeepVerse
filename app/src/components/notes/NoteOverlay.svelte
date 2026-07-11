@@ -3,6 +3,7 @@
   // Home "Recent notes" widget. The parent owns persistence via onsave/ondelete.
   import NoteEditor from './NoteEditor.svelte';
   import { formatRef } from '../../lib/refs.js';
+  import { openStudy } from '../../lib/router.svelte.js';
   import { noteIsEmpty } from '../../lib/markdown.js';
 
   let { note = null, groups = [], initialGroupId = null, onsave, ondelete, onclose } = $props();
@@ -11,20 +12,34 @@
   let body = $state(note ? note.body : '');
   // '' in the <select> maps to null (No group); '__new' means "create a new group on save".
   let groupId = $state(note ? (note.group_id ?? '') : (initialGroupId ?? ''));
+  // sticky-note colour 1..4 → --sy1..4 (new notes pick a random one so the board stays varied)
+  let color = $state(note?.color ?? (Math.floor(Math.random() * 4) + 1));
 
   async function save() {
     if (noteIsEmpty(body)) return;
-    await onsave?.(body, groupId === '' ? null : groupId);
+    await onsave?.(body, groupId === '' ? null : groupId, color);
     onclose?.();
   }
   async function remove() { await ondelete?.(); onclose?.(); }
+  function jump() {
+    if (!note?.ref) return;
+    const [book, chapter, verse] = note.ref.split('.');
+    openStudy({ version: 'NIV', book, chapter: +chapter, verse: verse ? +verse : null });
+    onclose?.();
+  }
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose?.(); }} />
 <div class="backdrop" onclick={() => onclose?.()} role="presentation"></div>
 <div class="modal" role="dialog" aria-modal="true">
-  {#if note?.ref}<div class="ref">{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · chapter' : ''}</div>{/if}
+  {#if note?.ref}<button class="ref" onclick={jump}>{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · chapter' : ''} →</button>{/if}
   <NoteEditor bind:value={body} placeholder="Write a note…" autofocus />
+  <div class="swatches">
+    {#each [1, 2, 3, 4] as c}
+      <button class="sw" class:on={color === c} style="background: var(--sy{c})"
+        onclick={() => (color = c)} aria-label={`Colour ${c}`}></button>
+    {/each}
+  </div>
   <div class="row">
     <label class="grp">Group
       <select bind:value={groupId}>
@@ -49,7 +64,14 @@
     animation: pop .2s cubic-bezier(.22,1,.36,1); }
   @keyframes fadeIn { from { opacity: 0; } }
   @keyframes pop { from { opacity: 0; transform: translate(-50%, -48%) scale(.97); } }
-  .ref { font-size: 12px; font-variant: small-caps; letter-spacing: .04em; color: var(--a); }
+  .ref { align-self: flex-start; background: none; border: none; padding: 0; cursor: pointer;
+    font-size: 12px; font-variant: small-caps; letter-spacing: .04em; color: var(--a); font-family: inherit; }
+  .ref:hover { text-decoration: underline; }
+  .swatches { display: flex; gap: 10px; }
+  .sw { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); cursor: pointer;
+    box-shadow: 1px 1px 3px rgba(0,0,0,.12); padding: 0; transition: transform .12s ease; }
+  .sw:hover { transform: scale(1.12); }
+  .sw.on { outline: 2px solid var(--a); outline-offset: 2px; }
   .row { display: flex; align-items: center; gap: 8px; }
   .spacer { flex: 1; }
   .grp { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 6px; }

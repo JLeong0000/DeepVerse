@@ -3,7 +3,6 @@
            allGroups, addGroup, renameGroup, deleteGroup,
            exportNotes, importNotes } from '../lib/store.js';
   import { formatRef } from '../lib/refs.js';
-  import { openStudy } from '../lib/router.svelte.js';
   import { noteHtml } from '../lib/markdown.js';
   import { fade } from 'svelte/transition';
   import GroupFolder from '../components/notes/GroupFolder.svelte';
@@ -47,19 +46,13 @@
   // ---- overlay (create / edit) ----
   function openNewNote() { overlay = { note: null, initialGroupId: openGroup_ ? openGroup_.group.id : null }; }
   function openNote(note) { overlay = { note, initialGroupId: null }; }
-  async function saveOverlay(body, groupId) {
+  async function saveOverlay(body, groupId, color) {
     if (groupId === '__new') { const g = addGroup(); groupId = g.id; }
-    if (overlay.note) await updateNote(overlay.note.id, body, { group_id: groupId });
-    else await addNote({ target_type: 'free', ref: null, body, group_id: groupId });
+    if (overlay.note) await updateNote(overlay.note.id, body, { group_id: groupId, color });
+    else await addNote({ target_type: 'free', ref: null, body, group_id: groupId, color });
     await load();
   }
   async function deleteOverlay() { if (overlay.note) { await deleteNote(overlay.note.id); await load(); } }
-
-  function jump(note) {
-    if (!note.ref) return;
-    const [book, chapter, verse] = note.ref.split('.');
-    openStudy({ version: 'NIV', book, chapter: +chapter, verse: verse ? +verse : null });
-  }
 
   // ---- selection ----
   function noteClick(e, note) {
@@ -149,11 +142,6 @@
       onclick={(e) => { if (!noteClick(e, note)) openNote(note); }}>
       <div class="body md">{@html noteHtml(note.body)}</div>
     </button>
-    {#if note.ref}
-      <button class="cap link" onclick={() => jump(note)}>{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''}</button>
-    {:else}
-      <div class="cap">Note</div>
-    {/if}
   </div>
 {/snippet}
 
@@ -161,7 +149,7 @@
   <div class="head">
     <h1>Notes</h1>
     <div class="actions">
-      <input class="filter" placeholder="Filter notes… (book or text)" bind:value={filter} />
+      <input class="filter" placeholder="Filter notes…" bind:value={filter} />
       <button class="btn" onclick={openNewNote}>+ Note</button>
       <button class="btn" onclick={async () => { addGroup(); await load(); }}>+ Group</button>
       <button class="btn" onclick={doExport}>Export</button>
@@ -188,14 +176,14 @@
         </div>
       {/each}
 
-      {#each looseNotes as note, j (note.id)}{@render noteTile(note, (visibleGroups.length + j) * 45, (j % 4) + 1)}{/each}
+      {#each looseNotes as note, j (note.id)}{@render noteTile(note, (visibleGroups.length + j) * 45, note.color ?? ((j % 4) + 1))}{/each}
       {/key}
 
       {#if openGroup_}
         <div class="dim-out"></div>
         <GroupExpanded group={openGroup_.group} originRect={openGroup_.originRect} onclose={closeGroup}>
           {#each membersOf(openGroup_.group.id) as note, k (note.id)}
-            {@render noteTile(note, k * 55, (k % 4) + 1)}
+            {@render noteTile(note, k * 55, note.color ?? ((k % 4) + 1))}
           {/each}
           {#if membersOf(openGroup_.group.id).length === 0}<p class="empty">This group is empty.</p>{/if}
         </GroupExpanded>
@@ -237,10 +225,6 @@
   .tile.sel .sq { outline: 2px solid var(--a); outline-offset: 2px; }
   .sq .body { font-size: 12.5px; line-height: 1.4; height: 100%; overflow: hidden;
     -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent); mask-image: linear-gradient(180deg, #000 78%, transparent); }
-  .cap { font-size: 12.5px; color: var(--ink); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cap.link { background: none; border: none; cursor: pointer; padding: 0; font-family: inherit;
-    color: var(--a); font-variant: small-caps; letter-spacing: .04em; }
-  .cap.link:hover { text-decoration: underline; }
 
   .md :global(p) { margin: 0 0 5px; } .md :global(p:last-child) { margin-bottom: 0; }
   .md :global(ul), .md :global(ol) { margin: 3px 0; padding-left: 18px; } .md :global(li) { margin: 1px 0; }

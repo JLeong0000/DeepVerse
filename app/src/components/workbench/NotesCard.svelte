@@ -98,7 +98,6 @@
   .tgt b { color: var(--ink); } .dim { opacity: .7; }
   .note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--rule);
     border-radius: 6px; background: color-mix(in srgb, var(--panel) 50%, var(--bg)); }
-  .note:hover { border-color: var(--a); }
   .note .body { flex: 1; font-size: 13px; line-height: 1.5; }
   .edit { flex: none; border: 1px solid transparent; background: transparent; color: var(--dim);
     border-radius: 4px; padding: 1px 7px; cursor: pointer; font-family: inherit; font-size: 12px; }

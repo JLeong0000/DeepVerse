@@ -20,9 +20,9 @@
     if (days < 31) return `${Math.floor(days / 7)} weeks ago`;
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
-  async function saveOverlay(body, groupId) {
+  async function saveOverlay(body, groupId, color) {
     if (groupId === '__new') { const g = addGroup(); groupId = g.id; }
-    await updateNote(overlayNote.id, body, { group_id: groupId });
+    await updateNote(overlayNote.id, body, { group_id: groupId, color });
     await load();
   }
   async function deleteOverlay() { await deleteNote(overlayNote.id); await load(); }
@@ -33,8 +33,9 @@
   <div class="empty">No notes yet — open a verse in Study mode and jot one down.</div>
 {:else}
   <div class="notesgrid">
-    {#each notes as note}
-      <div class="sticky postit" onclick={() => (overlayNote = note)} role="button" tabindex="0">
+    {#each notes as note, i}
+      <div class="sticky postit" style="background: var(--sy{note.color ?? ((i % 4) + 1)})"
+        onclick={() => (overlayNote = note)} role="button" tabindex="0">
         <div class="r">{note.ref ? formatRef(note.ref) : 'Note'}{note.ref && note.target_type === 'chapter' ? ' · ch' : ''}</div>
         <div class="t md">{@html noteHtml(note.body)}</div>
         <div class="d">{relDate(note.updated_at)}</div>
@@ -52,10 +53,10 @@
   .notesgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px 14px; margin-top: 8px; }
   @media (max-width: 640px) { .notesgrid { grid-template-columns: 1fr; } }
   .sticky { padding: 12px 13px 14px; border-radius: 3px; cursor: pointer; align-self: start; }
-  .sticky:nth-child(4n+1) { background: var(--sy1); transform: rotate(-2deg); }
-  .sticky:nth-child(4n+2) { background: var(--sy2); transform: rotate(1.5deg); }
-  .sticky:nth-child(4n+3) { background: var(--sy3); transform: rotate(-1deg); }
-  .sticky:nth-child(4n+4) { background: var(--sy4); transform: rotate(2deg); }
+  .sticky:nth-child(4n+1) { transform: rotate(-2deg); }
+  .sticky:nth-child(4n+2) { transform: rotate(1.5deg); }
+  .sticky:nth-child(4n+3) { transform: rotate(-1deg); }
+  .sticky:nth-child(4n+4) { transform: rotate(2deg); }
   .sticky:hover { transform: rotate(0) scale(1.03); }
   .sticky .r { font-size: 11px; font-variant: small-caps; letter-spacing: .04em; opacity: .7; }
   .sticky .t { font-size: 12.5px; margin-top: 3px; line-height: 1.35; max-height: 8.5em; overflow: hidden; }

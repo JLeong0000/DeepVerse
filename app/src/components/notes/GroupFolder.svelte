@@ -21,7 +21,8 @@
   <button class="square" onclick={(e) => onopen?.(e)} aria-label={`Open ${group.name}`}>
     <div class="grid">
       {#each Array(4) as _, i}
-        <div class="slot" class:filled={!!slots[i]} class:postit={!!slots[i]} class:mini={!!slots[i]}></div>
+        <div class="slot" class:filled={!!slots[i]} class:postit={!!slots[i]} class:mini={!!slots[i]}
+          style={slots[i] ? `background: var(--sy${slots[i].color ?? ((i % 4) + 1)})` : ''}></div>
       {/each}
     </div>
     {#if overflow > 0}<span class="more">+{overflow}</span>{/if}
@@ -45,10 +46,10 @@
   .slot { border-radius: 18%; background: color-mix(in srgb, var(--rule) 30%, transparent);
     border: 1px dashed color-mix(in srgb, var(--rule) 80%, transparent); overflow: hidden; }
   .slot.filled { border: none; }
-  .slot:nth-child(4n+1).filled { background: var(--sy1); transform: rotate(-3deg); }
-  .slot:nth-child(4n+2).filled { background: var(--sy2); transform: rotate(2deg); }
-  .slot:nth-child(4n+3).filled { background: var(--sy3); transform: rotate(-1.5deg); }
-  .slot:nth-child(4n+4).filled { background: var(--sy4); transform: rotate(2.5deg); }
+  .slot:nth-child(4n+1).filled { transform: rotate(-3deg); }
+  .slot:nth-child(4n+2).filled { transform: rotate(2deg); }
+  .slot:nth-child(4n+3).filled { transform: rotate(-1.5deg); }
+  .slot:nth-child(4n+4).filled { transform: rotate(2.5deg); }
   .more { position: absolute; right: 8px; bottom: 8px; font-size: 10px; color: var(--dim);
     background: var(--bg); border-radius: 8px; padding: 0 5px; }
   .name, .name-edit { font-family: inherit; font-size: 12.5px; color: var(--ink); text-align: center; }

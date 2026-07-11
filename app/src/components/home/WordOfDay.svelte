@@ -1,6 +1,6 @@
 <script>
   import { getWordOfDay, getLexicon } from '../../lib/db.js';
-  import { langLabel, cleanGloss, readTranslit, testamentLabel, parseDefinition } from '../../lib/display.js';
+  import { langLabel, cleanGloss, readTranslit, testamentLabel, shortDefinition } from '../../lib/display.js';
   import PlayButton from '../common/PlayButton.svelte';
 
   const w = getWordOfDay();
@@ -9,8 +9,8 @@
   const senses = w ? w.senses.map(s => ({ gloss: cleanGloss(s.gloss), count: s.count })) : [];
   const top = senses[0];
   const rest = senses.slice(1);
-  // full dictionary definition as flowing text (drop the outline markers, join senses with "; ")
-  const def = w ? parseDefinition(getLexicon(w.strongs)?.definition).map(r => r.text).join('; ').replace(/^[:;\s]+/, '') : '';
+  // condensed dictionary definition: sense glosses only, verse citations stripped (see shortDefinition)
+  const def = w ? shortDefinition(getLexicon(w.strongs)?.definition) : '';
 </script>
 
 {#if w}
@@ -56,7 +56,8 @@
   .tl { font-style: italic; color: var(--dim); font-size: 12px; }
   .fact { color: var(--dim); font-size: 12px; margin-top: 6px; }
   .feature .lead { font-size: 15px; }
-  .def { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim); }
+  .def { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim);
+    display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .others { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
   .others-lbl { color: var(--dim); }
   .chip { display: inline-flex; align-items: baseline; gap: 6px; border: 1px solid var(--rule); border-radius: 5px; padding: 3px 9px; }

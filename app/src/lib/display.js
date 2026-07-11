@@ -47,6 +47,25 @@ export function parseDefinition(def) {
   return [{ level: -1, marker: '', text: d }];
 }
 
+// A scripture reference / citation run: a book-abbrev token ("Mat.", "1Co.", "III Jo") + chapter:verse,
+// plus the trailing run of bare refs it drags along ("24:45 25:21, 23"). Within one lexicon sense, the
+// gloss comes first and everything from here on is citations — the bulk of the entry's length.
+const SCRIPTURE_REF = /\b(?:[IVX]{1,3}\s+)?\d?\s?[A-Z][A-Za-z]{1,3}\.?\s?\d+[:.]\d+(?:\s*[-,]?\s*\d+(?::\d+)?)*/;
+
+// Condense a full lexicon definition to just the sense glosses for the Word-of-the-day card: drop the
+// per-sense verse citations (keep each sense's text up to its first reference) while preserving the
+// headword line and sense markers. Turns a ~1000-char wall into a couple of readable lines.
+export function shortDefinition(def) {
+  return parseDefinition(def)
+    .map(r => {
+      const m = r.text.match(SCRIPTURE_REF);
+      const body = (m ? r.text.slice(0, r.text.indexOf(m[0])) : r.text).replace(/[;:,\s]+$/, '').trim();
+      return body && r.marker ? `${r.marker} ${body}` : body;
+    })
+    .filter(Boolean)
+    .join(' ');
+}
+
 function parseGreekDef(d) {
   return d.split(/\s*__\s*/).map(s => s.trim()).filter(Boolean).map((s, i) => {
     let m;

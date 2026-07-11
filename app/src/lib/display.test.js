@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'vitest';
-import { langLabel, testamentLabel, cleanGloss, parseDefinition, readTranslit } from './display.js';
+import { langLabel, testamentLabel, cleanGloss, parseDefinition, shortDefinition, readTranslit } from './display.js';
 
 describe('readTranslit', () => {
   test('renders the "/" morpheme boundary as a hyphen, keeps syllable dots', () => {
@@ -57,5 +57,17 @@ describe('parseDefinition', () => {
   });
   test('empty definition -> no rows', () => {
     expect(parseDefinition('')).toEqual([]);
+  });
+});
+
+describe('shortDefinition', () => {
+  test('strips per-sense verse citations, keeps glosses and markers', () => {
+    const full = 'πιστός , -ή, -όν (πείθω), [in LXX chiefly for אָמַן ;] __I. Pass., to be trusted or believed; __1. of persons, trusty, faithful : Mat.24:45 25:21, 23 Luk.12:42 , 1Co.4:2 ; __II. Act., believing, trusting, relying : Act.16:1 , Gal.3:9 .';
+    const short = shortDefinition(full);
+    expect(short).toBe('πιστός , -ή, -όν (πείθω), [in LXX chiefly for אָמַן ;] I. Pass., to be trusted or believed 1. of persons, trusty, faithful II. Act., believing, trusting, relying');
+    expect(short).not.toMatch(/Mat\.24|Luk\.12|1Co\.4/);   // scripture refs gone ("Act." here is "Active", not Acts)
+  });
+  test('empty definition -> empty string', () => {
+    expect(shortDefinition('')).toBe('');
   });
 });

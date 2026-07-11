@@ -5,6 +5,7 @@
   import { formatRef } from '../lib/refs.js';
   import { openStudy } from '../lib/router.svelte.js';
   import { noteHtml, noteIsEmpty } from '../lib/markdown.js';
+  import { fade } from 'svelte/transition';
   import NoteEditor from '../components/notes/NoteEditor.svelte';
   import GroupFolder from '../components/notes/GroupFolder.svelte';
   import ContextMenu from '../components/notes/ContextMenu.svelte';
@@ -170,17 +171,20 @@
     <!-- clicking empty board space clears selection -->
     <div class="board" onclick={(e) => { if (e.target.classList.contains('board')) clearSelection(); }}
       role="presentation">
-      {#each visibleGroups as group (group.id)}
-        <GroupFolder {group} notes={membersOf(group.id)}
-          renaming={renamingId === group.id}
-          onopen={() => openGroup(group)}
-          onrename={(name) => doRename(group, name)}
-          onrenamedone={() => (renamingId = null)}
-          oncontextmenu={(e) => groupMenu(e, group)} />
+      {#each visibleGroups as group, i (group.id)}
+        <div in:fade={{ duration: 220, delay: i * 45 }}>
+          <GroupFolder {group} notes={membersOf(group.id)}
+            renaming={renamingId === group.id}
+            onopen={() => openGroup(group)}
+            onrename={(name) => doRename(group, name)}
+            onrenamedone={() => (renamingId = null)}
+            oncontextmenu={(e) => groupMenu(e, group)} />
+        </div>
       {/each}
 
-      {#each looseNotes as note (note.id)}
+      {#each looseNotes as note, j (note.id)}
         <div class="sticky" class:sel={selected.has(note.id)}
+          in:fade={{ duration: 220, delay: (visibleGroups.length + j) * 45 }}
           oncontextmenu={(e) => noteMenu(e, note)} role="presentation">
           {#if note.ref}
             <div class="r" onclick={(e) => { if (!noteClick(e, note)) jump(note); }} role="button" tabindex="0">

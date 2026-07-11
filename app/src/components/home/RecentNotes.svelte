@@ -1,11 +1,15 @@
 <script>
-  import { recentNotes } from '../../lib/store.js';
+  import { recentNotes, allGroups, addGroup, updateNote, deleteNote } from '../../lib/store.js';
   import { formatRef } from '../../lib/refs.js';
-  import { openStudy, go } from '../../lib/router.svelte.js';
   import { noteHtml } from '../../lib/markdown.js';
+  import NoteOverlay from '../notes/NoteOverlay.svelte';
 
   let notes = $state([]);
-  $effect(() => { recentNotes(8).then(n => (notes = n)); });
+  let groups = $state([]);
+  let overlayNote = $state(null);
+
+  async function load() { notes = await recentNotes(8); groups = allGroups(); }
+  $effect(() => { load(); });
 
   function relDate(iso) {
     const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
@@ -16,11 +20,12 @@
     if (days < 31) return `${Math.floor(days / 7)} weeks ago`;
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
-  function open(note) {
-    if (!note.ref) { go('notes'); return; }
-    const [book, chapter, verse] = note.ref.split('.');
-    openStudy({ version: 'NIV', book, chapter: +chapter, verse: verse ? +verse : null });
+  async function saveOverlay(body, groupId) {
+    if (groupId === '__new') { const g = addGroup(); groupId = g.id; }
+    await updateNote(overlayNote.id, body, { group_id: groupId });
+    await load();
   }
+  async function deleteOverlay() { await deleteNote(overlayNote.id); await load(); }
 </script>
 
 <div class="lbl">Recent notes</div>
@@ -29,7 +34,7 @@
 {:else}
   <div class="notesgrid">
     {#each notes as note}
-      <div class="sticky" onclick={() => open(note)} role="button" tabindex="0">
+      <div class="sticky postit" onclick={() => (overlayNote = note)} role="button" tabindex="0">
         <div class="r">{note.ref ? formatRef(note.ref) : 'Note'}{note.ref && note.target_type === 'chapter' ? ' · ch' : ''}</div>
         <div class="t md">{@html noteHtml(note.body)}</div>
         <div class="d">{relDate(note.updated_at)}</div>
@@ -38,11 +43,15 @@
   </div>
 {/if}
 
+{#if overlayNote}
+  <NoteOverlay note={overlayNote} groups={groups}
+    onsave={saveOverlay} ondelete={deleteOverlay} onclose={() => (overlayNote = null)} />
+{/if}
+
 <style>
   .notesgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px 14px; margin-top: 8px; }
   @media (max-width: 640px) { .notesgrid { grid-template-columns: 1fr; } }
-  .sticky { padding: 12px 13px 14px; box-shadow: 2px 3px 7px rgba(0,0,0,.18); cursor: pointer; color: #25201a; align-self: start; }
-  :global(html.dark) .sticky { color: var(--ink); box-shadow: 2px 3px 9px rgba(0,0,0,.4); }
+  .sticky { padding: 12px 13px 14px; border-radius: 3px; cursor: pointer; align-self: start; }
   .sticky:nth-child(4n+1) { background: var(--sy1); transform: rotate(-2deg); }
   .sticky:nth-child(4n+2) { background: var(--sy2); transform: rotate(1.5deg); }
   .sticky:nth-child(4n+3) { background: var(--sy3); transform: rotate(-1deg); }

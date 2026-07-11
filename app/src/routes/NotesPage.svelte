@@ -4,12 +4,12 @@
            exportNotes, importNotes } from '../lib/store.js';
   import { formatRef } from '../lib/refs.js';
   import { openStudy } from '../lib/router.svelte.js';
-  import { noteHtml, noteIsEmpty } from '../lib/markdown.js';
+  import { noteHtml } from '../lib/markdown.js';
   import { fade } from 'svelte/transition';
-  import NoteEditor from '../components/notes/NoteEditor.svelte';
   import GroupFolder from '../components/notes/GroupFolder.svelte';
   import GroupExpanded from '../components/notes/GroupExpanded.svelte';
   import ContextMenu from '../components/notes/ContextMenu.svelte';
+  import NoteOverlay from '../components/notes/NoteOverlay.svelte';
 
   let notes = $state([]);
   let groups = $state([]);
@@ -18,21 +18,13 @@
   let boardEl = $state();
   let boardNonce = $state(0);
 
-  // note create / edit
-  let composing = $state(false);
-  let draft = $state('');
-  let editingId = $state(null);
-  let editBuf = $state('');
-
   // selection (note ids) + anchor for shift-range
   let selected = $state(new Set());
   let anchorId = $state(null);
 
-  // context menu
-  let menu = $state(null); // { x, y, items }
-
-  // group rename, triggered from the context menu (inline rename on the folder itself)
-  let renamingId = $state(null);
+  let menu = $state(null);        // context menu { x, y, items }
+  let renamingId = $state(null);  // group being inline-renamed
+  let overlay = $state(null);     // { note, initialGroupId } — note null ⇒ creating
 
   async function load() {
     notes = (await allNotes()).reverse(); // newest first
@@ -50,22 +42,19 @@
   let looseNotes = $derived(q ? notes.filter(matches) : notes.filter(n => !n.group_id));
   let visibleGroups = $derived(q ? [] : groups);
   const membersOf = (gid) => notes.filter(n => n.group_id === gid);
-  // board order used for shift-range selection: folders first, then loose notes
   let orderedNoteIds = $derived(looseNotes.map(n => n.id));
 
-  // ---- create / edit ----
-  function startCompose() { composing = true; draft = ''; }
-  async function saveNew() {
-    if (noteIsEmpty(draft)) { composing = false; return; }
-    await addNote({ target_type: 'free', ref: null, body: draft });
-    composing = false; draft = ''; await load();
+  // ---- overlay (create / edit) ----
+  function openNewNote() { overlay = { note: null, initialGroupId: openGroup_ ? openGroup_.group.id : null }; }
+  function openNote(note) { overlay = { note, initialGroupId: null }; }
+  async function saveOverlay(body, groupId) {
+    if (groupId === '__new') { const g = addGroup(); groupId = g.id; }
+    if (overlay.note) await updateNote(overlay.note.id, body, { group_id: groupId });
+    else await addNote({ target_type: 'free', ref: null, body, group_id: groupId });
+    await load();
   }
-  function startEdit(note) { editingId = note.id; editBuf = note.body; }
-  async function commitEdit(note) {
-    editingId = null;
-    if (noteIsEmpty(editBuf)) { await deleteNote(note.id); await load(); }
-    else if (editBuf !== note.body) { await updateNote(note.id, editBuf); await load(); }
-  }
+  async function deleteOverlay() { if (overlay.note) { await deleteNote(overlay.note.id); await load(); } }
+
   function jump(note) {
     if (!note.ref) return;
     const [book, chapter, verse] = note.ref.split('.');
@@ -90,7 +79,7 @@
       return true;
     }
     anchorId = note.id;
-    return false; // plain click → caller handles edit/jump
+    return false; // plain click → caller opens the overlay
   }
   function clearSelection() { selected = new Set(); anchorId = null; }
 
@@ -107,7 +96,7 @@
     const items = ids.length > 1
       ? [{ label: `Move to group`, submenu: moveSub }, { label: `Delete ${ids.length} notes`, danger: true, action: () => removeMany(ids) }]
       : [{ label: 'Move to group', submenu: moveSub },
-         { label: 'Edit', action: () => startEdit(note) },
+         { label: 'Edit', action: () => openNote(note) },
          { label: 'Delete', danger: true, action: () => removeMany(ids) }];
     menu = { x: e.clientX, y: e.clientY, items };
   }
@@ -150,25 +139,21 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && !menu && selected.size) clearSelection(); }} />
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && !menu && !overlay && selected.size) clearSelection(); }} />
 
-{#snippet noteTile(note, delayMs)}
-  <div class="sticky" class:sel={selected.has(note.id)}
+{#snippet noteTile(note, delayMs, colorN)}
+  <div class="tile" class:sel={selected.has(note.id)}
     oncontextmenu={(e) => noteMenu(e, note)} role="presentation"
-    in:fade={{ duration: 220, delay: delayMs }}>
+    in:fade={{ duration: 200, delay: delayMs }}>
+    <button class="sq postit" style="background: var(--sy{colorN})"
+      onclick={(e) => { if (!noteClick(e, note)) openNote(note); }}>
+      <div class="body md">{@html noteHtml(note.body)}</div>
+    </button>
     {#if note.ref}
-      <div class="r" onclick={(e) => { if (!noteClick(e, note)) jump(note); }} role="button" tabindex="0">
-        {formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''} →
-      </div>
+      <button class="cap link" onclick={() => jump(note)}>{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''}</button>
     {:else}
-      <div class="r free">Note</div>
+      <div class="cap">Note</div>
     {/if}
-    {#if editingId === note.id}
-      <NoteEditor bind:value={editBuf} onsave={() => commitEdit(note)} autofocus />
-    {:else}
-      <div class="body md" onclick={(e) => { if (!noteClick(e, note)) startEdit(note); }} role="button" tabindex="0">{@html noteHtml(note.body)}</div>
-    {/if}
-    <div class="d">{new Date(note.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
   </div>
 {/snippet}
 
@@ -177,7 +162,7 @@
     <h1>Notes</h1>
     <div class="actions">
       <input class="filter" placeholder="Filter notes… (book or text)" bind:value={filter} />
-      <button class="btn" onclick={startCompose}>+ Note</button>
+      <button class="btn" onclick={openNewNote}>+ Note</button>
       <button class="btn" onclick={async () => { addGroup(); await load(); }}>+ Group</button>
       <button class="btn" onclick={doExport}>Export</button>
       <button class="btn" onclick={() => fileInput.click()}>Import</button>
@@ -185,26 +170,15 @@
     </div>
   </div>
 
-  {#if composing}
-    <div class="composer">
-      <NoteEditor bind:value={draft} placeholder="Write a note…" autofocus />
-      <div class="crow">
-        <button class="btn" onclick={saveNew} disabled={noteIsEmpty(draft)}>Save</button>
-        <button class="btn ghost" onclick={() => (composing = false)}>Cancel</button>
-      </div>
-    </div>
-  {/if}
-
   {#if notes.length === 0 && groups.length === 0}
     <p class="empty">No notes yet. Add one with “+ Note”, or jot one against a verse in Study mode.</p>
   {:else}
-    <!-- clicking empty board space clears selection -->
-    <div class="board" bind:this={boardEl}
+    <div class="board" class:expanded={!!openGroup_} bind:this={boardEl}
       onclick={(e) => { if (e.target.classList.contains('board')) clearSelection(); }}
       role="presentation">
       {#key boardNonce}
       {#each visibleGroups as group, i (group.id)}
-        <div in:fade={{ duration: 220, delay: i * 45 }}>
+        <div in:fade={{ duration: 200, delay: i * 45 }}>
           <GroupFolder {group} notes={membersOf(group.id)}
             renaming={renamingId === group.id}
             onopen={(e) => openGroup(group, e)}
@@ -214,14 +188,14 @@
         </div>
       {/each}
 
-      {#each looseNotes as note, j (note.id)}{@render noteTile(note, (visibleGroups.length + j) * 45)}{/each}
+      {#each looseNotes as note, j (note.id)}{@render noteTile(note, (visibleGroups.length + j) * 45, (j % 4) + 1)}{/each}
       {/key}
 
       {#if openGroup_}
         <div class="dim-out"></div>
         <GroupExpanded group={openGroup_.group} originRect={openGroup_.originRect} onclose={closeGroup}>
           {#each membersOf(openGroup_.group.id) as note, k (note.id)}
-            {@render noteTile(note, k * 60)}
+            {@render noteTile(note, k * 55, (k % 4) + 1)}
           {/each}
           {#if membersOf(openGroup_.group.id).length === 0}<p class="empty">This group is empty.</p>{/if}
         </GroupExpanded>
@@ -234,6 +208,11 @@
   <ContextMenu x={menu.x} y={menu.y} items={menu.items} onclose={() => (menu = null)} />
 {/if}
 
+{#if overlay}
+  <NoteOverlay note={overlay.note} groups={groups} initialGroupId={overlay.initialGroupId}
+    onsave={saveOverlay} ondelete={deleteOverlay} onclose={() => (overlay = null)} />
+{/if}
+
 <style>
   .scroll { flex: 1; min-height: 0; overflow-y: auto; }
   .page { padding: 20px 30px 40px; max-width: 1100px; margin: 0 auto; }
@@ -243,23 +222,29 @@
   .filter { font-family: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--bg); color: var(--ink); }
   .btn { border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 5px; padding: 5px 12px; cursor: pointer; font-family: inherit; font-size: 12.5px; }
   .btn:hover { border-color: var(--a); }
-  .btn.ghost { color: var(--dim); }
   .empty { color: var(--dim); font-style: italic; margin-top: 20px; }
-  .composer { margin: 14px 0 4px; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
-  .crow { display: flex; gap: 8px; }
-  .board { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 22px; align-items: start; }
-  .dim-out { position: absolute; inset: 0; background: var(--bg); opacity: .001; z-index: 10; animation: fadeOut .28s forwards; }
-  @keyframes fadeOut { to { opacity: .96; } }
-  .sticky { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 11px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
-  .sticky.sel { outline: 2px solid var(--a); outline-offset: 1px; }
-  .r { font-size: 12px; font-variant: small-caps; letter-spacing: .04em; color: var(--a); cursor: pointer; }
-  .r:hover { text-decoration: underline; }
-  .r.free { color: var(--dim); cursor: default; }
-  .body.md { font-size: 13px; line-height: 1.5; color: var(--ink); cursor: text; min-height: 24px; }
-  .body.md:hover { color: var(--ink); }
-  .d { font-size: 10px; color: var(--dim); }
-  .md :global(p) { margin: 0 0 6px; } .md :global(p:last-child) { margin-bottom: 0; }
-  .md :global(ul), .md :global(ol) { margin: 4px 0; padding-left: 20px; } .md :global(li) { margin: 2px 0; }
-  .md :global(h3), .md :global(h4), .md :global(h5) { margin: 6px 0 4px; font-size: 1.05em; }
-  .md :global(code) { font-family: ui-monospace, Menlo, monospace; font-size: .9em; background: color-mix(in srgb, var(--panel) 60%, var(--bg)); padding: 1px 4px; border-radius: 3px; }
+
+  .board { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px 18px; margin-top: 22px; align-items: start; }
+  /* while a group is open the panel fills the board, so give it a real height to grow into */
+  .board.expanded { min-height: calc(100vh - 210px); }
+  .dim-out { position: absolute; inset: 0; background: var(--bg); opacity: 0; z-index: 10; animation: fadeOut .26s ease forwards; }
+  @keyframes fadeOut { to { opacity: .94; } }
+
+  /* uniform tile: square on top, caption below (matches GroupFolder) */
+  .tile { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .sq { width: 100%; aspect-ratio: 1 / 1; border: none; border-radius: 10px; padding: 12px 12px 14px;
+    cursor: pointer; overflow: hidden; text-align: left; display: block; font-family: inherit; }
+  .tile.sel .sq { outline: 2px solid var(--a); outline-offset: 2px; }
+  .sq .body { font-size: 12.5px; line-height: 1.4; height: 100%; overflow: hidden;
+    -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent); mask-image: linear-gradient(180deg, #000 78%, transparent); }
+  .cap { font-size: 12.5px; color: var(--ink); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cap.link { background: none; border: none; cursor: pointer; padding: 0; font-family: inherit;
+    color: var(--a); font-variant: small-caps; letter-spacing: .04em; }
+  .cap.link:hover { text-decoration: underline; }
+
+  .md :global(p) { margin: 0 0 5px; } .md :global(p:last-child) { margin-bottom: 0; }
+  .md :global(ul), .md :global(ol) { margin: 3px 0; padding-left: 18px; } .md :global(li) { margin: 1px 0; }
+  .md :global(h3), .md :global(h4), .md :global(h5) { margin: 4px 0 3px; font-size: 1.05em; }
+  .md :global(code) { font-family: ui-monospace, Menlo, monospace; font-size: .9em; background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+  .md :global(strong) { font-weight: 700; }
 </style>

@@ -4,7 +4,7 @@
   --bg: #f2ede2; --panel: #f7f3ea; --ink: #201d18; --dim: #6b6459; --rule: #d8cdb8;
   --a: #8a2f2f; --b: #33407a;
   --lv0: #e3d8c4; --lv1: #dcc0a8; --lv2: #c98f74; --lv3: #a85a44; --lv4: #8a2f2f;
-  --sy1: #efe3bf; --sy2: #e7d3bd; --sy3: #dde3cf; --sy4: #ece0cd;
+  --sy1: #f3e6a6; --sy2: #cfe1ef; --sy3: #f0d3de; --sy4: #d8e8bf;
   --serif: "Iowan Old Style", Charter, Georgia, serif;
   --greek: "SBL Greek", "New Athena Unicode", Georgia, serif;
 }
@@ -12,7 +12,7 @@
   --bg: #1c1813; --panel: #24201a; --ink: #e6ddc9; --dim: #9a9080; --rule: #3a3327;
   --a: #d98070; --b: #93a3da;
   --lv0: #2a251d; --lv1: #4a3226; --lv2: #6e4030; --lv3: #a5503c; --lv4: #d98070;
-  --sy1: #3a3324; --sy2: #372f26; --sy3: #2f342a; --sy4: #38312a;
+  --sy1: #4a4327; --sy2: #2e3b44; --sy3: #443039; --sy4: #34412a;
 }
 
 * { box-sizing: border-box; }
@@ -23,6 +23,18 @@ body {
   transition: background .25s, color .25s;
   -webkit-font-smoothing: antialiased;
 }
+
+/* sticky-note surface — colored paper, soft drop shadow, folded (dog-ear) corner.
+   Set the paper colour with `background: var(--syN)`. Add `.mini` for tiny previews. */
+.postit { position: relative; color: #25201a; box-shadow: 2px 3px 8px rgba(0,0,0,.16); }
+:root.dark .postit { color: var(--ink); box-shadow: 2px 3px 11px rgba(0,0,0,.45); }
+.postit::after {
+  content: ""; position: absolute; right: 0; bottom: 0; width: 0; height: 0; pointer-events: none;
+  border-style: solid; border-width: 0 0 20px 20px;
+  border-color: transparent transparent color-mix(in srgb, var(--bg) 82%, #000) color-mix(in srgb, var(--bg) 94%, #000);
+  border-bottom-right-radius: inherit; box-shadow: -2px -2px 4px rgba(0,0,0,.12);
+}
+.postit.mini::after { border-width: 0 0 11px 11px; box-shadow: -1px -1px 2px rgba(0,0,0,.14); }
 
 /* shared primitives */
 .lbl { font-variant: small-caps; letter-spacing: .09em; font-size: 11px; color: var(--dim); }

@@ -18,9 +18,9 @@ function notesDb() {
 }
 const uuid = () => (crypto?.randomUUID ? crypto.randomUUID() : 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2));
 
-export async function addNote({ target_type, ref, body }) {
+export async function addNote({ target_type, ref, body, group_id = null }) {
   const now = new Date().toISOString();
-  const note = { id: uuid(), target_type, ref, body, created_at: now, updated_at: now };
+  const note = { id: uuid(), target_type, ref, body, group_id, created_at: now, updated_at: now };
   await (await notesDb()).put('notes', note);
   return note;
 }

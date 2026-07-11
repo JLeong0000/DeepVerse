@@ -89,6 +89,7 @@
       }
       return true;
     }
+    anchorId = note.id;
     return false; // plain click → caller handles edit/jump
   }
   function clearSelection() { selected = new Set(); anchorId = null; }
@@ -151,6 +152,26 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape' && !menu && selected.size) clearSelection(); }} />
 
+{#snippet noteTile(note, delayMs)}
+  <div class="sticky" class:sel={selected.has(note.id)}
+    oncontextmenu={(e) => noteMenu(e, note)} role="presentation"
+    in:fade={{ duration: 220, delay: delayMs }}>
+    {#if note.ref}
+      <div class="r" onclick={(e) => { if (!noteClick(e, note)) jump(note); }} role="button" tabindex="0">
+        {formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''} →
+      </div>
+    {:else}
+      <div class="r free">Note</div>
+    {/if}
+    {#if editingId === note.id}
+      <NoteEditor bind:value={editBuf} onsave={() => commitEdit(note)} autofocus />
+    {:else}
+      <div class="body md" onclick={(e) => { if (!noteClick(e, note)) startEdit(note); }} role="button" tabindex="0">{@html noteHtml(note.body)}</div>
+    {/if}
+    <div class="d">{new Date(note.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+  </div>
+{/snippet}
+
 <div class="scroll"><div class="page">
   <div class="head">
     <h1>Notes</h1>
@@ -193,31 +214,17 @@
         </div>
       {/each}
 
-      {#each looseNotes as note, j (note.id)}
-        <div class="sticky" class:sel={selected.has(note.id)}
-          in:fade={{ duration: 220, delay: (visibleGroups.length + j) * 45 }}
-          oncontextmenu={(e) => noteMenu(e, note)} role="presentation">
-          {#if note.ref}
-            <div class="r" onclick={(e) => { if (!noteClick(e, note)) jump(note); }} role="button" tabindex="0">
-              {formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''} →
-            </div>
-          {:else}
-            <div class="r free">Note</div>
-          {/if}
-          {#if editingId === note.id}
-            <NoteEditor bind:value={editBuf} onsave={() => commitEdit(note)} autofocus />
-          {:else}
-            <div class="body md" onclick={(e) => { if (!noteClick(e, note)) startEdit(note); }} role="button" tabindex="0">{@html noteHtml(note.body)}</div>
-          {/if}
-          <div class="d">{new Date(note.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-        </div>
-      {/each}
+      {#each looseNotes as note, j (note.id)}{@render noteTile(note, (visibleGroups.length + j) * 45)}{/each}
       {/key}
 
       {#if openGroup_}
         <div class="dim-out"></div>
-        <GroupExpanded group={openGroup_.group} notes={membersOf(openGroup_.group.id)}
-          originRect={openGroup_.originRect} onclose={closeGroup} />
+        <GroupExpanded group={openGroup_.group} originRect={openGroup_.originRect} onclose={closeGroup}>
+          {#each membersOf(openGroup_.group.id) as note, k (note.id)}
+            {@render noteTile(note, k * 60)}
+          {/each}
+          {#if membersOf(openGroup_.group.id).length === 0}<p class="empty">This group is empty.</p>{/if}
+        </GroupExpanded>
       {/if}
     </div>
   {/if}

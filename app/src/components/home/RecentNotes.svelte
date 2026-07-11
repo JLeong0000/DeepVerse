@@ -1,7 +1,7 @@
 <script>
   import { recentNotes } from '../../lib/store.js';
   import { formatRef } from '../../lib/refs.js';
-  import { openStudy } from '../../lib/router.svelte.js';
+  import { openStudy, go } from '../../lib/router.svelte.js';
   import { noteHtml } from '../../lib/markdown.js';
 
   let notes = $state([]);
@@ -17,6 +17,7 @@
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
   function open(note) {
+    if (!note.ref) { go('notes'); return; }
     const [book, chapter, verse] = note.ref.split('.');
     openStudy({ version: 'NIV', book, chapter: +chapter, verse: verse ? +verse : null });
   }
@@ -29,7 +30,7 @@
   <div class="notesgrid">
     {#each notes as note}
       <div class="sticky" onclick={() => open(note)} role="button" tabindex="0">
-        <div class="r">{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · ch' : ''}</div>
+        <div class="r">{note.ref ? formatRef(note.ref) : 'Note'}{note.ref && note.target_type === 'chapter' ? ' · ch' : ''}</div>
         <div class="t md">{@html noteHtml(note.body)}</div>
         <div class="d">{relDate(note.updated_at)}</div>
       </div>

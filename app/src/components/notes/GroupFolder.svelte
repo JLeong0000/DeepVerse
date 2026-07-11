@@ -1,5 +1,4 @@
 <script>
-  import { noteHtml } from '../../lib/markdown.js';
   let { group, notes = [], renaming = false, onopen, onrename, onrenamedone, oncontextmenu } = $props();
 
   let editing = $state(false);
@@ -22,9 +21,7 @@
   <button class="square" onclick={(e) => onopen?.(e)} aria-label={`Open ${group.name}`}>
     <div class="grid">
       {#each Array(4) as _, i}
-        <div class="slot" class:filled={!!slots[i]}>
-          {#if slots[i]}<div class="mini md">{@html noteHtml(slots[i].body)}</div>{/if}
-        </div>
+        <div class="slot" class:filled={!!slots[i]}></div>
       {/each}
     </div>
     {#if overflow > 0}<span class="more">+{overflow}</span>{/if}
@@ -47,9 +44,11 @@
   .grid { width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8%; }
   .slot { border-radius: 22%; background: color-mix(in srgb, var(--rule) 40%, transparent);
     border: 1px dashed color-mix(in srgb, var(--rule) 80%, transparent); overflow: hidden; }
-  .slot.filled { background: var(--panel); border-style: solid; }
-  .mini { font-size: 6px; line-height: 1.25; padding: 4px; color: var(--ink); overflow: hidden; }
-  .mini :global(p) { margin: 0; }
+  .slot.filled { border: none; box-shadow: 1px 1px 3px rgba(0,0,0,.18); }
+  .slot:nth-child(4n+1).filled { background: var(--sy1); transform: rotate(-2deg); }
+  .slot:nth-child(4n+2).filled { background: var(--sy2); transform: rotate(1.5deg); }
+  .slot:nth-child(4n+3).filled { background: var(--sy3); transform: rotate(-1deg); }
+  .slot:nth-child(4n+4).filled { background: var(--sy4); transform: rotate(2deg); }
   .more { position: absolute; right: 8px; bottom: 8px; font-size: 10px; color: var(--dim);
     background: var(--bg); border-radius: 8px; padding: 0 5px; }
   .name, .name-edit { font-family: inherit; font-size: 12.5px; color: var(--ink); text-align: center; }

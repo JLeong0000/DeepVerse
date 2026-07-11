@@ -1,17 +1,20 @@
 <script>
   import { noteHtml } from '../../lib/markdown.js';
-  let { group, notes = [], onopen, onrename, oncontextmenu } = $props();
+  let { group, notes = [], renaming = false, onopen, onrename, onrenamedone, oncontextmenu } = $props();
 
   let editing = $state(false);
   let nameBuf = $state('');
   const slots = $derived(notes.slice(0, 4));
   const overflow = $derived(Math.max(0, notes.length - 4));
 
+  $effect(() => { if (renaming && !editing) { nameBuf = group.name; editing = true; } });
+
   function startRename(e) { e.stopPropagation(); nameBuf = group.name; editing = true; }
   function commit() {
     editing = false;
     const v = nameBuf.trim();
     if (v && v !== group.name) onrename?.(v);
+    onrenamedone?.();
   }
 </script>
 
@@ -30,7 +33,7 @@
   {#if editing}
     <input class="name-edit" bind:value={nameBuf} autofocus
       onclick={(e) => e.stopPropagation()}
-      onblur={commit} onkeydown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') editing = false; }} />
+      onblur={commit} onkeydown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { editing = false; onrenamedone?.(); } }} />
   {:else}
     <button class="name" onclick={startRename}>{group.name}</button>
   {/if}

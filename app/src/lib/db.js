@@ -1,7 +1,7 @@
 // sql.js loader + query. bible.db is loaded once into memory; every feature is a SQL query against it.
 // Query functions (getChapter, getVerseDifferences, …) are added in Milestone 1.
 import initSqlJs from 'sql.js';
-import { BOOKS } from './refs.js';
+import { BOOKS, bookOrder } from './refs.js';
 
 let db = null;
 
@@ -84,6 +84,16 @@ export function getWordOfDay(seed = new Date().toISOString().slice(0, 10)) {
     total: detail.total, // total corpus occurrences of the lemma, for the "word count" fact
     ref: { version: 'NIV', book, chapter: +chapter, verse: +verse },
   };
+}
+
+// The first canonical verse where the word-of-day lemma is rendered with a given sense (a raw
+// gloss_norm value — see build/lib/differences.mjs), for the "seen in" link on each interpretation.
+// Returns { ref, position } (position pre-selects the interlinear word on jump) or null.
+export function getSenseOccurrence(strongs, senseGloss) {
+  if (!strongs || !senseGloss) return null;
+  const r = query('SELECT book, chapter, verse, position FROM words WHERE strongs=? AND gloss_norm=?', [strongs, senseGloss])
+    .sort((a, b) => bookOrder(a.book) - bookOrder(b.book) || a.chapter - b.chapter || a.verse - b.verse)[0];
+  return r ? { ref: { version: 'NIV', book: r.book, chapter: r.chapter, verse: r.verse }, position: r.position } : null;
 }
 
 // --- 1.3 Interlinear ---

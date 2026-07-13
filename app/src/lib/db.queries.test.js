@@ -105,6 +105,19 @@ describe('home helpers', () => {
     expect(w.ref.book).toBeTruthy();
     expect(db.getWordOfDay('2026-07-06').strongs).toBe(w.strongs); // stable
   });
+  test('getSenseOccurrence finds the first canonical verse rendering the sense', () => {
+    // G5590 psyche rendered "soul" — first occurrence, with the interlinear word at that position
+    const occ = db.getSenseOccurrence('G5590', 'soul');
+    expect(occ).toBeTruthy();
+    expect(occ.ref.book && occ.ref.chapter && occ.ref.verse).toBeTruthy();
+    expect(Number.isInteger(occ.position)).toBe(true);
+    const hit = db.getInterlinear(occ.ref.book, occ.ref.chapter, occ.ref.verse)
+      .find(iw => iw.position === occ.position);
+    expect(hit.strongs).toBe('G5590');
+  });
+  test('getSenseOccurrence returns null for an unmatched sense', () => {
+    expect(db.getSenseOccurrence('G5590', 'zzznotareal gloss')).toBeNull();
+  });
 });
 
 describe('1.5 cross-references', () => {

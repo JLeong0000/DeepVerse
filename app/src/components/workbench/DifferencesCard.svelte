@@ -93,7 +93,7 @@
           <span class="tcap">across {testamentLabel(r.strongs)}:</span>
           {#each r.b.detail.senses.slice(0, 3) as p}
             <button class="schip" title="See the verses this word appears in"
-              onclick={() => (instancesFor = { strongs: r.strongs, original: r.original })}
+              onclick={() => (instancesFor = { strongs: r.strongs, original: r.original, translit: r.translit })}
               style="background: color-mix(in srgb, var(--b) {tintPct(p.count, r.b.detail.senses)}%, var(--panel))"><b>{cleanGloss(p.gloss)}</b> {p.count}×</button>
           {/each}
         </div>
@@ -109,7 +109,7 @@
     </button>
   {/if}
   {#if instancesFor}
-    <WordInstances strongs={instancesFor.strongs} original={instancesFor.original}
+    <WordInstances strongs={instancesFor.strongs} original={instancesFor.original} translit={instancesFor.translit}
       ref={{ book: study.book, chapter: study.chapter, verse: study.verse }}
       onclose={() => (instancesFor = null)} />
   {/if}

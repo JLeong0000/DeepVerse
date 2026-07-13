@@ -2,10 +2,11 @@
   // "See other instances" overlay for the Original card: every verse a word appears in,
   // grouped by English sense, excluding the current verse. Reuses getWordSenses + SenseVerses.
   import { getWordSenses } from '../../lib/db.js';
+  import { readTranslit } from '../../lib/display.js';
   import { openStudy } from '../../lib/router.svelte.js';
   import SenseVerses from '../common/SenseVerses.svelte';
 
-  let { strongs, original, ref, onclose } = $props();
+  let { strongs, original, translit, ref, onclose } = $props();
 
   // drop the current verse from each sense, then any sense left empty — "other" instances
   const senses = getWordSenses(strongs).senses
@@ -26,7 +27,10 @@
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose?.(); }} />
 <div class="backdrop" onclick={() => onclose?.()} role="presentation"></div>
 <div class="modal" role="dialog" aria-modal="true">
-  <div class="mhead"><span class="orig">{original}</span> <span class="ttl">other instances · {total}</span></div>
+  <div class="mhead">
+    <div class="wrow"><span class="orig">{original}</span> <span class="tl">{readTranslit(translit)}</span></div>
+    <span class="ttl">other instances · {total}</span>
+  </div>
   <SenseVerses {senses} onjump={jump} />
 </div>
 
@@ -39,7 +43,9 @@
     animation: pop .2s cubic-bezier(.22,1,.36,1); }
   @keyframes fadeIn { from { opacity: 0; } }
   @keyframes pop { from { opacity: 0; transform: translate(-50%, -48%) scale(.97); } }
-  .mhead { display: flex; align-items: baseline; gap: 10px; }
+  .mhead { display: flex; flex-direction: column; gap: 3px; }
+  .wrow { display: flex; align-items: baseline; gap: 10px; }
   .orig { font-size: 24px; color: var(--a); line-height: 1; }
+  .tl { color: var(--dim); font-style: italic; font-size: 13px; }
   .ttl { color: var(--dim); font-size: 11px; font-variant: small-caps; letter-spacing: .05em; }
 </style>

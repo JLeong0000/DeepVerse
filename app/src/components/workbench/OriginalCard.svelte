@@ -76,7 +76,7 @@
       {/if}
     </div>
     {#if instancesOpen}
-      <WordInstances strongs={detail.word.strongs} original={detail.word.original}
+      <WordInstances strongs={detail.word.strongs} original={detail.word.original} translit={detail.word.translit}
         ref={{ book: study.book, chapter: study.chapter, verse: study.verse }}
         onclose={() => (instancesOpen = false)} />
     {/if}

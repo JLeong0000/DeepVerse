@@ -30,6 +30,7 @@ export function query(sql, params = []) {
 export function _setDbForTest(instance) {
   db = instance;
   _wordFreq = null; // drop the memoized frequency map when the db is swapped
+  _wordIndex = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,69 @@ export function getSenseOccurrence(strongs, senseGloss) {
   const r = query('SELECT book, chapter, verse, position FROM words WHERE strongs=? AND gloss_norm=?', [strongs, senseGloss])
     .sort((a, b) => bookOrder(a.book) - bookOrder(b.book) || a.chapter - b.chapter || a.verse - b.verse)[0];
   return r ? { ref: { version: 'NIV', book: r.book, chapter: r.chapter, verse: r.verse }, position: r.position } : null;
+}
+
+// --- 1.2b Word search (English gloss -> Hebrew/Greek lemma) ---
+// gloss_norm has no SQL index, so scanning 447k words per keystroke would be janky. Build a
+// per-lemma index once (memoized, like _wordFreq) and filter it in memory. Each entry carries the
+// lemma's sense spread (grouped by raw gloss_norm) plus a lowercased searchText of every rendering.
+let _wordIndex = null;
+function wordIndex() {
+  if (_wordIndex) return _wordIndex;
+  const lex = new Map();
+  for (const r of query('SELECT code, lemma, translit, lang, definition FROM lexicon')) lex.set(r.code, r);
+  // homograph-letter fallback, same as getLexicon (G0996G -> G0996)
+  const lexOf = (strongs) => lex.get(strongs) || lex.get(strongs.replace(/[A-Za-z]$/, '')) || null;
+
+  _wordIndex = new Map();
+  for (const r of query("SELECT strongs, gloss_norm, lang, COUNT(*) n, MIN(original) original FROM words WHERE strongs<>'' GROUP BY strongs, gloss_norm")) {
+    let e = _wordIndex.get(r.strongs);
+    if (!e) {
+      const l = lexOf(r.strongs);
+      e = { strongs: r.strongs, lang: r.lang, lemma: l?.lemma || '', translit: l?.translit || '',
+        definition: l?.definition || '', original: l?.lemma || '', total: 0, senses: [], searchText: '' };
+      _wordIndex.set(r.strongs, e);
+    }
+    e.total += r.n;
+    e.senses.push({ gloss: r.gloss_norm, count: r.n, orig: r.original });
+    e.searchText += ' ' + String(r.gloss_norm).toLowerCase();
+  }
+  for (const e of _wordIndex.values()) {
+    e.senses.sort((a, b) => b.count - a.count);
+    if (!e.original) e.original = e.senses[0]?.orig || ''; // no lexicon lemma -> most-common word form
+    e.senses = e.senses.map(s => ({ gloss: s.gloss, count: s.count }));
+  }
+  return _wordIndex;
+}
+
+// English word -> up to 12 lemma suggestions whose renderings contain the term, ranked by frequency.
+export function searchWords(term) {
+  const q = String(term || '').trim().toLowerCase();
+  if (q.length < 2) return [];
+  const hits = [];
+  for (const e of wordIndex().values()) if (e.searchText.includes(q)) hits.push(e);
+  hits.sort((a, b) => b.total - a.total);
+  return hits.slice(0, 12).map(e => ({ strongs: e.strongs, original: e.original,
+    translit: e.translit, lang: e.lang, gloss: e.senses[0]?.gloss || '', total: e.total }));
+}
+
+// Full detail for one lemma: dictionary display fields + every sense (grouped by gloss_norm), each
+// with its linkable occurrences in canonical order. Drives the search detail view (items 1,3,4).
+export function getWordSenses(strongs) {
+  if (!strongs) return null;
+  const e = wordIndex().get(strongs);
+  const rows = query('SELECT gloss_norm, book, chapter, verse, position FROM words WHERE strongs=?', [strongs]);
+  const groups = new Map();
+  for (const r of rows) {
+    if (!groups.has(r.gloss_norm)) groups.set(r.gloss_norm, []);
+    groups.get(r.gloss_norm).push({ ref: { version: 'NIV', book: r.book, chapter: r.chapter, verse: r.verse }, position: r.position });
+  }
+  const senses = [...groups.entries()].map(([gloss, occ]) => ({
+    gloss, count: occ.length,
+    occurrences: occ.sort((a, b) => bookOrder(a.ref.book) - bookOrder(b.ref.book) || a.ref.chapter - b.ref.chapter || a.ref.verse - b.ref.verse),
+  })).sort((a, b) => b.count - a.count);
+  return { original: e?.original || '', translit: e?.translit || '', lang: e?.lang || '',
+    definition: e?.definition || '', total: e?.total || rows.length, senses };
 }
 
 // --- 1.3 Interlinear ---

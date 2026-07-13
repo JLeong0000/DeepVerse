@@ -4,6 +4,9 @@
   import { formatRef } from '../../lib/refs.js';
   import { openStudy } from '../../lib/router.svelte.js';
   import PlayButton from '../common/PlayButton.svelte';
+  import WordSearch from './WordSearch.svelte';
+
+  let searchOpen = $state(false);
 
   const w = getWordOfDay();
   const lang = w ? langLabel(w.lang || w.strongs) : '';
@@ -25,7 +28,16 @@
   <section class="wotd">
     <div class="head">
       <span class="lbl">Word of the day · {lang}</span>
-      <span class="tag">B · sense-spread</span>
+      <div class="right">
+        <button class="search" onclick={() => (searchOpen = true)}>
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <line x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <span>Search a word</span>
+        </button>
+        <span class="tag">B · sense-spread</span>
+      </div>
     </div>
     <div class="cols2">
       <div class="cleft">
@@ -58,11 +70,21 @@
   </section>
 {/if}
 
+{#if searchOpen}
+  <WordSearch onclose={() => (searchOpen = false)} />
+{/if}
+
 <style>
   .wotd { border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); padding: 13px 15px; container-type: inline-size; }
-  .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 6px; }
   .lbl { margin: 0; }
-  .tag { margin-left: auto; font-size: 10px; font-weight: 700; font-variant: small-caps; letter-spacing: .04em; color: var(--b); }
+  .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .search { display: inline-flex; align-items: center; gap: 6px; background: none; cursor: pointer;
+    border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; color: var(--dim);
+    font-family: inherit; font-size: 11px; font-variant: small-caps; letter-spacing: .05em; }
+  .search svg { flex: none; }
+  .search:hover { color: var(--a); border-color: var(--a); }
+  .tag { font-size: 10px; font-weight: 700; font-variant: small-caps; letter-spacing: .04em; color: var(--b); }
   /* stacked by default; two columns once the card is wide enough (word + count on the left,
      featured sense + definition on the right). "Other interpretations" spans the full width below. */
   .cols2 { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px; align-items: start; }

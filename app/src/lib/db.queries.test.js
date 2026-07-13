@@ -2,6 +2,7 @@ import { test, expect, beforeAll, describe } from 'vitest';
 import fs from 'node:fs';
 import initSqlJs from 'sql.js';
 import * as db from './db.js';
+import { bookOrder } from './refs.js';
 
 // Load the real built bible.db once (fs, not fetch — vitest has no server for a 135 MB file).
 beforeAll(async () => {
@@ -117,6 +118,45 @@ describe('home helpers', () => {
   });
   test('getSenseOccurrence returns null for an unmatched sense', () => {
     expect(db.getSenseOccurrence('G5590', 'zzznotareal gloss')).toBeNull();
+  });
+});
+
+describe('word search', () => {
+  test("searchWords('love') surfaces agape + phileo, ranked by frequency, capped at 12", () => {
+    const hits = db.searchWords('love');
+    const codes = hits.map(h => h.strongs);
+    expect(codes).toContain('G0026'); // agape
+    expect(codes).toContain('G5368'); // phileo
+    expect(hits.length).toBeLessThanOrEqual(12);
+    expect(hits.every((h, i) => i === 0 || h.total <= hits[i - 1].total)).toBe(true);
+  });
+  test('searchWords requires at least 2 characters', () => {
+    expect(db.searchWords('l')).toEqual([]);
+    expect(db.searchWords('')).toEqual([]);
+  });
+  test("searchWords('life') surfaces psyche via its secondary sense", () => {
+    // psyche's primary lexicon gloss is "soul"; a broad gloss_norm search still finds it under "life".
+    expect(db.searchWords('life').map(h => h.strongs)).toContain('G5590');
+  });
+  test('getWordSenses groups occurrences by sense, sorted by count desc', () => {
+    const w = db.getWordSenses('G5590');
+    expect(w.total).toBe(106);
+    const byGloss = new Map(w.senses.map(s => [s.gloss, s.count]));
+    expect(byGloss.get('soul')).toBe(41);
+    expect(byGloss.get('life')).toBe(35);
+    expect(w.senses[0].gloss).toBe('soul'); // most frequent sense first
+    expect(w.senses.every((s, i) => i === 0 || s.count <= w.senses[i - 1].count)).toBe(true);
+    // occurrences are canonical-ordered and shaped { ref, position }
+    const occ = w.senses[0].occurrences;
+    expect(occ[0].ref.version).toBe('NIV');
+    expect(Number.isInteger(occ[0].position)).toBe(true);
+    const key = (o) => [bookOrder(o.ref.book), o.ref.chapter, o.ref.verse];
+    const inOrder = occ.every((o, i) => {
+      if (i === 0) return true;
+      const [pb, pc, pv] = key(occ[i - 1]), [b, c, v] = key(o);
+      return pb < b || (pb === b && (pc < c || (pc === c && pv <= v)));
+    });
+    expect(inOrder).toBe(true);
   });
 });
 

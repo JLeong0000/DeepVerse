@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
   import { route } from '../lib/router.svelte.js';
   import { study, goToPassage, selectVerse, selectWord } from '../lib/study.svelte.js';
   import { getInterlinear } from '../lib/db.js';
@@ -14,11 +13,15 @@
   let splitEl = $state(null);
   let dragging = $state(false);
 
-  onMount(() => {
+  // Apply a navigation target from openStudy (Home search, word-of-day, notes, or an in-Study
+  // verse link). Reacts to route.params so jumps work even when Study is already the active view
+  // and the component doesn't remount — go() assigns a fresh params object, re-running this.
+  $effect(() => {
     const p = route.params;
-    if (p?.book) { goToPassage({ version: p.version, book: p.book, chapter: p.chapter, verse: p.verse ?? null }); }
-    if (p?.verse) selectVerse(p.verse);
-    if (p?.word && p?.verse) {
+    if (!p?.book) return;
+    goToPassage({ version: p.version, book: p.book, chapter: p.chapter, verse: p.verse ?? null });
+    if (p.verse) selectVerse(p.verse);
+    if (p.word && p.verse) {
       const iw = getInterlinear(p.book, p.chapter, p.verse).find(x => x.position === p.word.position);
       if (iw) selectWord(iw);
     }

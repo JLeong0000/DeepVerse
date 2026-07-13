@@ -6,19 +6,16 @@
   import { tick } from 'svelte';
   import { searchWords, getWordSenses } from '../../lib/db.js';
   import { langLabel, readTranslit, cleanGloss, parseDefinition } from '../../lib/display.js';
-  import { formatRef } from '../../lib/refs.js';
   import { openStudy } from '../../lib/router.svelte.js';
   import PlayButton from '../common/PlayButton.svelte';
+  import SenseVerses from '../common/SenseVerses.svelte';
 
   let { onclose } = $props();
-
-  const SHOWN = 8; // verses shown per sense before the "and N more" fold
 
   let term = $state('');
   let results = $state([]);
   let highlight = $state(0);
   let selected = $state(null);        // detail view; null = search view
-  let expanded = $state(new Set());   // sense indices whose full verse list is shown
   let inputEl, listEl;
   let debounceId;
 
@@ -32,15 +29,12 @@
     // parse the lexicon entry into indented {level, marker, text} rows (same as OriginalCard)
     s.defSenses = parseDefinition(s.definition);
     selected = s;
-    expanded = new Set();
   }
   async function back() { selected = null; await tick(); inputEl?.focus(); }
-  function expand(i) { expanded = new Set(expanded).add(i); }
   function jump(occ) {
     openStudy({ ...occ.ref, word: { position: occ.position } });
     onclose?.();
   }
-  const refText = (ref) => formatRef(`${ref.book}.${ref.chapter}.${ref.verse}`);
 
   function onWinKey(e) {
     if (e.key !== 'Escape') return;
@@ -100,21 +94,7 @@
         {/each}
       </div>
     {/if}
-    <div class="senses">
-      {#each selected.senses as s, i}
-        <div class="sense">
-          <div class="sense-head"><b class="gloss">“{cleanGloss(s.gloss)}”</b> <span class="cnt">{s.count}×</span></div>
-          <div class="verses">
-            {#each (expanded.has(i) ? s.occurrences : s.occurrences.slice(0, SHOWN)) as o}
-              <button class="occ" onclick={() => jump(o)}>{refText(o.ref)} →</button>
-            {/each}
-            {#if s.occurrences.length > SHOWN && !expanded.has(i)}
-              <button class="more" onclick={() => expand(i)}>and {s.occurrences.length - SHOWN} more</button>
-            {/if}
-          </div>
-        </div>
-      {/each}
-    </div>
+    <SenseVerses senses={selected.senses} onjump={jump} />
   {/if}
 </div>
 
@@ -156,16 +136,4 @@
   .dsense.lv1 { padding-left: 20px; }
   .dsense.lv2 { padding-left: 40px; text-indent: -22px; }
   .dsense .mk { color: var(--a); font-weight: 600; margin-right: 6px; }
-
-  .senses { display: flex; flex-direction: column; gap: 12px; }
-  .sense-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 5px; }
-  .gloss { font-size: 14px; }
-  .cnt { color: var(--dim); font-size: 12px; }
-  .verses { display: flex; flex-wrap: wrap; gap: 4px 14px; }
-  .occ { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
-    font-size: 12.5px; color: var(--a); }
-  .occ:hover { text-decoration: underline; }
-  .more { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
-    font-size: 12.5px; color: var(--dim); font-style: italic; }
-  .more:hover { color: var(--ink); }
 </style>

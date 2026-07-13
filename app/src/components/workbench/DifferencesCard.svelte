@@ -2,8 +2,10 @@
   import { getVerseDifferences } from '../../lib/db.js';
   import { study, selectWord } from '../../lib/study.svelte.js';
   import { cleanGloss, testamentLabel, readTranslit } from '../../lib/display.js';
+  import WordInstances from './WordInstances.svelte';
 
   let showAll = $state(false);
+  let instancesFor = $state(null); // { strongs, original } of a sense chip the user opened
   $effect(() => { study.verse; study.book; study.chapter; showAll = false; }); // reset on verse change
 
   // group differences by word position: a word can be both Type A and Type B — show it once.
@@ -90,7 +92,9 @@
         <div class="tally">
           <span class="tcap">across {testamentLabel(r.strongs)}:</span>
           {#each r.b.detail.senses.slice(0, 3) as p}
-            <span class="schip" style="background: color-mix(in srgb, var(--b) {tintPct(p.count, r.b.detail.senses)}%, var(--panel))"><b>{cleanGloss(p.gloss)}</b> {p.count}×</span>
+            <button class="schip" title="See the verses this word appears in"
+              onclick={() => (instancesFor = { strongs: r.strongs, original: r.original })}
+              style="background: color-mix(in srgb, var(--b) {tintPct(p.count, r.b.detail.senses)}%, var(--panel))"><b>{cleanGloss(p.gloss)}</b> {p.count}×</button>
           {/each}
         </div>
       {/if}
@@ -103,6 +107,11 @@
     <button class="showall" onclick={() => (showAll = !showAll)}>
       {showAll ? '▴ Show fewer' : `▾ Show all ${rows.length} differences`}
     </button>
+  {/if}
+  {#if instancesFor}
+    <WordInstances strongs={instancesFor.strongs} original={instancesFor.original}
+      ref={{ book: study.book, chapter: study.chapter, verse: study.verse }}
+      onclose={() => (instancesFor = null)} />
   {/if}
 {/if}
 
@@ -139,8 +148,10 @@
   .wordB .grk { font-size: 1.1em; }
   .tally { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 5px;
     font-size: .86em; color: var(--dim); font-style: italic; }
-  .schip { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 7px; border-radius: 4px;
-    white-space: nowrap; color: var(--ink); }
+  .schip { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 7px; border-radius: 4px;
+    white-space: nowrap; color: var(--ink); border: 1px solid transparent; cursor: pointer;
+    font-family: inherit; font-size: 1em; font-style: italic; }
+  .schip:hover { border-color: var(--b); }
   .schip b { font-weight: 600; font-style: italic; }
   .repcap { padding: 10px 11px 12px; font-size: 11px; color: var(--dim); font-style: italic; }
   .showall { display: block; width: 100%; text-align: left; padding: 8px 11px; border: none; border-top: 1px solid var(--rule);

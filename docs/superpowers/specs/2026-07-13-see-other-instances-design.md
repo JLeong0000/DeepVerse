@@ -69,6 +69,26 @@ Replace the inline `.senses`/`.sense`/`.verses` markup and the `expanded`/`expan
 state + related styles with `<SenseVerses senses={selected.senses} onjump={jump} />`. The
 `jump` function and detail header/definition rendering are unchanged. Behavior is identical.
 
+## Second entry point: Differences card sense chips
+
+The Differences card's B · sense-spread chips (e.g. "keep 20×", "guard 7×") open the same
+`WordInstances` overlay for that word. Each `.schip` becomes a `<button>` that sets
+`instancesFor = { strongs, original }` from the row; the overlay renders with the current
+verse excluded, identical to the Original-card path.
+
+Note the grouping nuance: the chips show *sense-clustered* counts (build-side `senseKey`),
+while `getWordSenses` groups by *raw* `gloss_norm`, so the overlay's groups/counts are finer
+than the chip that opened it. This is intentional — the overlay shows exactly where the word
+appears rendered each way. Documented, not reconciled.
+
+## Routing fix (required for these overlays)
+
+`Study.svelte` previously applied `route.params` only in `onMount`, so `openStudy` jumps did
+nothing when Study was already the active view — which is exactly the case for these overlays'
+verse links. Changed the `onMount` to a `$effect` on `route.params` so a jump applies whether
+or not Study is already mounted. `openStudy` is otherwise unchanged; Home/word-of-day/notes
+jumps are unaffected (they still trigger the same effect on mount).
+
 ## Out of scope (YAGNI)
 
 No verse-text previews (reference-only per decision); no new data-layer query (the current-

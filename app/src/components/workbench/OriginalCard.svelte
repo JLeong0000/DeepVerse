@@ -4,6 +4,9 @@
   import { bookName } from '../../lib/refs.js';
   import { parseDefinition, readTranslit } from '../../lib/display.js';
   import PlayButton from '../common/PlayButton.svelte';
+  import WordInstances from './WordInstances.svelte';
+
+  let instancesOpen = $state(false);
 
   let words = $derived(study.verse == null ? [] : getInterlinear(study.book, study.chapter, study.verse));
   let langs = $derived(getChapterLanguages(study.book, study.chapter));
@@ -28,6 +31,9 @@
   // markers; Hebrew (BDB) uses inline "1) / 1a) / 1a1)" numbering. parseDefinition handles both and returns
   // {level, marker, text} rows so we can indent instead of showing one run-on line.
   let defSenses = $derived.by(() => parseDefinition(detail?.lex?.definition));
+  // occurrences of this word OUTSIDE the current verse — gates the "See other instances" link
+  let otherInstances = $derived(
+    detail ? detail.conc.total - words.filter(w => w.strongs === detail.word.strongs).length : 0);
 
   let detailEl = $state(null);
   $effect(() => { if (detail && detailEl) detailEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
@@ -65,7 +71,15 @@
         {/each}
       {:else}<div class="sense dim">No lexicon entry.</div>{/if}
       {#if detail.conc}<div class="conc">Occurs <b>{detail.conc.total}×</b> in the Bible ({detail.conc.byBook.length} books)</div>{/if}
+      {#if otherInstances > 0}
+        <button class="instances" onclick={() => (instancesOpen = true)}>See other instances →</button>
+      {/if}
     </div>
+    {#if instancesOpen}
+      <WordInstances strongs={detail.word.strongs} original={detail.word.original}
+        ref={{ book: study.book, chapter: study.chapter, verse: study.verse }}
+        onclose={() => (instancesOpen = false)} />
+    {/if}
   {/if}
 {/if}
 
@@ -98,4 +112,7 @@
   .sense.dim { color: var(--dim); font-style: italic; padding-left: 0; text-indent: 0; }
   .sense .mk { color: var(--a); font-weight: 600; margin-right: 6px; }
   .conc { margin-top: 8px; color: var(--dim); border-top: 1px solid var(--rule); padding-top: 7px; }
+  .instances { margin-top: 8px; background: none; border: none; padding: 0; cursor: pointer;
+    font-family: inherit; font-size: 12.5px; color: var(--a); display: block; }
+  .instances:hover { text-decoration: underline; }
 </style>

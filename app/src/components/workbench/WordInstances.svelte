@@ -6,13 +6,16 @@
   import { openStudy } from '../../lib/router.svelte.js';
   import SenseVerses from '../common/SenseVerses.svelte';
 
+  // ref is the verse to exclude ("other instances", from the study card). Omit it to show every
+  // occurrence ("all instances", from Word of the Day where there's no current verse).
   let { strongs, original, translit, ref, onclose } = $props();
 
-  // drop the current verse from each sense, then any sense left empty — "other" instances
+  // drop the current verse (if any) from each sense, then any sense left empty
   const senses = getWordSenses(strongs).senses
     .map(s => {
-      const occurrences = s.occurrences.filter(o =>
-        !(o.ref.book === ref.book && o.ref.chapter === ref.chapter && o.ref.verse === ref.verse));
+      const occurrences = ref
+        ? s.occurrences.filter(o => !(o.ref.book === ref.book && o.ref.chapter === ref.chapter && o.ref.verse === ref.verse))
+        : s.occurrences;
       return { gloss: s.gloss, count: occurrences.length, occurrences };
     })
     .filter(s => s.count > 0);
@@ -29,7 +32,7 @@
 <div class="modal" role="dialog" aria-modal="true">
   <div class="mhead">
     <div class="wrow"><span class="orig">{original}</span> <span class="tl">{readTranslit(translit)}</span></div>
-    <span class="ttl">other instances · {total}</span>
+    <span class="ttl">{ref ? 'other' : 'all'} instances · {total}</span>
   </div>
   <SenseVerses {senses} onjump={jump} />
 </div>

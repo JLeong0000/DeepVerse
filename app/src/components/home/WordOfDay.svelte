@@ -5,14 +5,18 @@
   import { openStudy } from '../../lib/router.svelte.js';
   import PlayButton from '../common/PlayButton.svelte';
   import WordSearch from './WordSearch.svelte';
+  import WordInstances from '../workbench/WordInstances.svelte';
 
   let searchOpen = $state(false);
+  let instancesOpen = $state(false);
 
   const w = getWordOfDay();
   const lang = w ? langLabel(w.lang || w.strongs) : '';
   // senses come sorted by count desc: [0] is the most-appeared translation, the rest are "other interpretations"
   const senses = w ? w.senses.map(s => ({ gloss: cleanGloss(s.gloss), count: s.count })) : [];
   const top = senses[0];
+  // the featured sense gets the same "seen in" example verse as the other interpretations
+  const topOcc = w && w.senses[0] ? getSenseOccurrence(w.strongs, w.senses[0].gloss) : null;
   // each "other interpretation" carries an example verse where the word is rendered that way (its "seen in" link)
   const rest = w ? w.senses.slice(1).map(s => ({ gloss: cleanGloss(s.gloss), count: s.count, occ: getSenseOccurrence(w.strongs, s.gloss) })) : [];
   // condensed dictionary definition: sense glosses only, verse citations stripped (see shortDefinition)
@@ -49,6 +53,7 @@
           <div class="feature">
             <span class="gloss lead">“{top.gloss}”</span> <span class="cnt">{top.count}×</span>
             {#if def}<p class="def">{def}</p>{/if}
+            {#if topOcc}<button class="occ feat-occ" onclick={() => jump(topOcc)}>Seen in {refText(topOcc.ref)} →</button>{/if}
           </div>
         {/if}
       </div>
@@ -67,11 +72,18 @@
         {/each}
       </div>
     {/if}
+    <div class="cardfoot">
+      <button class="occ" onclick={() => (instancesOpen = true)}>See more instances →</button>
+    </div>
   </section>
 {/if}
 
 {#if searchOpen}
   <WordSearch onclose={() => (searchOpen = false)} />
+{/if}
+
+{#if instancesOpen && w}
+  <WordInstances strongs={w.strongs} original={w.original} translit={w.translit} onclose={() => (instancesOpen = false)} />
 {/if}
 
 <style>
@@ -108,4 +120,6 @@
   .occ { justify-self: start; background: none; border: none; padding: 0; cursor: pointer;
     font-family: inherit; font-size: 13px; color: var(--a); text-align: left; }
   .occ:hover { text-decoration: underline; }
+  .feat-occ { display: inline-block; margin-top: 8px; }
+  .cardfoot { display: flex; justify-content: flex-end; margin-top: 16px; }
 </style>

@@ -65,7 +65,7 @@
       {#if r.a}
         <div class="lead alead">
           <span class="bdg bA">A · synonym</span>
-          <b>“{cleanGloss(r.gloss)}”</b>
+          literally <b>“{cleanGloss(r.gloss)}”</b>
           <button class="chip chosen" onclick={() => selectWord({ strongs: r.strongs, ...r.a })}>
             <span class="chw"><span class="grk">{r.original}</span><span class="tl">{readTranslit(r.translit)}</span></span>
             <span class="chg">{cleanGloss(r.gloss)}</span>
@@ -84,10 +84,10 @@
       {#if r.b}
         <div class="lead" class:mt={r.a}>
           <span class="bdg bB">B · sense-spread</span>
-          <b>“{cleanGloss(r.gloss)}”</b> is
           <span class="wordB" onclick={() => selectWord({ strongs: r.strongs, ...r.b })} role="button" tabindex="0">
             <span class="grk">{r.original}</span> <span class="tl">{readTranslit(r.translit)}</span>
           </span>
+          — literally <b>“{cleanGloss(r.gloss)}”</b>
         </div>
         <div class="tally">
           <span class="tcap">across {testamentLabel(r.strongs)}:</span>

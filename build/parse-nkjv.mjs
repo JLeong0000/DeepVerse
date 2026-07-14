@@ -71,6 +71,29 @@ function joinToks(toks) {
   return out;
 }
 
+// Identify the book a page ANNOUNCES from its title masthead (band 11-16), combined
+// with the "The First/Second/Third Book|Epistle of ..." intro line so numbered books
+// (whose title renders as a bare "SAMUEL"/"KINGS") disambiguate. A title only appears
+// on a book's own first page, so this is where a new book is announced; the running
+// header is not used (on a transition page it can still name the previous book).
+const ORD = { first: '1', second: '2', third: '3' };
+function pageBookOf(lines) {
+  let title = '', ord = '';
+  for (const ln of lines) {
+    if (!title) {
+      const tt = ln.filter(t => t.sz >= 11 && t.sz < 16 && /[A-Za-z]/.test(t.str));
+      if (tt.length) title = norm(tt.map(t => t.str).join(''));
+    }
+    if (!ord) {   // the intro line, e.g. "The Second Book of Samuel" / "The First Epistle of John"
+      const m = ln.map(t => t.str).join('').match(/\bThe\s+(First|Second|Third)\s+(?:Book|Epistle|Letter)\b/i);
+      if (m) ord = ORD[m[1].toLowerCase()];
+    }
+  }
+  if (!title) return null;
+  const bare = title.startsWith('the') ? title.slice(3) : title;   // "THE REVELATION" -> revelation
+  return CANON[ord + title] || CANON[title] || CANON[ord + bare] || CANON[bare] || null;
+}
+
 const bible = {};
 let curBook = null, curCh = null, curVs = null, glue = false;
 const setBook = ([osis, name]) => {
@@ -85,6 +108,8 @@ const append = (t) => {
   else c[curVs] = c[curVs] ? c[curVs] + ' ' + t : t;
 };
 
+const announced = [];   // books seen by title but not yet reached in the body (FIFO)
+
 for (let p = 1; p <= N; p++) {
   const lines = await pageLines(p);
   if (!lines.length) continue;
@@ -96,37 +121,51 @@ for (let p = 1; p <= N; p++) {
     if (t.sz >= 7.2 && t.sz <= 7.8 && t.str.trim()) ff[t.font] = (ff[t.font] || 0) + t.str.length;
   const bodyFont = Object.entries(ff).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-  // line 0 = running header -> set book (if it parses), then never treat as content
-  const h = lines[0].map(t => t.str).join('').replace(/\s+/g, ' ').trim().match(HEADER);
-  if (h) { const k = norm((h[1] || '') + h[2]); if (CANON[k]) setBook(CANON[k]); }
+  // Queue this page's announced book (if new). The book is NOT switched here: the
+  // announcement (title/intro) can appear a page or two before the body begins, and a
+  // transition page's top still belongs to the previous book. curBook advances only
+  // when the announced book's body actually starts (its chapter-1 drop-cap / PSALM 1).
+  const pageBook = pageBookOf(lines);
+  if (pageBook && pageBook[0] !== curBook &&
+      (!announced.length || announced[announced.length - 1][0] !== pageBook[0])) announced.push(pageBook);
+  if (!curBook && announced.length) setBook(announced.shift());   // establish the first book (Genesis)
 
-  for (let i = 1; i < lines.length; i++) {
+  // line 0 is the running header on ordinary pages (skip it); on a book-intro page it
+  // can instead be the chapter-1 drop-cap or the title, so keep it when it isn't a header.
+  const isHeader0 = !!lines[0].map(t => t.str).join('').replace(/\s+/g, ' ').trim().match(HEADER);
+  for (let i = 0; i < lines.length; i++) {
+    if (i === 0 && isHeader0) continue;
     const raw = lines[i];
-    // book-title detection (band 11-16, e.g. "GENESIS" 13.5) for book-intro pages
-    const titleToks = raw.filter(t => t.sz >= 11 && t.sz < 16 && /[A-Za-z]/.test(t.str));
-    if (titleToks.length) {
-      const k = norm(titleToks.map(t => t.str).join(''));
-      if (CANON[k]) { setBook(CANON[k]); continue; }
-    }
+    // skip book-intro furniture: title (11-16), editorial intro paragraphs (~8),
+    // and the editorial intro drop-cap (>=20) — none of which are scripture body.
+    if (raw.some(t => t.str.trim() && ((t.sz > 7.8 && t.sz < 14) || t.sz >= 20)) &&
+        !raw.some(t => t.sz >= 14 && t.sz < 20)) continue;
     const toks = raw.filter(t => t.sz >= 7 || !t.str.trim()); // drop footnotes/markers (<7) but KEEP spaces
     if (!toks.length) continue;
     const text = joinToks(toks).replace(/\s+/g, ' ').trim();
     if (!text) continue;
     if (!curBook) continue;                          // ignore front matter before Genesis
 
-    // Psalms chapter heading "PSALM n"
+    // Psalms chapter heading "PSALM n" (also the switch point into the book of Psalms)
     const pm = text.match(/^PSALMS?\s+(\d+)$/i);
-    if (pm && curBook === 'Ps') { curCh = pm[1]; curVs = null; glue = false; continue; }
+    if (pm && (curBook === 'Ps' || (announced.length && announced[0][0] === 'Ps'))) {
+      if (curBook !== 'Ps') setBook(announced.shift());
+      curCh = pm[1]; curVs = null; glue = false; continue;
+    }
 
     // chapter drop-cap (band 14-20)
     if (toks.some(t => t.sz >= 14 && t.sz < 20)) {
-      if (/\d/.test(text)) {                         // numbered chapter (>=2)
+      if (/\d/.test(text)) {                         // numbered chapter (>=2) of the current book
         const d = text.match(/\d+/)[0];
         curCh = d; curVs = '1'; glue = false;
         const rest = text.slice(text.indexOf(d) + d.length).trim();
         startVerse(''); if (rest) append(rest);
-      } else {                                        // letter drop-cap = chapter opener (ch 1)
-        if (curCh == null) curCh = '1';
+      } else {                                        // letter drop-cap = chapter-1 opener
+        // In Psalms every psalm's verse 1 also has a letter drop-cap (right after its
+        // "PSALM n" heading, so curVs is null) — that must NOT consume the next book.
+        const psalmOpener = curBook === 'Ps' && curVs == null;
+        if (announced.length && !psalmOpener) { setBook(announced.shift()); curCh = '1'; }
+        else if (curCh == null) curCh = '1';
         curVs = '1'; startVerse(text); glue = true;   // glue letter to next line
       }
       continue;

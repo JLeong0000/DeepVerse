@@ -297,13 +297,15 @@ export function underlineSpans(englishText, diffs) {
 }
 
 // --- 1.5 Cross-references + context ---
+// votes > 0 drops net-downvoted / tied links the community judged irrelevant (~1% of rows); a higher
+// flat floor would gut obscure verses, whose relevant links score low only for lack of turnout.
 export function getCrossRefs(book, chapter, verse) {
-  return query('SELECT to_ref, votes FROM cross_refs WHERE from_book=? AND from_chapter=? AND from_verse=? ORDER BY votes DESC',
+  return query('SELECT to_ref, votes FROM cross_refs WHERE from_book=? AND from_chapter=? AND from_verse=? AND votes>0 ORDER BY votes DESC',
     [book, chapter, verse]);
 }
 export function getChapterCrossRefStats(book, chapter) {
   return query(`SELECT COUNT(*) AS total, COUNT(DISTINCT from_verse) AS versesWithRefs
-    FROM cross_refs WHERE from_book=? AND from_chapter=?`, [book, chapter])[0];
+    FROM cross_refs WHERE from_book=? AND from_chapter=? AND votes>0`, [book, chapter])[0];
 }
 // NIV text of a cross-ref target's first verse (to_ref may be a range like "1John.4.9-1John.4.10").
 export function getRefPreview(toRef) {

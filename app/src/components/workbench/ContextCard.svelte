@@ -3,22 +3,24 @@
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
 
-  const LIMIT = 14;
+  const CAP = 4;
   let chapStats = $derived(getChapterCrossRefStats(study.book, study.chapter));
+  // each section shows CAP refs; "see more" expands it. Collapse both when the verse changes.
+  let expanded = $state({ nt: false, ot: false });
+  $effect(() => { study.book; study.chapter; study.verse; expanded.nt = false; expanded.ot = false; });
 
-  // top cross-refs for the verse, each with a NIV preview, grouped into OT / NT.
+  // cross-refs for the verse, each with a NIV preview, grouped into NT / OT.
   let groups = $derived.by(() => {
     if (study.verse == null) return [];
-    const refs = getCrossRefs(study.book, study.chapter, study.verse).slice(0, LIMIT).map(r => ({
+    const refs = getCrossRefs(study.book, study.chapter, study.verse).map(r => ({
       to_ref: r.to_ref,
       votes: r.votes,
       firstRef: r.to_ref.split('-')[0],
-      range: r.to_ref.includes('-'),
       preview: getRefPreview(r.to_ref),
     }));
     const ot = refs.filter(r => bookOrder(r.firstRef.split('.')[0]) < 39);
     const nt = refs.filter(r => bookOrder(r.firstRef.split('.')[0]) >= 39);
-    return [['New Testament', nt], ['Old Testament', ot]].filter(([, list]) => list.length);
+    return [['New Testament', 'nt', nt], ['Old Testament', 'ot', ot]].filter(([, , list]) => list.length);
   });
   let total = $derived(study.verse == null ? 0 : getCrossRefs(study.book, study.chapter, study.verse).length);
 
@@ -44,19 +46,23 @@
   {#if groups.length === 0}
     <div class="empty">No cross-references for this verse.</div>
   {:else}
-    {#each groups as [label, list]}
+    {#each groups as [label, key, list]}
       <div class="grp">
         <div class="grplbl">{label}</div>
-        {#each list as r}
+        {#each (expanded[key] ? list : list.slice(0, CAP)) as r}
           <button class="xref" onclick={() => jump(r.firstRef)}>
             <span class="rtop"><span class="ref">{formatCrossRef(r.to_ref)}</span>
               {#if r.votes > 0}<span class="votes" title="community relevance votes">{r.votes}</span>{/if}</span>
             {#if r.preview}<span class="prev">{r.preview.length > 120 ? r.preview.slice(0, 120) + '…' : r.preview}</span>{/if}
           </button>
         {/each}
+        {#if list.length > CAP}
+          <button class="seemore" onclick={() => (expanded[key] = !expanded[key])}>
+            {expanded[key] ? 'See less' : `See ${list.length - CAP} more`}
+          </button>
+        {/if}
       </div>
     {/each}
-    {#if total > LIMIT}<div class="more">+{total - LIMIT} more, lower-ranked</div>{/if}
   {/if}
   <div class="l2">Whole chapter: {chapStats.total} cross-references across {chapStats.versesWithRefs} verses.</div>
 {/if}
@@ -80,6 +86,8 @@
   .rtop { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .ref { color: var(--a); font-size: 12.5px; } .votes { color: var(--dim); font-size: .78em; }
   .prev { color: var(--dim); font-size: 11.5px; line-height: 1.45; }
-  .more { padding: 0 11px 6px; font-size: 11px; color: var(--dim); }
+  .seemore { display: block; width: 100%; text-align: left; background: transparent; border: none;
+    color: var(--a); font-family: inherit; font-size: 11px; cursor: pointer; padding: 1px 2px 4px; }
+  .seemore:hover { text-decoration: underline; }
   .l2 { padding: 6px 11px 10px; font-size: 11px; color: var(--dim); border-top: 1px solid var(--rule); margin-top: 4px; }
 </style>

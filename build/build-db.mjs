@@ -10,6 +10,7 @@ import { normalizeGloss } from './lib/gloss.mjs';
 import { parseMaculaGreekLine, parseProximityLine, padStrong } from './lib/macula.mjs';
 import { loadHebrewDomains } from './lib/macula-hebrew.mjs';
 import { computeDifferences } from './lib/differences.mjs';
+import { loadTheographic } from './lib/theographic.mjs';
 
 const ROOT = '/Users/justinleong/Desktop/Coding/DeepVerse';
 const DB = `${ROOT}/data/bible.db`;
@@ -27,6 +28,28 @@ db.exec(`
   CREATE TABLE word_domain (strongs TEXT PRIMARY KEY, lemma TEXT, gloss TEXT, ln TEXT, domain TEXT, frame TEXT);
   CREATE TABLE synonyms (strongs_a TEXT, strongs_b TEXT, distance REAL);
   CREATE TABLE word_sense (strongs TEXT, sense_id TEXT, gloss TEXT);
+  CREATE TABLE chapter_context (
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    osis_ref TEXT NOT NULL,
+    writer TEXT,
+    people_count INTEGER,
+    place_count INTEGER,
+    PRIMARY KEY (book, chapter)
+  );
+  CREATE TABLE chapter_entity (
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    latitude REAL, longitude REAL,
+    feature_type TEXT,
+    blurb TEXT,
+    approx_year INTEGER,
+    sort_verse INTEGER,
+    PRIMARY KEY (book, chapter, entity_type, entity_id)
+  );
 `);
 const tx = (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); };
 const stripHtml = s => (s||'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();
@@ -142,6 +165,11 @@ console.log('synonyms:', db.prepare('SELECT COUNT(*) n FROM synonyms').get().n);
 computeDifferences(db);
 console.log('differences:', db.prepare('SELECT COUNT(*) n FROM differences').get().n);
 
+// 7) THEOGRAPHIC: per-chapter context (writer/counts) + entities (people/places/groups/events)
+const theo = loadTheographic(db, `${ROOT}/sources/theographic`);
+console.log('chapter_context:', theo.context);
+console.log('chapter_entity:', theo.entity);
+
 db.exec(`
   CREATE INDEX idx_words_ref ON words(book,chapter,verse);
   CREATE INDEX idx_words_strongs ON words(strongs);
@@ -149,6 +177,8 @@ db.exec(`
   CREATE INDEX idx_xref ON cross_refs(from_book,from_chapter,from_verse);
   CREATE INDEX idx_syn_a ON synonyms(strongs_a);
   CREATE INDEX idx_wordsense ON word_sense(strongs);
+  CREATE INDEX idx_chapter_context ON chapter_context(book,chapter);
+  CREATE INDEX idx_chapter_entity ON chapter_entity(book,chapter);
 `);
 db.close();
 console.log('bible.db v2 built at', DB);

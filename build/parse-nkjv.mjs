@@ -64,7 +64,14 @@ function joinToks(toks) {
     if (i > 0) {
       const prev = toks[i - 1];
       const gap = t.x - (prev.x + prev.w);
-      if (/\S$/.test(prev.str) && /^\S/.test(t.str) && gap > t.sz * 0.18) out += ' ';
+      const spaced = gap > t.sz * 0.18;
+      // Footnote caller: a lone a-f letter tight-joined onto the following word
+      // (e.g. "...is a" + "my shepherd" -> "is my shepherd"). These callers render at
+      // body size, so the size filter can't drop them; but a real article "a" always
+      // has a trailing space, so a tight join (no space) identifies the caller. Drop
+      // just the letter and keep the space that preceded it.
+      if (!spaced && /^[a-z]/.test(t.str) && / [a-f]$/.test(out)) out = out.slice(0, -1);
+      else if (/\S$/.test(prev.str) && /^\S/.test(t.str) && spaced) out += ' ';
     }
     out += t.str;
   }

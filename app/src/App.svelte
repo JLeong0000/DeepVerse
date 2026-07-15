@@ -74,7 +74,7 @@
       <button class="navlink" class:active={route.view === 'home'} onclick={() => go('home')}>Home</button>
       <button class="navlink" class:active={route.view === 'study'} onclick={() => go('study')}>Study</button>
       <button class="navlink" class:active={route.view === 'compare'} onclick={() => go('compare')}>Compare</button>
-      <button class="navlink" class:active={route.view === 'notes'} onclick={() => go('notes')}>Notes</button>
+      <button class="navlink" class:active={route.view === 'notes'} onclick={() => go('notes')}>Memo</button>
     </nav>
     <button class="toggle" onclick={flip} aria-label="Toggle theme">{dark ? '☀' : '☾'}</button>
   </div>

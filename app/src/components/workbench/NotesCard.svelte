@@ -56,7 +56,7 @@
 
 <div class="wrap">
   <div class="tgt">
-    <span>Note on <b>{target.label}</b> <span class="dim">({target.type === 'chapter' ? 'chapter' : (target.ref.includes('-') ? 'verse range' : 'verse')})</span></span>
+    <span>Memo on <b>{target.label}</b> <span class="dim">({target.type === 'chapter' ? 'chapter' : (target.ref.includes('-') ? 'verse range' : 'verse')})</span></span>
     {@render groupSelect()}
   </div>
 
@@ -70,7 +70,7 @@
   {/each}
 
   {#if editing}
-    <NoteEditor bind:value={editBuf} placeholder="Add a note…" autofocus />
+    <NoteEditor bind:value={editBuf} placeholder="Add a memo…" autofocus />
     <div class="actions">
       <button class="save" onclick={saveEdit} disabled={noteIsEmpty(editBuf)}>Save</button>
       <button class="ghost" onclick={cancelEdit}>Cancel</button>
@@ -78,9 +78,9 @@
     </div>
   {:else}
     {#key draftNonce}
-      <NoteEditor bind:value={draft} placeholder="Add a note…" />
+      <NoteEditor bind:value={draft} placeholder="Add a memo…" />
     {/key}
-    <button class="save" onclick={saveNew} disabled={noteIsEmpty(draft)}>Save note</button>
+    <button class="save" onclick={saveNew} disabled={noteIsEmpty(draft)}>Save memo</button>
   {/if}
 </div>
 

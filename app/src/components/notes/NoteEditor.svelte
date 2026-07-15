@@ -1,7 +1,7 @@
 <script>
   // WYSIWYG note editor: you edit the formatted text directly (no raw markdown). Stored as HTML.
   import { noteHtml, noteIsEmpty } from '../../lib/markdown.js';
-  let { value = $bindable(''), placeholder = 'Add a note…', onsave, autofocus = false } = $props();
+  let { value = $bindable(''), placeholder = 'Add a memo…', onsave, autofocus = false } = $props();
 
   let el;
   let inited = false;

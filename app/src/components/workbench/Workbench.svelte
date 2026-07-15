@@ -14,7 +14,7 @@
     original: { title: 'Original', sub: 'read the verse · tap any word', component: OriginalCard },
     context: { title: 'Context & cross-references', component: ContextCard },
     stats: { title: 'Stats · word selector', component: StatsCard },
-    notes: { title: 'Notes', component: NotesCard },
+    notes: { title: 'Memo', component: NotesCard },
   };
   const DEFAULT_ORDER = ['differences', 'original', 'context', 'stats', 'notes'];
   const DEFAULT_OPEN = { differences: true, original: false, context: false, stats: false, notes: false };

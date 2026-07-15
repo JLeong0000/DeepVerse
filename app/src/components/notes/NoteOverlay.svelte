@@ -33,7 +33,7 @@
 <div class="backdrop" onclick={() => onclose?.()} role="presentation"></div>
 <div class="modal" role="dialog" aria-modal="true">
   {#if note?.ref}<button class="ref" onclick={jump}>{formatRef(note.ref)}{note.target_type === 'chapter' ? ' · chapter' : ''} →</button>{/if}
-  <NoteEditor bind:value={body} placeholder="Write a note…" autofocus />
+  <NoteEditor bind:value={body} placeholder="Write a memo…" autofocus />
   <div class="swatches">
     {#each [1, 2, 3, 4] as c}
       <button class="sw" class:on={color === c} style="background: var(--sy{c})"

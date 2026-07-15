@@ -147,10 +147,10 @@
 
 <div class="scroll"><div class="page">
   <div class="head">
-    <h1>Notes</h1>
+    <h1>Memo</h1>
     <div class="actions">
-      <input class="filter" placeholder="Filter notes…" bind:value={filter} />
-      <button class="btn" onclick={openNewNote}>+ Note</button>
+      <input class="filter" placeholder="Filter memos…" bind:value={filter} />
+      <button class="btn" onclick={openNewNote}>+ Memo</button>
       <button class="btn" onclick={async () => { addGroup(); await load(); }}>+ Group</button>
       <button class="btn" onclick={doExport}>Export</button>
       <button class="btn" onclick={() => fileInput.click()}>Import</button>
@@ -159,7 +159,7 @@
   </div>
 
   {#if notes.length === 0 && groups.length === 0}
-    <p class="empty">No notes yet. Add one with “+ Note”, or jot one against a verse in Study mode.</p>
+    <p class="empty">No memos yet. Add one with “+ Memo”, or jot one against a verse in Study mode.</p>
   {:else}
     <div class="board" class:expanded={!!openGroup_} bind:this={boardEl}
       onclick={(e) => { if (e.target.classList.contains('board')) clearSelection(); }}

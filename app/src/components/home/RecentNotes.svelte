@@ -28,15 +28,15 @@
   async function deleteOverlay() { await deleteNote(overlayNote.id); await load(); }
 </script>
 
-<div class="lbl">Recent notes</div>
+<div class="lbl">Recent memos</div>
 {#if notes.length === 0}
-  <div class="empty">No notes yet — open a verse in Study mode and jot one down.</div>
+  <div class="empty">No memos yet — open a verse in Study mode and jot one down.</div>
 {:else}
   <div class="notesgrid">
     {#each notes as note, i}
       <div class="sticky postit" style="background: var(--sy{note.color ?? ((i % 4) + 1)})"
         onclick={() => (overlayNote = note)} role="button" tabindex="0">
-        <div class="r">{note.ref ? formatRef(note.ref) : 'Note'}{note.ref && note.target_type === 'chapter' ? ' · ch' : ''}</div>
+        <div class="r">{note.ref ? formatRef(note.ref) : 'Memo'}{note.ref && note.target_type === 'chapter' ? ' · ch' : ''}</div>
         <div class="t md">{@html noteHtml(note.body)}</div>
         <div class="d">{relDate(note.updated_at)}</div>
       </div>

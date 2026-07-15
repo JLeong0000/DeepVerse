@@ -37,6 +37,22 @@ const CANON = {
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 const HEADER = /(?:\b([123])\s+)?([A-Z]{2,}(?:\s+[A-Z]{2,})*)\s+\d+(?::\d+)?/;
 
+// Section headings and block-quote/poetry scripture share the same non-body font, so
+// font alone can't tell them apart. A heading reads as a title: no period/semicolon/
+// exclamation/opening-quote, and every word is either capitalized or a small function
+// word (numbers/ranges and possessive apostrophes are ignored; a comma is allowed, since
+// many headings list items). Block-quote/poetry lines carry a lowercase content word, an
+// opening quote, or sentence-final punctuation, so they fail this test and are kept
+// (appended to the current verse). Lowercase function-word starts are allowed so wrapped
+// heading second lines ("...Destruction of / the Temple") are still recognized as headings.
+const HFUNC = new Set('a an and the of to in on at by for or but with from as is into over than'.split(' '));
+const isHeading = t0 => {
+  const t = t0.replace(/\d[\d,]*(?:\s*[—–-]\s*\d[\d,]*)?/g, 'N')   // collapse numbers / numeric ranges
+              .replace(/(\p{L})[’'](\p{L}?)/gu, '$1$2');           // drop possessive/contraction apostrophes
+  return !/[!";.“”‘]/.test(t) &&
+    t.split(/[\s:]+/).every(w => { const b = w.replace(/[^A-Za-z']/g, ''); return !b || /^[A-Z]/.test(b) || HFUNC.has(b.toLowerCase()); });
+};
+
 const doc = await getDocument({ data: new Uint8Array(fs.readFileSync(PDF)), useSystemFonts: true }).promise;
 const N = doc.numPages;
 
@@ -178,11 +194,13 @@ for (let p = 1; p <= N; p++) {
       continue;
     }
 
-    // section-heading skip: non-body font, no leading verse number
+    // section-heading skip: a non-body-font line with no leading verse number is dropped
+    // only when it reads as a title; block-quote/poetry lines (same font) fall through and
+    // are appended to the current verse below.
     const lf = {};
     for (const t of toks) if (t.str.trim()) lf[t.font] = (lf[t.font] || 0) + t.str.length;
     const dom = Object.entries(lf).sort((a, b) => b[1] - a[1])[0]?.[0];
-    if (dom && dom !== bodyFont && !/^\d+\s/.test(text) && !/^\d+$/.test(text)) continue;
+    if (dom && dom !== bodyFont && !/^\d+\s/.test(text) && !/^\d+$/.test(text) && isHeading(text)) continue;
 
     // verse content
     const vm = text.match(/^(\d+)\s+(.*)$/);

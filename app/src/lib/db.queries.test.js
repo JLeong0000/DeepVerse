@@ -240,6 +240,26 @@ describe('chapter recap', () => {
   });
 });
 
+describe('study notes', () => {
+  test('getChapterStudyNoteCount: annotated vs bare chapters', () => {
+    expect(db.getChapterStudyNoteCount('Gen', 1)).toBe(19);
+    expect(db.getChapterStudyNoteCount('Nope', 999)).toBe(0);
+  });
+  test('getStudyNotes: verse-specific note (Ruth 2:2 gleaning)', () => {
+    const notes = db.getStudyNotes('Ruth', 2, 2);
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.some(n => /glean/i.test(n.body))).toBe(true);
+  });
+  test('getStudyNotes: covering model — a mid-passage verse gets the passage note', () => {
+    // Gen.1.1-2.3 covers Gen 1:10 even though no note starts at 1:10
+    const notes = db.getStudyNotes('Gen', 1, 10);
+    expect(notes.some(n => n.osis_ref === 'Gen.1.1-2.3')).toBe(true);
+  });
+  test('getStudyNotes: bare chapter returns []', () => {
+    expect(db.getStudyNotes('Nope', 999, 1)).toEqual([]);
+  });
+});
+
 describe('1.6 stats + concordance', () => {
   test('countLemma(agapao) totals 143', () => {
     expect(db.countLemma('G0025').total).toBe(143);

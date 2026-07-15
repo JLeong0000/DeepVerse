@@ -332,6 +332,24 @@ export function getChapterEntities(book, chapter) {
   return query(`SELECT entity_type, entity_id, name, latitude, longitude, feature_type, blurb, approx_year, sort_verse
     FROM chapter_entity WHERE book=? AND chapter=? ORDER BY entity_type, sort_verse`, [book, chapter]);
 }
+// Study notes covering a given verse — a note's range may span verses (or chapters), so a note
+// "covers" a verse if the verse falls anywhere within [start, end], not just at its start.
+export function getStudyNotes(book, chapter, verse) {
+  const key = chapter * 1000 + verse;
+  return query(
+    `SELECT ref, osis_ref, body FROM study_notes
+       WHERE book = ?
+         AND (start_chapter*1000 + start_verse) <= ?
+         AND (end_chapter*1000   + end_verse)   >= ?
+     ORDER BY (start_chapter*1000 + start_verse), seq`,
+    [book, key, key]);
+}
+export function getChapterStudyNoteCount(book, chapter) {
+  return query(
+    `SELECT COUNT(*) AS n FROM study_notes
+       WHERE book = ? AND start_chapter <= ? AND end_chapter >= ?`,
+    [book, chapter, chapter])[0].n;
+}
 
 // --- 1.6 Stats + word-selector concordance ---
 export function countEnglishWord(version, word) {

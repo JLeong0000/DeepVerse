@@ -221,6 +221,25 @@ describe('1.5 chapter context (Theographic)', () => {
   });
 });
 
+describe('chapter recap', () => {
+  const SOURCES = ['bible-summary', 'matthew-henry', 'adam-clarke', 'editorial'];
+  test('getChapterRecap returns a non-empty recap with a valid source', () => {
+    const r = db.getChapterRecap('John', 3);
+    expect(r).toBeTruthy();
+    expect(r.recap.length).toBeGreaterThan(0);
+    expect(SOURCES).toContain(r.source);
+  });
+  test('Ruth 1 recap is sourced from Bible Summary', () => {
+    expect(db.getChapterRecap('Ruth', 1).source).toBe('bible-summary');
+  });
+  test('Matthew 27 recap is sourced from Bible Summary', () => {
+    expect(db.getChapterRecap('Matt', 27).source).toBe('bible-summary');
+  });
+  test('getChapterRecap returns null for a chapter without a recap', () => {
+    expect(db.getChapterRecap('Nope', 999)).toBeNull();
+  });
+});
+
 describe('1.6 stats + concordance', () => {
   test('countLemma(agapao) totals 143', () => {
     expect(db.countLemma('G0025').total).toBe(143);

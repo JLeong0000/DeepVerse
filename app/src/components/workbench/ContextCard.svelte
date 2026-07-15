@@ -1,6 +1,6 @@
 <script>
   import { getCrossRefs, getChapterCrossRefStats, getRefPreview,
-    getChapterContext, getChapterEntities } from '../../lib/db.js';
+    getChapterContext, getChapterEntities, getChapterRecap } from '../../lib/db.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
 
@@ -33,6 +33,12 @@
 
   // --- Context tab (chapter-level, so it renders with or without a verse selected) ---
   let ctx = $derived(getChapterContext(study.book, study.chapter));
+  // per-chapter recap (a plain summary from Bible Summary), shown first. Long ones collapse.
+  const RECAP_SRC = { 'bible-summary': 'Bible Summary', 'matthew-henry': 'Matthew Henry', 'adam-clarke': 'Adam Clarke', editorial: 'DeepVerse' };
+  const RECAP_CLAMP = 280; // collapsed length ~3 lines
+  let recap = $derived(getChapterRecap(study.book, study.chapter));
+  let recapOpen = $state(false);
+  $effect(() => { study.book; study.chapter; recapOpen = false; });
   let entities = $derived.by(() => {
     const byType = { person: [], place: [], event: [], group: [] };
     for (const e of getChapterEntities(study.book, study.chapter)) (byType[e.entity_type] ||= []).push(e);
@@ -88,11 +94,29 @@
     <div class="l2">Whole chapter: {chapStats.total} cross-references across {chapStats.versesWithRefs} verses.</div>
   {/if}
 {:else}
+  {#if recap}
+    {@const long = recap.recap.length > RECAP_CLAMP}
+    <div class="grp recap">
+      <div class="grplbl">Recap</div>
+      <p class="recaptext">{long && !recapOpen ? recap.recap.slice(0, RECAP_CLAMP).trimEnd() + '…' : recap.recap}</p>
+      {#if long}
+        <button class="seemore" onclick={() => (recapOpen = !recapOpen)}>{recapOpen ? 'Read less' : 'Read more'}</button>
+      {/if}
+      <div class="recapsrc">
+        {#if recap.source === 'bible-summary'}
+          <a href="https://biblesummary.info" target="_blank" rel="noopener">Bible Summary · biblesummary.info</a>
+        {:else}{RECAP_SRC[recap.source] || recap.source}{/if}
+      </div>
+    </div>
+  {/if}
+
   <div class="hd">
     <span class="q">ⓘ</span> Context for <b>{bookName(study.book)} {study.chapter}</b>
     {#if ctx?.writer}<span class="sub">· traditionally attributed to {ctx.writer}</span>{/if}
     <div class="tip">
-      This context is auto-linked from the <b>Theographic Bible Metadata</b> knowledge graph
+      The recap is a plain chapter summary from <b>Bible Summary</b> by Chris Juby
+      (biblesummary.info). The rest of this context is auto-linked from the
+      <b>Theographic Bible Metadata</b> knowledge graph
       (CC BY-SA 4.0): the people, places, and events named in this chapter’s verses. Auto-linked, so it
       can occasionally mis-tag a name shared by a person and a place (e.g. “Moab” or “Judah”), and dates
       are approximate traditional chronology.
@@ -180,6 +204,12 @@
     color: var(--a); font-family: inherit; font-size: 11px; cursor: pointer; padding: 1px 2px 4px; }
   .seemore:hover { text-decoration: underline; }
   .l2 { padding: 6px 11px 10px; font-size: 11px; color: var(--dim); border-top: 1px solid var(--rule); margin-top: 4px; }
+  /* Chapter recap */
+  .recap { border-bottom: 1px solid var(--rule); }
+  .recaptext { margin: 0; font-size: 12px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; }
+  .recapsrc { margin-top: 4px; font-size: 10.5px; color: var(--dim); }
+  .recapsrc a { color: var(--dim); text-decoration: underline; text-underline-offset: 2px; }
+  .recapsrc a:hover { color: var(--b); }
   /* Context entities */
   .chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .chip { border: 1px solid var(--rule); border-radius: 5px; padding: 2px 7px; font-size: 12px; color: var(--ink); }

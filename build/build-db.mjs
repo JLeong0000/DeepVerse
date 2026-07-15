@@ -179,8 +179,8 @@ console.log('chapter_context:', theo.context);
 console.log('chapter_entity:', theo.entity);
 
 // 8) CHAPTER RECAPS: validated public-domain commentary intros (Matthew Henry, else Adam Clarke)
-const recaps = loadRecaps(db, `${ROOT}/sources/commentaries`);
-console.log('chapter_recap:', recaps.count, '(matthew-henry:', recaps.bySource['matthew-henry'], '/ adam-clarke:', recaps.bySource['adam-clarke'], ')');
+const recaps = loadRecaps(db);
+console.log('chapter_recap:', recaps.count, JSON.stringify(recaps.bySource));
 
 db.exec(`
   CREATE INDEX idx_words_ref ON words(book,chapter,verse);

@@ -322,6 +322,11 @@ export function getChapterContext(book, chapter) {
   return query('SELECT book, chapter, osis_ref, writer, people_count, place_count FROM chapter_context WHERE book=? AND chapter=?',
     [book, chapter])[0] || null;
 }
+// A chapter's recap — a prose overview from a public-domain commentary (Matthew Henry / Adam Clarke)
+// or editorially written. Returns { recap, source } or null.
+export function getChapterRecap(book, chapter) {
+  return query('SELECT recap, source FROM chapter_recap WHERE book=? AND chapter=?', [book, chapter])[0] || null;
+}
 // All entities in a chapter, grouped-ready: ordered by type then their first appearance (sort_verse).
 export function getChapterEntities(book, chapter) {
   return query(`SELECT entity_type, entity_id, name, latitude, longitude, feature_type, blurb, approx_year, sort_verse

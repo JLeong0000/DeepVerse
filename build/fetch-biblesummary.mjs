@@ -1,11 +1,11 @@
 // build/fetch-biblesummary.mjs
-// Fetch Bible Summary (Chris Juby, biblesummary.info) — one plain summary per chapter —
-// into sources/biblesummary/summaries.json (gitignored). The summary text is NOT committed;
-// this script regenerates it at build time, and the app attributes biblesummary.info.
-// Run: node fetch-biblesummary.mjs
+// Refresh Bible Summary (Chris Juby, biblesummary.info) — one plain summary per chapter —
+// into the committed local file build/data/recaps-biblesummary.json. This is a one-time /
+// occasional refresh tool; the normal build reads the committed file and does NOT hit the
+// network. The app attributes biblesummary.info.  Run: node fetch-biblesummary.mjs
 import fs from 'node:fs';
 
-const OUT_DIR = '../sources/biblesummary';
+const OUT_DIR = './data';
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 // biblesummary.info slug -> OSIS book code (matches verses.book)
@@ -45,5 +45,5 @@ for (const [slug, book] of Object.entries(SLUG)) {
 }
 
 out.sort((a, b) => a.book.localeCompare(b.book) || a.chapter - b.chapter);
-fs.writeFileSync(`${OUT_DIR}/summaries.json`, JSON.stringify(out, null, 1));
+fs.writeFileSync(`${OUT_DIR}/recaps-biblesummary.json`, JSON.stringify(out, null, 1));
 console.log('bible summary chapters:', out.length);

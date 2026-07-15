@@ -1,13 +1,13 @@
 // build/lib/recaps.mjs
 // One plain recap per chapter -> chapter_recap.
 // Primary source: Bible Summary (Chris Juby, biblesummary.info) — "every chapter in 140
-// characters or less" — fetched to sources/biblesummary/summaries.json by
-// build/fetch-biblesummary.mjs (gitignored; the app attributes biblesummary.info).
+// characters or less" — kept locally in the committed build/data/recaps-biblesummary.json
+// (refresh with build/fetch-biblesummary.mjs; the build itself does not hit the network).
 // Falls back to a committed editorial recap (build/data/recaps-editorial.json) only for a
 // chapter Bible Summary is somehow missing (it covers all 1189, so this rarely fires).
 import fs from 'node:fs';
 
-const BS_FILE = new URL('../../sources/biblesummary/summaries.json', import.meta.url);
+const BS_FILE = new URL('../data/recaps-biblesummary.json', import.meta.url);
 const EDITORIAL_FILE = new URL('../data/recaps-editorial.json', import.meta.url);
 
 export function loadRecaps(db) {

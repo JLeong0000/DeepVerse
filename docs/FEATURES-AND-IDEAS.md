@@ -2,7 +2,7 @@
 
 > Running capture of what we're building and the ideas/decisions behind it.
 > This is the informal tracker; formal designs live in `docs/superpowers/specs/`.
-> Last updated: 2026-07-08
+> Last updated: 2026-07-16
 
 ## ✅ Phase 1 shipped (2026-07-07)
 
@@ -37,6 +37,20 @@ reading-activity hover, offline PWA, DeepVerse logo. Non-obvious decisions live 
 - **`./start.sh`** launcher added (installs deps if needed → `npm run dev --open`).
 
 **Phase-1 polish is effectively complete.** **Next:** AI prose layer (Phase 2) → Level-3 context → Map/Discover (Segment 2).
+
+## ✅ Context tab + study notes; Notes → "Memo" (2026-07-16)
+
+Built on branch `feat/context-tab`, **merged to main**. Design/validation notes in `research/bible-context/`.
+
+- **Context tab** added to the "Context & cross-references" workbench card. Per chapter, in order:
+  - **Recap** — a plain one-paragraph summary from **Bible Summary** (Chris Juby, biblesummary.info), all 1189 chapters (`chapter_recap`, `source='bible-summary'`). Chosen over Matthew Henry / Adam Clarke commentary, which read as interpretation, not plain recaps. Kept **committed locally** in `build/data/recaps-biblesummary.json`. **Licensing:** bulk-use permission is being sought from the author — don't publish/ship until confirmed; a 14-chapter hand-authored `recaps-editorial.json` fallback is wired in.
+  - **Who/where/what** — people, places (with coords), events, groups named in the chapter, from **Theographic Bible Metadata** (CC BY-SA 4.0; `chapter_context` + `chapter_entity`). Stored counts are the derived *listable* counts; name-collision + approximate-date caveats disclosed in the tooltip.
+  - **Study Notes** — verse-driven **Tyndale Open Study Notes** (CC BY-SA 4.0; 16,913 notes in `study_notes`, committed as `build/data/studynotes.json`). Covering-range model (a note shows on every verse it spans), each labeled with its span; chapter-level count; reader stays clean (no per-verse markers). Spec `specs/2026-07-15-tyndale-study-notes-display-design.md`, plan `plans/2026-07-15-tyndale-study-notes-display.md`.
+  - Attribution shown in-app for each source; see `docs/ATTRIBUTIONS.md`.
+- **NKJV parser fixes** (same branch): book-boundary mislabeling (321 NULL-chapter rows + recovered 1 Sam 31 / 2 Sam 1), Ps 119:100 split, fused footnote callers stripped (~363 verses), dropped block-quote/poetry recovered (~812 verses), Rev 22:1 concordance bleed.
+- **"Notes" → "Memo":** the **personal-notes** feature is now labeled **Memo** throughout the UI (nav tab, page, workbench card, buttons, placeholders, empty states). Internal route (`#/notes`), store functions, and DB tables are unchanged. The Tyndale **Study Notes** feature is separate and keeps its name.
+
+**Roadmap remaining for the context/cultural layer:** Tyndale theme articles + book intros + the Bible Dictionary (validated, not yet imported); PD dictionaries; OpenBible.info confidence-gated geography.
 
 ## The app in two segments
 

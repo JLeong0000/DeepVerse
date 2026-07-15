@@ -44,6 +44,17 @@ describe('1.3 interlinear', () => {
   test('getLexicon resolves G0025 and falls back past a homograph letter', () => {
     expect(db.getLexicon('G0025').definition.toLowerCase()).toContain('love');
     expect(db.getLexicon('H0996G')).not.toBeNull(); // base H0996 lookup after stripping trailing G
+    // dStrong homograph sub-spelling: words key on H2235B, whose lexicon def sits under the dStrong column
+    expect(db.getLexicon('H2235B')?.definition?.toLowerCase()).toContain('vegetable');
+  });
+  test('word strongs drop the sub-sense suffix (both _A and _a) so they key on the base lemma', () => {
+    // regression: lowercase _a/_b used to slip past the uppercase-only strip, leaving unresolvable codes
+    const leftover = db.query("SELECT DISTINCT strongs FROM words WHERE strongs LIKE '%\\_%' ESCAPE '\\' AND strongs NOT LIKE '%,%'");
+    expect(leftover).toEqual([]);
+    // John 1:18 "θεὸς" came in as G2316_b; it must resolve to G2316's lexicon entry, not an empty one
+    const theos = db.getInterlinear('John', 1, 18).find(w => w.original === 'θεὸς');
+    expect(theos.strongs).toBe('G2316');
+    expect(db.getLexicon(theos.strongs).definition.toLowerCase()).toContain('god');
   });
 });
 
@@ -157,6 +168,10 @@ describe('word search', () => {
       return pb < b || (pb === b && (pc < c || (pc === c && pv <= v)));
     });
     expect(inOrder).toBe(true);
+  });
+  test('getWordSenses resolves a disambiguated homograph (H2235B) instead of an empty lexicon', () => {
+    const w = db.getWordSenses('H2235B');
+    expect(w.definition.toLowerCase()).toContain('vegetable');
   });
 });
 

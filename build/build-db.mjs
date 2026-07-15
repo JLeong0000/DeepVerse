@@ -65,7 +65,7 @@ function loadWords(file, defaultLang) {
       strongs=(c[8]||'').replace(/[{}]/g,'').trim() || (c[4]||'').replace(/[{}]/g,'').split('/').pop().trim();
       lemma=((c[11]||'').match(/=([^=]+)=/)||[])[1]||'';
     }
-    strongs=(strongs||'').replace(/_[A-Z]+$/,'');
+    strongs=(strongs||'').replace(/_[A-Za-z]+$/,''); // drop the sub-sense suffix (both _A and _a) so it keys on the base lemma
     const lang = deriveLang(morphFull, defaultLang);
     insW.run(ref.book, ref.chapter, ref.verse, ref.position, lang, original, translit, gloss,
       normalizeGloss(gloss), strongs, morph, lemma);
@@ -87,8 +87,12 @@ function loadLex(file, lang) {
   const lines=fs.readFileSync(file,'utf8').split('\n');
   tx(() => { for (const line of lines) { const c=line.split('\t');
     if (!/^[GH]\d/.test(c[0]||'')) continue;
+    // Columns: eStrong(c0) | dStrong(c1) | uStrong(c2). words rows key on the dStrong code (uppercase
+    // homograph suffix, e.g. H2235B), which is neither the eStrong (H2235b) nor the uStrong (H2235A) —
+    // insert all three so those sub-spellings resolve instead of showing an empty lexicon.
     const base=c[0].trim(), ext=(c[2]||'').trim();
-    for (const code of [ext,base]) if (code) insL.run(code, lang, (c[3]||'').trim(), (c[4]||'').trim(), (c[6]||'').trim(), stripHtml(c[7]));
+    const dis=((c[1]||'').match(/^[GH]\d+[A-Za-z]*/)||[''])[0];
+    for (const code of [ext,base,dis]) if (code) insL.run(code, lang, (c[3]||'').trim(), (c[4]||'').trim(), (c[6]||'').trim(), stripHtml(c[7]));
   }});
 }
 const lex = `${ROOT}/sources/STEPBible-Data/Lexicons`;

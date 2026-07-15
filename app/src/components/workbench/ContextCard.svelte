@@ -1,6 +1,7 @@
 <script>
   import { getCrossRefs, getChapterCrossRefStats, getRefPreview,
-    getChapterContext, getChapterEntities, getChapterRecap } from '../../lib/db.js';
+    getChapterContext, getChapterEntities, getChapterRecap,
+    getStudyNotes, getChapterStudyNoteCount } from '../../lib/db.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
 
@@ -49,6 +50,9 @@
     if (y == null) return '';
     return y < 0 ? `c. ${-y} BC` : `c. ${y} AD`;
   }
+
+  let noteCount = $derived(getChapterStudyNoteCount(study.book, study.chapter));
+  let studyNotes = $derived(study.verse == null ? [] : getStudyNotes(study.book, study.chapter, study.verse));
 </script>
 
 <div class="tabs">
@@ -173,6 +177,25 @@
       </div>
     {/if}
   {/if}
+
+  <div class="grp studynotes">
+    <div class="grplbl">Study Notes {#if noteCount > 0}<span class="sub">· {noteCount} in this chapter</span>{/if}</div>
+    {#if noteCount === 0}
+      <div class="empty">No study notes for this chapter.</div>
+    {:else if study.verse == null}
+      <div class="empty">Select a verse to read its notes.</div>
+    {:else if studyNotes.length === 0}
+      <div class="empty">No study note for this verse.</div>
+    {:else}
+      {#each studyNotes as n}
+        <div class="snote">
+          <div class="snref">{n.ref}</div>
+          <p class="snbody">{n.body}</p>
+        </div>
+      {/each}
+    {/if}
+    <div class="snsrc">Tyndale Open Study Notes · CC BY-SA 4.0</div>
+  </div>
 {/if}
 
 <style>
@@ -217,4 +240,11 @@
   .ent .name { color: var(--ink); }
   .ent .tag { color: var(--dim); font-size: 10.5px; }
   .ent .pin { font-size: 10px; cursor: help; }
+  /* Study notes */
+  .sub { color: var(--dim); font-size: .92em; }
+  .studynotes { border-top: 1px solid var(--rule); margin-top: 6px; padding-top: 8px; }
+  .snote { margin: 6px 0; }
+  .snref { font-size: 11px; color: var(--b); font-weight: 600; }
+  .snbody { font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; margin: 2px 0 0; }
+  .snsrc { margin-top: 6px; font-size: 10.5px; color: var(--dim); }
 </style>

@@ -195,6 +195,19 @@ for (const o of ['Obad', 'Phlm', '2John', '3John', 'Jude']) {
   }
 }
 
+// Ps 119:100: the PDF emits this one verse number as a detached, out-of-reading-order
+// text item, so v100's text was appended to v99 and v100 came out empty. Split them
+// back apart at the sentence boundary. Guarded, so it no-ops if the upstream ever changes.
+{
+  const c = bible['Ps']?.chapters['119'];
+  const sep = ' I understand more than the ancients,';
+  if (c && !c['100']?.trim() && (c['99'] || '').includes(sep)) {
+    const [v99, v100] = c['99'].split(new RegExp(`(?=${sep})`));
+    c['99'] = v99.trim();
+    c['100'] = v100.trim();
+  }
+}
+
 let total = 0; const manifest = [];
 for (const osis of Object.keys(bible)) {
   const b = bible[osis];

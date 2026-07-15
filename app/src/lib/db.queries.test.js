@@ -186,6 +186,41 @@ describe('1.5 cross-references', () => {
   });
 });
 
+describe('1.5 chapter context (Theographic)', () => {
+  test('getChapterContext returns the Ruth 1 summary row', () => {
+    const c = db.getChapterContext('Ruth', 1);
+    expect(c).toBeTruthy();
+    expect(c.writer).toBe('Samuel');
+    expect(c.people_count).toBeGreaterThan(0);
+  });
+  test('getChapterContext returns null for a chapter without a context row', () => {
+    expect(db.getChapterContext('Nope', 999)).toBeNull();
+  });
+  test('getChapterEntities: Ruth 1 has Naomi/Ruth (people) and Bethlehem/Moab (places)', () => {
+    const ents = db.getChapterEntities('Ruth', 1);
+    const people = ents.filter(e => e.entity_type === 'person').map(e => e.name);
+    const places = ents.filter(e => e.entity_type === 'place').map(e => e.name);
+    expect(people).toContain('Naomi');
+    expect(people).toContain('Ruth');
+    expect(places).toContain('Bethlehem');
+    expect(places).toContain('Moab');
+  });
+  test('getChapterEntities is ordered by entity_type then sort_verse', () => {
+    const ents = db.getChapterEntities('Ruth', 1);
+    let prevType = '', prevVerse = -Infinity;
+    for (const e of ents) {
+      if (e.entity_type !== prevType) { prevType = e.entity_type; prevVerse = -Infinity; }
+      expect(e.sort_verse).toBeGreaterThanOrEqual(prevVerse);
+      prevVerse = e.sort_verse;
+    }
+  });
+  test("people_count equals the number of person rows", () => {
+    const c = db.getChapterContext('Ruth', 1);
+    const people = db.getChapterEntities('Ruth', 1).filter(e => e.entity_type === 'person');
+    expect(people.length).toBe(c.people_count);
+  });
+});
+
 describe('1.6 stats + concordance', () => {
   test('countLemma(agapao) totals 143', () => {
     expect(db.countLemma('G0025').total).toBe(143);

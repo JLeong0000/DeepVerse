@@ -1,9 +1,11 @@
 <script>
-  import { getCrossRefs, getChapterCrossRefStats, getRefPreview } from '../../lib/db.js';
+  import { getCrossRefs, getChapterCrossRefStats, getRefPreview,
+    getChapterContext, getChapterEntities } from '../../lib/db.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
 
   const CAP = 4;
+  let tab = $state('xrefs'); // 'xrefs' | 'context'; default to the existing cross-reference view.
   let chapStats = $derived(getChapterCrossRefStats(study.book, study.chapter));
   // each section shows CAP refs; "see more" expands it. Collapse both when the verse changes.
   let expanded = $state({ nt: false, ot: false });
@@ -28,47 +30,134 @@
     const [book, chapter, verse] = firstRef.split('.');
     if (book && chapter) goToPassage({ book, chapter: +chapter, verse: verse ? +verse : null });
   }
+
+  // --- Context tab (chapter-level, so it renders with or without a verse selected) ---
+  let ctx = $derived(getChapterContext(study.book, study.chapter));
+  let entities = $derived.by(() => {
+    const byType = { person: [], place: [], event: [], group: [] };
+    for (const e of getChapterEntities(study.book, study.chapter)) (byType[e.entity_type] ||= []).push(e);
+    return byType;
+  });
+  // c. 2245 BC / c. 30 AD from a signed year (negative = BC).
+  function yearLabel(y) {
+    if (y == null) return '';
+    return y < 0 ? `c. ${-y} BC` : `c. ${y} AD`;
+  }
 </script>
 
-{#if study.verse == null}
-  <div class="empty">Select a verse.</div>
+<div class="tabs">
+  <button class="tab" class:on={tab === 'xrefs'} onclick={() => (tab = 'xrefs')}>Cross-references</button>
+  <button class="tab" class:on={tab === 'context'} onclick={() => (tab = 'context')}>Context</button>
+</div>
+
+{#if tab === 'xrefs'}
+  {#if study.verse == null}
+    <div class="empty">Select a verse.</div>
+  {:else}
+    <div class="hd">
+      <span class="q">ⓘ</span> Passages that connect to <b>{bookName(study.book)} {study.chapter}:{study.verse}</b>
+      <span class="sub">· {total} cross-references, ranked by relevance</span>
+      <div class="tip">
+        Cross-references are curated links between passages that quote, echo, or teach the same thing —
+        a NT verse pointing back to the OT it fulfils, gospel parallels, a shared theme. They are not the
+        Bible referencing itself; they come from <b>OpenBible.info</b>’s community-compiled dataset, and the
+        number is how many people voted a link relevant (higher = stronger). Click one to jump there.
+      </div>
+    </div>
+    {#if groups.length === 0}
+      <div class="empty">No cross-references for this verse.</div>
+    {:else}
+      {#each groups as [label, key, list]}
+        <div class="grp">
+          <div class="grplbl">{label}</div>
+          {#each (expanded[key] ? list : list.slice(0, CAP)) as r}
+            <button class="xref" onclick={() => jump(r.firstRef)}>
+              <span class="rtop"><span class="ref">{formatCrossRef(r.to_ref)}</span>
+                {#if r.votes > 0}<span class="votes" title="community relevance votes">{r.votes}</span>{/if}</span>
+              {#if r.preview}<span class="prev">{r.preview.length > 120 ? r.preview.slice(0, 120) + '…' : r.preview}</span>{/if}
+            </button>
+          {/each}
+          {#if list.length > CAP}
+            <button class="seemore" onclick={() => (expanded[key] = !expanded[key])}>
+              {expanded[key] ? 'See less' : `See ${list.length - CAP} more`}
+            </button>
+          {/if}
+        </div>
+      {/each}
+    {/if}
+    <div class="l2">Whole chapter: {chapStats.total} cross-references across {chapStats.versesWithRefs} verses.</div>
+  {/if}
 {:else}
   <div class="hd">
-    <span class="q">ⓘ</span> Passages that connect to <b>{bookName(study.book)} {study.chapter}:{study.verse}</b>
-    <span class="sub">· {total} cross-references, ranked by relevance</span>
+    <span class="q">ⓘ</span> Context for <b>{bookName(study.book)} {study.chapter}</b>
+    {#if ctx?.writer}<span class="sub">· traditionally attributed to {ctx.writer}</span>{/if}
     <div class="tip">
-      Cross-references are curated links between passages that quote, echo, or teach the same thing —
-      a NT verse pointing back to the OT it fulfils, gospel parallels, a shared theme. They are not the
-      Bible referencing itself; they come from <b>OpenBible.info</b>’s community-compiled dataset, and the
-      number is how many people voted a link relevant (higher = stronger). Click one to jump there.
+      This context is auto-linked from the <b>Theographic Bible Metadata</b> knowledge graph
+      (CC BY-SA 4.0): the people, places, and events named in this chapter’s verses. Auto-linked, so it
+      can occasionally mis-tag a name shared by a person and a place (e.g. “Moab” or “Judah”), and dates
+      are approximate traditional chronology.
     </div>
   </div>
-  {#if groups.length === 0}
-    <div class="empty">No cross-references for this verse.</div>
+
+  {#if !entities.person.length && !entities.place.length && !entities.event.length && !entities.group.length}
+    <div class="empty">No linked people, places, or events in this chapter.</div>
   {:else}
-    {#each groups as [label, key, list]}
+    {#if entities.person.length}
       <div class="grp">
-        <div class="grplbl">{label}</div>
-        {#each (expanded[key] ? list : list.slice(0, CAP)) as r}
-          <button class="xref" onclick={() => jump(r.firstRef)}>
-            <span class="rtop"><span class="ref">{formatCrossRef(r.to_ref)}</span>
-              {#if r.votes > 0}<span class="votes" title="community relevance votes">{r.votes}</span>{/if}</span>
-            {#if r.preview}<span class="prev">{r.preview.length > 120 ? r.preview.slice(0, 120) + '…' : r.preview}</span>{/if}
-          </button>
-        {/each}
-        {#if list.length > CAP}
-          <button class="seemore" onclick={() => (expanded[key] = !expanded[key])}>
-            {expanded[key] ? 'See less' : `See ${list.length - CAP} more`}
-          </button>
-        {/if}
+        <div class="grplbl">People · {entities.person.length}</div>
+        <div class="chips">
+          {#each entities.person as e}
+            <span class="chip" title={e.blurb || ''}>{e.name}</span>
+          {/each}
+        </div>
       </div>
-    {/each}
+    {/if}
+
+    {#if entities.place.length}
+      <div class="grp">
+        <div class="grplbl">Places · {entities.place.length}</div>
+        {#each entities.place as e}
+          <div class="ent" title={e.blurb || ''}>
+            <span class="name">{e.name}</span>
+            {#if e.feature_type}<span class="tag">{e.feature_type}</span>{/if}
+            {#if e.latitude != null && e.longitude != null}<span class="pin" title="{e.latitude}, {e.longitude}">📍</span>{/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    {#if entities.event.length}
+      <div class="grp">
+        <div class="grplbl">Events <span class="note">· approximate, traditional chronology</span></div>
+        {#each entities.event as e}
+          <div class="ent" title={e.blurb || ''}>
+            <span class="name">{e.name}</span>
+            {#if e.approx_year != null}<span class="tag">{yearLabel(e.approx_year)}</span>{/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    {#if entities.group.length}
+      <div class="grp">
+        <div class="grplbl">Groups · {entities.group.length}</div>
+        <div class="chips">
+          {#each entities.group as e}
+            <span class="chip" title={e.blurb || ''}>{e.name}</span>
+          {/each}
+        </div>
+      </div>
+    {/if}
   {/if}
-  <div class="l2">Whole chapter: {chapStats.total} cross-references across {chapStats.versesWithRefs} verses.</div>
 {/if}
 
 <style>
   .empty { color: var(--dim); font-size: 12px; font-style: italic; padding: 9px 11px; }
+  .tabs { display: flex; gap: 4px; padding: 8px 11px 0; }
+  .tab { font-family: inherit; font-size: 11px; color: var(--dim); background: transparent;
+    border: 1px solid var(--rule); border-radius: 5px; padding: 3px 9px; cursor: pointer; }
+  .tab:hover { color: var(--ink); }
+  .tab.on { color: var(--ink); border-color: var(--a); background: var(--panel); }
   .hd { position: relative; padding: 9px 11px 4px; font-size: 12px; color: var(--ink); line-height: 1.5; }
   .hd .sub { color: var(--dim); font-size: .92em; }
   .hd .q { cursor: help; color: var(--b); margin-right: 2px; }
@@ -79,6 +168,7 @@
   .hd:hover .tip { opacity: 1; visibility: visible; }
   .grp { padding: 4px 11px 6px; }
   .grplbl { font-variant: small-caps; letter-spacing: .05em; font-size: 10.5px; color: var(--dim); margin: 6px 0 4px; }
+  .grplbl .note { text-transform: none; font-variant: normal; letter-spacing: 0; font-style: italic; }
   .xref { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; text-align: left;
     border: 1px solid var(--rule); background: transparent; border-radius: 5px; padding: 6px 9px; cursor: pointer;
     color: var(--ink); font-family: inherit; margin-bottom: 5px; }
@@ -90,4 +180,11 @@
     color: var(--a); font-family: inherit; font-size: 11px; cursor: pointer; padding: 1px 2px 4px; }
   .seemore:hover { text-decoration: underline; }
   .l2 { padding: 6px 11px 10px; font-size: 11px; color: var(--dim); border-top: 1px solid var(--rule); margin-top: 4px; }
+  /* Context entities */
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { border: 1px solid var(--rule); border-radius: 5px; padding: 2px 7px; font-size: 12px; color: var(--ink); }
+  .ent { display: flex; align-items: baseline; gap: 6px; padding: 2px 0; font-size: 12px; color: var(--ink); }
+  .ent .name { color: var(--ink); }
+  .ent .tag { color: var(--dim); font-size: 10.5px; }
+  .ent .pin { font-size: 10px; cursor: help; }
 </style>

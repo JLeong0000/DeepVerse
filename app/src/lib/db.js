@@ -316,6 +316,18 @@ export function getRefPreview(toRef) {
     [m[1], +m[2], +m[3]])[0]?.text || '';
 }
 
+// Chapter-level context from the Theographic knowledge graph (people/places/events named in the
+// chapter's verses). getChapterContext -> the summary row (writer + counts) or null.
+export function getChapterContext(book, chapter) {
+  return query('SELECT book, chapter, osis_ref, writer, people_count, place_count FROM chapter_context WHERE book=? AND chapter=?',
+    [book, chapter])[0] || null;
+}
+// All entities in a chapter, grouped-ready: ordered by type then their first appearance (sort_verse).
+export function getChapterEntities(book, chapter) {
+  return query(`SELECT entity_type, entity_id, name, latitude, longitude, feature_type, blurb, approx_year, sort_verse
+    FROM chapter_entity WHERE book=? AND chapter=? ORDER BY entity_type, sort_verse`, [book, chapter]);
+}
+
 // --- 1.6 Stats + word-selector concordance ---
 export function countEnglishWord(version, word) {
   const re = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');

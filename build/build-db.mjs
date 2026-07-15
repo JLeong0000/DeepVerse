@@ -11,6 +11,7 @@ import { parseMaculaGreekLine, parseProximityLine, padStrong } from './lib/macul
 import { loadHebrewDomains } from './lib/macula-hebrew.mjs';
 import { computeDifferences } from './lib/differences.mjs';
 import { loadTheographic } from './lib/theographic.mjs';
+import { loadRecaps } from './lib/recaps.mjs';
 
 const ROOT = '/Users/justinleong/Desktop/Coding/DeepVerse';
 const DB = `${ROOT}/data/bible.db`;
@@ -49,6 +50,13 @@ db.exec(`
     approx_year INTEGER,
     sort_verse INTEGER,
     PRIMARY KEY (book, chapter, entity_type, entity_id)
+  );
+  CREATE TABLE chapter_recap (
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    recap TEXT NOT NULL,
+    source TEXT NOT NULL,
+    PRIMARY KEY (book, chapter)
   );
 `);
 const tx = (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); };
@@ -170,6 +178,10 @@ const theo = loadTheographic(db, `${ROOT}/sources/theographic`);
 console.log('chapter_context:', theo.context);
 console.log('chapter_entity:', theo.entity);
 
+// 8) CHAPTER RECAPS: validated public-domain commentary intros (Matthew Henry, else Adam Clarke)
+const recaps = loadRecaps(db, `${ROOT}/sources/commentaries`);
+console.log('chapter_recap:', recaps.count, '(matthew-henry:', recaps.bySource['matthew-henry'], '/ adam-clarke:', recaps.bySource['adam-clarke'], ')');
+
 db.exec(`
   CREATE INDEX idx_words_ref ON words(book,chapter,verse);
   CREATE INDEX idx_words_strongs ON words(strongs);
@@ -179,6 +191,7 @@ db.exec(`
   CREATE INDEX idx_wordsense ON word_sense(strongs);
   CREATE INDEX idx_chapter_context ON chapter_context(book,chapter);
   CREATE INDEX idx_chapter_entity ON chapter_entity(book,chapter);
+  CREATE INDEX idx_chapter_recap ON chapter_recap(book,chapter);
 `);
 db.close();
 console.log('bible.db v2 built at', DB);

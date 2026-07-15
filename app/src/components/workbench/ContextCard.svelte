@@ -241,7 +241,7 @@
   .ent .tag { color: var(--dim); font-size: 10.5px; }
   .ent .pin { font-size: 10px; cursor: help; }
   /* Study notes */
-  .sub { color: var(--dim); font-size: .92em; }
+  .grplbl .sub { color: var(--dim); font-size: .92em; }
   .studynotes { border-top: 1px solid var(--rule); margin-top: 6px; padding-top: 8px; }
   .snote { margin: 6px 0; }
   .snref { font-size: 11px; color: var(--b); font-weight: 600; }

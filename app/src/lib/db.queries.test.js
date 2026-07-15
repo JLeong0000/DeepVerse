@@ -241,7 +241,7 @@ describe('chapter recap', () => {
 });
 
 describe('study notes', () => {
-  test('getChapterStudyNoteCount: annotated vs bare chapters', () => {
+  test('getChapterStudyNoteCount: annotated chapter vs unknown book', () => {
     expect(db.getChapterStudyNoteCount('Gen', 1)).toBe(19);
     expect(db.getChapterStudyNoteCount('Nope', 999)).toBe(0);
   });
@@ -255,7 +255,7 @@ describe('study notes', () => {
     const notes = db.getStudyNotes('Gen', 1, 10);
     expect(notes.some(n => n.osis_ref === 'Gen.1.1-2.3')).toBe(true);
   });
-  test('getStudyNotes: bare chapter returns []', () => {
+  test('getStudyNotes: unknown book returns []', () => {
     expect(db.getStudyNotes('Nope', 999, 1)).toEqual([]);
   });
 });

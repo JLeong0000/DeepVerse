@@ -189,6 +189,10 @@ for (let p = 1; p <= N; p++) {
         const psalmOpener = curBook === 'Ps' && curVs == null;
         if (announced.length && !psalmOpener) { setBook(announced.shift()); curCh = '1'; }
         else if (curCh == null) curCh = '1';
+        else if (!psalmOpener) continue;              // a letter drop-cap only opens ch 1; if a
+                                                      // chapter is already in progress with no book
+                                                      // pending, it is stray end matter (e.g. the
+                                                      // "CONCORDANCE" title after Revelation) — skip
         curVs = '1'; startVerse(text); glue = true;   // glue letter to next line
       }
       continue;

@@ -12,6 +12,7 @@ import { loadHebrewDomains } from './lib/macula-hebrew.mjs';
 import { computeDifferences } from './lib/differences.mjs';
 import { loadTheographic } from './lib/theographic.mjs';
 import { loadRecaps } from './lib/recaps.mjs';
+import { loadStudyNotes } from './lib/studynotes.mjs';
 
 const ROOT = '/Users/justinleong/Desktop/Coding/DeepVerse';
 const DB = `${ROOT}/data/bible.db`;
@@ -57,6 +58,12 @@ db.exec(`
     recap TEXT NOT NULL,
     source TEXT NOT NULL,
     PRIMARY KEY (book, chapter)
+  );
+  CREATE TABLE study_notes (
+    book TEXT NOT NULL,
+    start_chapter INTEGER NOT NULL, start_verse INTEGER NOT NULL,
+    end_chapter INTEGER NOT NULL, end_verse INTEGER NOT NULL,
+    ref TEXT NOT NULL, osis_ref TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL
   );
 `);
 const tx = (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); };
@@ -182,6 +189,10 @@ console.log('chapter_entity:', theo.entity);
 const recaps = loadRecaps(db);
 console.log('chapter_recap:', recaps.count, JSON.stringify(recaps.bySource));
 
+// 9) TYNDALE STUDY NOTES: per-verse-range study notes for the Context tab
+const studyNotes = loadStudyNotes(db);
+console.log('study_notes:', studyNotes.count);
+
 db.exec(`
   CREATE INDEX idx_words_ref ON words(book,chapter,verse);
   CREATE INDEX idx_words_strongs ON words(strongs);
@@ -192,6 +203,7 @@ db.exec(`
   CREATE INDEX idx_chapter_context ON chapter_context(book,chapter);
   CREATE INDEX idx_chapter_entity ON chapter_entity(book,chapter);
   CREATE INDEX idx_chapter_recap ON chapter_recap(book,chapter);
+  CREATE INDEX idx_study_notes ON study_notes(book, start_chapter, end_chapter);
 `);
 db.close();
 console.log('bible.db v2 built at', DB);

@@ -20,3 +20,13 @@ Third-party data sources bundled or processed into DeepVerse, with their license
 
 - Author: DeepVerse (original)
 - Used for: a defensive fallback in `chapter_recap` (`build/data/recaps-editorial.json`) for any chapter Bible Summary is missing. Bible Summary covers all 1,189 chapters, so this currently does not fire.
+
+## Tyndale Open Study Notes
+
+- Author: © 2022 Tyndale House Publishers
+- License: CC BY-SA 4.0 (no NonCommercial restriction)
+- Source: https://tyndaleopenresources.com
+- Used for: per-verse study notes shown in the Context tab (`study_notes` table). Source XML is
+  gitignored; the parsed notes are committed in `build/data/studynotes.json`. ShareAlike applies to
+  the derived note data (attribute + keep BY-SA); it does not affect the app code. The app shows a
+  "Tyndale Open Study Notes · CC BY-SA 4.0" label on the section.

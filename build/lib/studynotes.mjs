@@ -1,5 +1,6 @@
 // build/lib/studynotes.mjs
 // Parse helpers for Tyndale Open Study Notes (CC BY-SA 4.0). loadStudyNotes is added in Task 2.
+import fs from 'node:fs';
 
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', nbsp: ' ', '#39': "'" };
 function decodeEntities(s) {
@@ -42,4 +43,18 @@ export function cleanNoteBody(bodyXml) {
   b = b.replace(/<[^>]+>/g, ' ');                                   // strip remaining tags
   b = decodeEntities(b);
   return b.replace(/\s+/g, ' ').trim();
+}
+
+const NOTES_FILE = new URL('../data/studynotes.json', import.meta.url);
+
+export function loadStudyNotes(db) {
+  const notes = JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8'));
+  const ins = db.prepare(
+    'INSERT INTO study_notes VALUES (?,?,?,?,?,?,?,?,?)');
+  db.exec('BEGIN');
+  for (const n of notes)
+    ins.run(n.book, n.start_chapter, n.start_verse, n.end_chapter, n.end_verse,
+      n.ref, n.osis_ref, n.body, n.seq);
+  db.exec('COMMIT');
+  return { count: notes.length };
 }

@@ -16,7 +16,7 @@
     stats: { title: 'Stats · word selector', component: StatsCard },
     notes: { title: 'Memo', component: NotesCard },
   };
-  const DEFAULT_ORDER = ['differences', 'original', 'context', 'stats', 'notes'];
+  const DEFAULT_ORDER = ['context', 'differences', 'original', 'stats', 'notes'];
   const DEFAULT_OPEN = { differences: true, original: false, context: false, stats: false, notes: false };
 
   let order = $state(getPref('cardOrder', DEFAULT_ORDER).filter(id => DEFS[id]));

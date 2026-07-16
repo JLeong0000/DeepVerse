@@ -6,7 +6,7 @@
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
 
   const CAP = 4;
-  let tab = $state('xrefs'); // 'xrefs' | 'context'; default to the existing cross-reference view.
+  let tab = $state('context'); // 'xrefs' | 'context'; default to the context view.
   let chapStats = $derived(getChapterCrossRefStats(study.book, study.chapter));
   // each section shows CAP refs; "see more" expands it. Collapse both when the verse changes.
   let expanded = $state({ nt: false, ot: false });
@@ -56,8 +56,8 @@
 </script>
 
 <div class="tabs">
-  <button class="tab" class:on={tab === 'xrefs'} onclick={() => (tab = 'xrefs')}>Cross-references</button>
   <button class="tab" class:on={tab === 'context'} onclick={() => (tab = 'context')}>Context</button>
+  <button class="tab" class:on={tab === 'xrefs'} onclick={() => (tab = 'xrefs')}>Cross-references</button>
 </div>
 
 {#if tab === 'xrefs'}

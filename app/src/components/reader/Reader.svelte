@@ -10,7 +10,8 @@
 
   let verses = $derived(getChapter(study.version, study.book, study.chapter));
   let diffMap = $derived(getChapterDifferenceMap(study.book, study.chapter));
-  let maxChapter = $derived(books.find(b => b.book === study.book)?.chapters || 1);
+  let bookIdx = $derived(books.findIndex(b => b.book === study.book));
+  let maxChapter = $derived(books[bookIdx]?.chapters || 1);
   let range = $derived(selectedRange()); // [lo, hi] | null
 
   // scroll the selected verse into view when it changes programmatically (e.g. a cross-ref jump).
@@ -29,8 +30,16 @@
     setPref('last_position', { version, book, chapter, verse: null });
   });
 
-  function prevChapter() { if (study.chapter > 1) goToPassage({ book: study.book, chapter: study.chapter - 1 }); }
-  function nextChapter() { if (study.chapter < maxChapter) goToPassage({ book: study.book, chapter: study.chapter + 1 }); }
+  // at chapter 1, roll back to the last chapter of the previous book.
+  function prevChapter() {
+    if (study.chapter > 1) goToPassage({ book: study.book, chapter: study.chapter - 1 });
+    else if (bookIdx > 0) goToPassage({ book: books[bookIdx - 1].book, chapter: books[bookIdx - 1].chapters });
+  }
+  // at the last chapter, roll over to chapter 1 of the next book.
+  function nextChapter() {
+    if (study.chapter < maxChapter) goToPassage({ book: study.book, chapter: study.chapter + 1 });
+    else if (bookIdx < books.length - 1) goToPassage({ book: books[bookIdx + 1].book, chapter: 1 });
+  }
 </script>
 
 <div class="reader">
@@ -39,9 +48,9 @@
       {#each books as b}<option value={b.book}>{b.name}</option>{/each}
     </select>
     <div class="chapnav">
-      <button class="nav" onclick={prevChapter} disabled={study.chapter <= 1} aria-label="Previous chapter">‹</button>
+      <button class="nav" onclick={prevChapter} disabled={study.chapter <= 1 && bookIdx <= 0} aria-label="Previous chapter">‹</button>
       <span class="chaplabel">{bookName(study.book)} {study.chapter}</span>
-      <button class="nav" onclick={nextChapter} disabled={study.chapter >= maxChapter} aria-label="Next chapter">›</button>
+      <button class="nav" onclick={nextChapter} disabled={study.chapter >= maxChapter && bookIdx >= books.length - 1} aria-label="Next chapter">›</button>
     </div>
     <select class="chip" value={study.version} onchange={(e) => setVersion(e.target.value)}>
       {#each VERSIONS as v}<option value={v}>{v}</option>{/each}

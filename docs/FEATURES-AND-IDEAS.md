@@ -50,7 +50,7 @@ Built on branch `feat/context-tab`, **merged to main**. Design/validation notes 
 - **NKJV parser fixes** (same branch): book-boundary mislabeling (321 NULL-chapter rows + recovered 1 Sam 31 / 2 Sam 1), Ps 119:100 split, fused footnote callers stripped (~363 verses), dropped block-quote/poetry recovered (~812 verses), Rev 22:1 concordance bleed.
 - **"Notes" → "Memo":** the **personal-notes** feature is now labeled **Memo** throughout the UI (nav tab, page, workbench card, buttons, placeholders, empty states). Internal route (`#/notes`), store functions, and DB tables are unchanged. The Tyndale **Study Notes** feature is separate and keeps its name.
 
-**Roadmap remaining for the context/cultural layer:** Tyndale theme articles + book intros + the Bible Dictionary (validated, not yet imported); PD dictionaries; OpenBible.info confidence-gated geography.
+**Roadmap remaining for the context/cultural layer:** Tyndale theme articles + book intros + the Bible Dictionary (validated, not yet imported); PD dictionaries; OpenBible.info confidence-gated geography. **Source research + build order:** `research/bible-context/` (see its `README.md` index).
 
 ## ✅ AI = Claude Code query skills (2026-07-16)
 

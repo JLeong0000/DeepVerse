@@ -14,6 +14,9 @@ map) — so most of the infrastructure already exists once the study-phase skill
 
 **Spec:** `docs/superpowers/specs/2026-07-16-ai-query-skills-design.md` §5.
 
+**Source research:** `research/bible-context/` (indexed in its `README.md`) — esp. `background-data.md`
+(OpenBible geocoding, Theographic geo/knowledge-graph, timeline) and `synthesis.md` (licensing + build order).
+
 ## Prerequisite data (the gate — none of this exists in the DB yet)
 
 - [ ] **OpenBible geocoding** (`ancient.jsonl`) imported — every identifiable biblical place with

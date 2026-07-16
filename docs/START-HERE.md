@@ -37,6 +37,7 @@ data) is that there are **two types** of difference:
 | **Compiled Bible text** (per-book JSON) | `data/bibles/{NIV,NKJV,NLT}/` |
 | **Raw sources** (CC-BY, gitignored) | `sources/STEPBible-Data`, `sources/openbible`, `sources/macula-greek`, `sources/morphhb` |
 | **Build scripts** | `build/` (Node, `node:sqlite`) |
+| **Context/cultural + geo source research** (for unbuilt features) | `research/bible-context/` (see its `README.md` index) |
 
 ## Status: PHASE 1 COMPLETE ✅ (2026-07-07) · OT engine + app polish shipped (2026-07-08)
 

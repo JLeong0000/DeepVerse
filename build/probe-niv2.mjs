@@ -2,8 +2,11 @@
 // chapter numbers vs verse numbers vs body text are distinguished.
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PDF = '../backup-data/bibles-licensed/NIV-New-International-Version.pdf';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PDF = `${ROOT}/backup-data/bibles-licensed/NIV-New-International-Version.pdf`;
 const doc = await getDocument({ data: new Uint8Array(fs.readFileSync(PDF)), useSystemFonts: true }).promise;
 
 async function dump(p) {

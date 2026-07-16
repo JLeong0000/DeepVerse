@@ -2,9 +2,12 @@
 // Format is verse-per-line, ref-prefixed, with wrapped continuation lines.
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PDF = '../backup-data/bibles-licensed/NLT-New-Living-Translation.pdf';
-const OUT = '../data/bibles/NLT';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PDF = `${ROOT}/backup-data/bibles-licensed/NLT-New-Living-Translation.pdf`;
+const OUT = `${ROOT}/data/bibles/NLT`;
 fs.mkdirSync(OUT, { recursive: true });
 
 // NLT 3-letter token -> OSIS book id + display name (canonical 66).

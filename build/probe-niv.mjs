@@ -1,8 +1,11 @@
 // Discovery probe for the NIV PDF: how are book & chapter boundaries signaled?
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PDF = '../backup-data/bibles-licensed/NIV-New-International-Version.pdf';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PDF = `${ROOT}/backup-data/bibles-licensed/NIV-New-International-Version.pdf`;
 const data = new Uint8Array(fs.readFileSync(PDF));
 const doc = await getDocument({ data, useSystemFonts: true }).promise;
 console.log('pages:', doc.numPages);

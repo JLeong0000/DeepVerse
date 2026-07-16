@@ -10,9 +10,12 @@
 //   footnotes ~6.1 and cross-ref/footnote markers ~4.7: DROP by size (<7)
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PDF = '../backup-data/bibles-licensed/NKJV-New-King-James-Version.pdf';
-const OUT = '../data/bibles/NKJV';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PDF = `${ROOT}/backup-data/bibles-licensed/NKJV-New-King-James-Version.pdf`;
+const OUT = `${ROOT}/data/bibles/NKJV`;
 fs.mkdirSync(OUT, { recursive: true });
 
 const CANON = {

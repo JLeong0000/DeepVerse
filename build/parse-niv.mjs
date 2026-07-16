@@ -5,9 +5,12 @@
 //   [~10] line == body text, appended to the current verse
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PDF = '../backup-data/bibles-licensed/NIV-New-International-Version.pdf';
-const OUT = '../data/bibles/NIV';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PDF = `${ROOT}/backup-data/bibles-licensed/NIV-New-International-Version.pdf`;
+const OUT = `${ROOT}/data/bibles/NIV`;
 fs.mkdirSync(OUT, { recursive: true });
 
 // canonical normalized-name -> [osis, display]

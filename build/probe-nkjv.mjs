@@ -2,8 +2,11 @@
 // chapter numbers, verse numbers, body text, and superscript markers (cross-refs/footnotes).
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PDF = '../backup-data/bibles-licensed/NKJV-New-King-James-Version.pdf';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PDF = `${ROOT}/backup-data/bibles-licensed/NKJV-New-King-James-Version.pdf`;
 const doc = await getDocument({ data: new Uint8Array(fs.readFileSync(PDF)), useSystemFonts: true }).promise;
 console.log('pages:', doc.numPages);
 

@@ -2,15 +2,18 @@
 // JSON keyed by "chapter:verse". Reads the free key from .env (NLT_API_TO_API).
 // Usage: node --env-file=../.env harvest-nlt.mjs [--test]
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KEY = process.env.NLT_API_TO_API;
 if (!KEY) { console.error('NLT_API_TO_API not set (run with --env-file=../.env)'); process.exit(1); }
 const TEST = process.argv.includes('--test');
-const OUT = '../data/bibles/NLT-current';
+const OUT = `${ROOT}/data/bibles/NLT-current`;
 fs.mkdirSync(OUT, { recursive: true });
 
 // book list (osis, API ref name, chapter count) from the NLT PDF manifest
-const man = JSON.parse(fs.readFileSync('../data/bibles/NLT/_manifest.json', 'utf8'));
+const man = JSON.parse(fs.readFileSync(`${ROOT}/data/bibles/NLT/_manifest.json`, 'utf8'));
 const apiName = { Ps: 'Psalm', Song: 'Song of Songs' };  // API-preferred names
 const books = man.books.map(b => ({ osis: b.osis, ref: apiName[b.osis] || b.name, chapters: b.chapters }));
 

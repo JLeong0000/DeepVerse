@@ -3,11 +3,14 @@
 // Source (gitignored, CC BY-SA 4.0): backup-data/tyndale/Tyndale Open Study Notes/StudyNotes.xml
 // Run: node parse-studynotes.mjs
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseStudyNoteRef, extractRef, cleanNoteBody } from './lib/studynotes.mjs';
 
-const XML = '../backup-data/tyndale/Tyndale Open Study Notes/StudyNotes.xml';
-const OUT = './data/studynotes.json';
-fs.mkdirSync('./data', { recursive: true });
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const XML = `${ROOT}/backup-data/tyndale/Tyndale Open Study Notes/StudyNotes.xml`;
+const OUT = `${ROOT}/build/data/studynotes.json`;
+fs.mkdirSync(`${ROOT}/build/data`, { recursive: true });
 
 const xml = fs.readFileSync(XML, 'utf8');
 const out = [];

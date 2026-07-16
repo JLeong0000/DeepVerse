@@ -1,11 +1,11 @@
 // build/parse-studynotes.mjs
 // One-time: parse Tyndale Open Study Notes XML -> committed build/data/studynotes.json.
-// Source (gitignored, CC BY-SA 4.0): sources/tyndale/Tyndale Open Study Notes/StudyNotes.xml
+// Source (gitignored, CC BY-SA 4.0): backup-data/tyndale/Tyndale Open Study Notes/StudyNotes.xml
 // Run: node parse-studynotes.mjs
 import fs from 'node:fs';
 import { parseStudyNoteRef, extractRef, cleanNoteBody } from './lib/studynotes.mjs';
 
-const XML = '../sources/tyndale/Tyndale Open Study Notes/StudyNotes.xml';
+const XML = '../backup-data/tyndale/Tyndale Open Study Notes/StudyNotes.xml';
 const OUT = './data/studynotes.json';
 fs.mkdirSync('./data', { recursive: true });
 

@@ -2,7 +2,7 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
 
-const PDF = '../sources/bibles-licensed/NIV-New-International-Version.pdf';
+const PDF = '../backup-data/bibles-licensed/NIV-New-International-Version.pdf';
 const data = new Uint8Array(fs.readFileSync(PDF));
 const doc = await getDocument({ data, useSystemFonts: true }).promise;
 console.log('pages:', doc.numPages);

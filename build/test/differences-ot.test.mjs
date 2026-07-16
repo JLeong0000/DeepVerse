@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { loadHebrewDomains } from '../lib/macula-hebrew.mjs';
 import { computeDifferences, isHebrewContent } from '../lib/differences.mjs';
 
-const HEB_DIR = '../sources/macula-hebrew/WLC/lowfat';
+const HEB_DIR = '../backup-data/macula-hebrew/WLC/lowfat';
 let db;
 before(() => {
   db = new DatabaseSync('../data/bible.db');

@@ -35,8 +35,10 @@ data) is that there are **two types** of difference:
 | **Mockups** (open in a browser) | `docs/mockups/home.html`, `docs/mockups/study-mode.html`, `docs/mockups/difference-types.html` |
 | **The data spine** (built v1; v2 is Plan 1) | `data/bible.db` (gitignored artifact) |
 | **Compiled Bible text** (per-book JSON) | `data/bibles/{NIV,NKJV,NLT}/` |
-| **Raw sources** (CC-BY, gitignored) | `sources/STEPBible-Data`, `sources/openbible`, `sources/macula-greek`, `sources/morphhb` |
-| **Build scripts** | `build/` (Node, `node:sqlite`) |
+| **Parsed source intermediates** (committed — the build reads these) | `build/data/sources/*.json.gz` |
+| **Raw sources** (CC-BY, gitignored — local backup only) | `backup-data/STEPBible-Data`, `backup-data/openbible`, `backup-data/macula-greek`, `backup-data/morphhb` |
+| **Build scripts + data pipeline** | `build/` (Node, `node:sqlite`); see `docs/DATA-PIPELINE.md` |
+| **Fresh-clone setup** | `./install.sh` → `./start.sh` |
 | **Context/cultural + geo source research** (for unbuilt features) | `research/bible-context/` (see its `README.md` index) |
 
 ## Status: PHASE 1 COMPLETE ✅ (2026-07-07) · OT engine + app polish shipped (2026-07-08)
@@ -68,7 +70,7 @@ phase). Gates green: `build/` `npm run build` exits 0; `app/` `npm run build` ex
 - **bible.db v1 ✓** — `verses` (92,833), `words` (interlinear 425k), `lexicon` (23,746), `cross_refs`
   (344,799). Built by `build/build-db.mjs`.
 - **MACULA Greek ✓ cloned** — has Louw-Nida domains + a Strong↔Strong synonym **proximity matrix**
-  (`sources/macula-greek/sources/Clear/synonyms/Proximity.tsv`) spanning Greek/Hebrew/Aramaic.
+  (`backup-data/macula-greek/sources/Clear/synonyms/Proximity.tsv`) spanning Greek/Hebrew/Aramaic.
 - **Design ✓ complete** — Home + Study mode fully specced and mocked.
 - **Two known data issues to fix in bible.db v2** (see Plan 1): a versification-notation parser bug drops
   Daniel 4 & 6 (and likely Psalm titles/Joel/Malachi/Hosea); and Aramaic is currently lumped into `hbo`.
@@ -134,5 +136,7 @@ Next candidates, roughly in priority order:
 4. **Segment 2 — Map / Discover** (OpenBible `ancient.jsonl` + DARE period tiles as PMTiles). Deferred.
 5. **Polish/mobile:** OPFS/`wa-sqlite` if the ~112 MB in-RAM DB strains mobile; further DB slimming.
 
-> Git is initialized; `.gitignore` excludes `sources/`, `node_modules/`, `data/*.db`, `app/node_modules/`,
-> `app/dist/`, `app/public/bible.db`, `.superpowers/`. Deploy: static bundle → Cloudflare Pages, or installed PWA.
+> Git is initialized; `.gitignore` excludes `/backup-data/` (raw source backup), `node_modules/`, `data/*.db`,
+> `app/node_modules/`, `app/dist/`, `app/public/bible.db`, `.superpowers/`. The committed
+> `build/data/sources/*.json.gz` intermediates are what the build actually reads (see `docs/DATA-PIPELINE.md`).
+> Deploy: static bundle → Cloudflare Pages, or installed PWA.

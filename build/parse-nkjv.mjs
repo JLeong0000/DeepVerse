@@ -11,7 +11,7 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
 
-const PDF = '../sources/bibles-licensed/NKJV-New-King-James-Version.pdf';
+const PDF = '../backup-data/bibles-licensed/NKJV-New-King-James-Version.pdf';
 const OUT = '../data/bibles/NKJV';
 fs.mkdirSync(OUT, { recursive: true });
 

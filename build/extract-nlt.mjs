@@ -3,7 +3,7 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
 
-const PDF = '../sources/bibles-licensed/NLT-New-Living-Translation.pdf';
+const PDF = '../backup-data/bibles-licensed/NLT-New-Living-Translation.pdf';
 const data = new Uint8Array(fs.readFileSync(PDF));
 const doc = await getDocument({ data, useSystemFonts: true }).promise;
 

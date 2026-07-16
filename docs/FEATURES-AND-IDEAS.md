@@ -159,7 +159,8 @@ Opens here before Study mode. **Open editorial layout, not boxed cards.** All lo
 - **lexicon** — 23,746 Strong's entries (91% of tagged words resolve to a definition).
 - **cross_refs** — 344,799 (OpenBible, vote-ranked).
 - Everything joins by verse ref + word position. ~91 MB / ~31 MB gzipped.
-- Sources in `sources/` (STEPBible CC-BY, OpenBible CC-BY). Parsers + builder in `build/`.
+- Raw sources in `backup-data/` (gitignored, STEPBible CC-BY, OpenBible CC-BY); parsed into committed
+  `build/data/sources/*.json.gz` intermediates that the builder reads. Parsers + builder in `build/`. See `docs/DATA-PIPELINE.md`.
 
 ### Not yet in the DB (deferred)
 - OpenBible **geocoding** (`ancient.jsonl`) + **DARE map tiles** → the Map/Discover segment.

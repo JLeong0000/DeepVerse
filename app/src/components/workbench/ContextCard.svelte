@@ -141,28 +141,32 @@
       </div>
     {/if}
 
-    {#if entities.place.length}
-      <div class="grp">
-        <div class="grplbl">Places · {entities.place.length}</div>
-        {#each entities.place as e}
-          <div class="ent" title={e.blurb || ''}>
-            <span class="name">{e.name}</span>
-            {#if e.feature_type}<span class="tag">{e.feature_type}</span>{/if}
-            {#if e.latitude != null && e.longitude != null}<span class="pin" title="{e.latitude}, {e.longitude}">📍</span>{/if}
+    {#if entities.place.length || entities.event.length}
+      <div class="grp placeevent">
+        {#if entities.place.length}
+          <div class="col">
+            <div class="grplbl">Places · {entities.place.length}</div>
+            {#each entities.place as e}
+              <div class="ent" title={e.blurb || ''}>
+                <span class="name">{e.name}</span>
+                {#if e.feature_type}<span class="tag">{e.feature_type}</span>{/if}
+                {#if e.latitude != null && e.longitude != null}<span class="pin" title="{e.latitude}, {e.longitude}">📍</span>{/if}
+              </div>
+            {/each}
           </div>
-        {/each}
-      </div>
-    {/if}
+        {/if}
 
-    {#if entities.event.length}
-      <div class="grp">
-        <div class="grplbl">Events <span class="note">· approximate, traditional chronology</span></div>
-        {#each entities.event as e}
-          <div class="ent" title={e.blurb || ''}>
-            <span class="name">{e.name}</span>
-            {#if e.approx_year != null}<span class="tag">{yearLabel(e.approx_year)}</span>{/if}
+        {#if entities.event.length}
+          <div class="col">
+            <div class="grplbl">Events <span class="note">· approximate, traditional chronology</span></div>
+            {#each entities.event as e}
+              <div class="ent" title={e.blurb || ''}>
+                <span class="name">{e.name}</span>
+                {#if e.approx_year != null}<span class="tag">{yearLabel(e.approx_year)}</span>{/if}
+              </div>
+            {/each}
           </div>
-        {/each}
+        {/if}
       </div>
     {/if}
 
@@ -236,6 +240,7 @@
   /* Context entities */
   .chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .chip { border: 1px solid var(--rule); border-radius: 5px; padding: 2px 7px; font-size: 12px; color: var(--ink); }
+  .placeevent { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; align-items: start; }
   .ent { display: flex; align-items: baseline; gap: 6px; padding: 2px 0; font-size: 12px; color: var(--ink); }
   .ent .name { color: var(--ink); }
   .ent .tag { color: var(--dim); font-size: 10.5px; }

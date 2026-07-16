@@ -101,25 +101,23 @@
   {#if recap}
     {@const long = recap.recap.length > RECAP_CLAMP}
     <div class="grp recap">
-      <div class="grplbl">Recap</div>
+      <div class="grplbl">Recap<span class="srcinfo">ⓘ<span class="srctip">
+        {#if recap.source === 'bible-summary'}
+          <a href="https://biblesummary.info" target="_blank" rel="noopener">Bible Summary · biblesummary.info</a>
+        {:else}{RECAP_SRC[recap.source] || recap.source}{/if}
+      </span></span></div>
       <p class="recaptext">{long && !recapOpen ? recap.recap.slice(0, RECAP_CLAMP).trimEnd() + '…' : recap.recap}</p>
       {#if long}
         <button class="seemore" onclick={() => (recapOpen = !recapOpen)}>{recapOpen ? 'Read less' : 'Read more'}</button>
       {/if}
-      <div class="recapsrc">
-        {#if recap.source === 'bible-summary'}
-          <a href="https://biblesummary.info" target="_blank" rel="noopener">Bible Summary · biblesummary.info</a>
-        {:else}{RECAP_SRC[recap.source] || recap.source}{/if}
-      </div>
     </div>
   {/if}
 
   <div class="hd">
-    <span class="q">ⓘ</span> Context for <b>{bookName(study.book)} {study.chapter}</b>
+    Context for <b>{bookName(study.book)} {study.chapter}</b> <span class="q">ⓘ</span>
     {#if ctx?.writer}<span class="sub">· traditionally attributed to {ctx.writer}</span>{/if}
     <div class="tip">
-      The recap is a plain chapter summary from <b>Bible Summary</b> by Chris Juby
-      (biblesummary.info). The rest of this context is auto-linked from the
+      This context is auto-linked from the
       <b>Theographic Bible Metadata</b> knowledge graph
       (CC BY-SA 4.0): the people, places, and events named in this chapter’s verses. Auto-linked, so it
       can occasionally mis-tag a name shared by a person and a place (e.g. “Moab” or “Judah”), and dates
@@ -183,7 +181,7 @@
   {/if}
 
   <div class="grp studynotes">
-    <div class="grplbl">Study Notes {#if noteCount > 0}<span class="sub">· {noteCount} in this chapter</span>{/if}</div>
+    <div class="grplbl">Study Notes<span class="srcinfo">ⓘ<span class="srctip">Tyndale Open Study Notes · CC BY-SA 4.0</span></span> {#if noteCount > 0}<span class="sub">· {noteCount} in this chapter</span>{/if}</div>
     {#if noteCount === 0}
       <div class="empty">No study notes for this chapter.</div>
     {:else if study.verse == null}
@@ -198,7 +196,6 @@
         </div>
       {/each}
     {/if}
-    <div class="snsrc">Tyndale Open Study Notes · CC BY-SA 4.0</div>
   </div>
 {/if}
 
@@ -220,6 +217,17 @@
   .grp { padding: 4px 11px 6px; }
   .grplbl { font-variant: small-caps; letter-spacing: .05em; font-size: 10.5px; color: var(--dim); margin: 6px 0 4px; }
   .grplbl .note { text-transform: none; font-variant: normal; letter-spacing: 0; font-style: italic; }
+  /* source byline as an ⓘ hover tooltip (matches the .hd/.tip pattern above) */
+  .srcinfo { position: relative; cursor: help; color: var(--b); margin-left: 4px;
+    font-variant: normal; letter-spacing: 0; }
+  .srctip { position: absolute; z-index: 40; left: 0; top: 100%; margin-top: 3px; width: 220px;
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 11.5px; line-height: 1.5; color: var(--dim);
+    text-transform: none; font-variant: normal; letter-spacing: 0;
+    opacity: 0; visibility: hidden; transition: opacity .12s; }
+  .srcinfo:hover .srctip { opacity: 1; visibility: visible; }
+  .srctip a { color: var(--dim); text-decoration: underline; text-underline-offset: 2px; }
+  .srctip a:hover { color: var(--b); }
   .xref { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; text-align: left;
     border: 1px solid var(--rule); background: transparent; border-radius: 5px; padding: 6px 9px; cursor: pointer;
     color: var(--ink); font-family: inherit; margin-bottom: 5px; }
@@ -234,9 +242,6 @@
   /* Chapter recap */
   .recap { border-bottom: 1px solid var(--rule); }
   .recaptext { margin: 0; font-size: 12px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; }
-  .recapsrc { margin-top: 4px; font-size: 10.5px; color: var(--dim); }
-  .recapsrc a { color: var(--dim); text-decoration: underline; text-underline-offset: 2px; }
-  .recapsrc a:hover { color: var(--b); }
   /* Context entities */
   .chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .chip { border: 1px solid var(--rule); border-radius: 5px; padding: 2px 7px; font-size: 12px; color: var(--ink); }
@@ -251,5 +256,4 @@
   .snote { margin: 6px 0; }
   .snref { font-size: 11px; color: var(--b); font-weight: 600; }
   .snbody { font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; margin: 2px 0 0; }
-  .snsrc { margin-top: 6px; font-size: 10.5px; color: var(--dim); }
 </style>

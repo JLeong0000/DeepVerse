@@ -61,3 +61,8 @@ considered shipped — otherwise a fresh clone can no longer rebuild `bible.db`:
 5. **Verify:** rebuild with `backup-data/` renamed away → build still succeeds; `npm test` (build) green.
 
 The raw source stays in `backup-data/` for you; the repo carries only the slim, committed intermediate.
+
+## If data gets lost or corrupted
+
+See **`docs/DATA-RECOVERY.md`** — the provenance + disaster-recovery runbook: where every dataset comes
+from, how to re-fetch and re-parse each one, and the cleanup each source required.

@@ -4,8 +4,10 @@
 // Data: Theographic Bible Metadata by Robert Rouse, licensed CC BY-SA 4.0.
 // https://github.com/robertrouse/theographic-bible-metadata
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = '/Users/justinleong/Desktop/Coding/DeepVerse';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = `${ROOT}/backup-data/theographic`;
 const BASE = 'https://raw.githubusercontent.com/robertrouse/theographic-bible-metadata/master/json';
 const FILES = ['chapters', 'verses', 'people', 'places', 'peopleGroups', 'events', 'easton', 'books'];

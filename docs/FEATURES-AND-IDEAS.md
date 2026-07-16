@@ -52,6 +52,23 @@ Built on branch `feat/context-tab`, **merged to main**. Design/validation notes 
 
 **Roadmap remaining for the context/cultural layer:** Tyndale theme articles + book intros + the Bible Dictionary (validated, not yet imported); PD dictionaries; OpenBible.info confidence-gated geography.
 
+## ✅ AI = Claude Code query skills (2026-07-16)
+
+The "AI phase" is **not** an in-app feature — no chat, no backend, no cost, no prose baked into the DB.
+It's a set of **Claude Code project skills** (`.claude/skills/`) the developer invokes *in the CLI* to
+query the corpus; the answer lands in the conversation. App stays pure-data/offline. Built on branch
+`feat/ai-query-skills`:
+- **`deepverse-data`** (foundation) — real 12-table schema, gotchas (Strong's are `G0025` zero-padded;
+  Hebrew codes carry suffixes/multiples; `synonyms` pairs unordered; OSIS book codes; NIV=1984),
+  source/trust/license map, grounding rules (query the data, never recall Greek/Hebrew), verified query
+  cookbook.
+- **`word-study`**, **`passage-study`**, **`interpretive-differences`**, **`context-background`** — one
+  query playbook each, layered on the foundation. All embedded queries verified against `data/bible.db`.
+- **Geo/map skills** (`place-blurb`, `journey-narrator`, `period-culture`) designed + recorded in
+  `plans/2026-07-16-geo-map-skills.md` for the Map/Discover phase — **deferred**, blocked on OpenBible
+  geocoding + DARE tiles landing in the DB.
+- Spec `specs/2026-07-16-ai-query-skills-design.md`, plan `plans/2026-07-16-ai-query-skills.md`.
+
 ## The app in two segments
 
 1. **Study Bible workflow** — deep study of a passage (English ↔ Greek/Hebrew/Aramaic, context, differences). *Current focus.*

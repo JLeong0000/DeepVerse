@@ -20,15 +20,26 @@ echo "Installing app dependencies…"
 
 # Verify the git-LFS text-to-speech models actually came down. Without git-lfs, a clone leaves
 # ~133-byte pointer files in their place and audio (Greek/Hebrew pronunciation) fails to load.
-# Non-fatal: everything except audio works regardless.
-tts_ok=1
-for m in app/public/tts/mms-heb.onnx app/public/tts/mms-ell.onnx; do
-  if [ ! -f "$m" ] || head -c 64 "$m" | grep -q "git-lfs.github.com"; then tts_ok=0; fi
-done
+# If git-lfs is available in a git checkout, fetch them automatically; otherwise fall back to a
+# note. Non-fatal either way: everything except audio works regardless.
+check_tts() {
+  tts_ok=1
+  for m in app/public/tts/mms-heb.onnx app/public/tts/mms-ell.onnx; do
+    if [ ! -f "$m" ] || head -c 64 "$m" | grep -q "git-lfs.github.com"; then tts_ok=0; fi
+  done
+}
+check_tts
+if [ "$tts_ok" -ne 1 ] && git lfs version >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Fetching text-to-speech models via git-LFS…"
+  git lfs install --local >/dev/null 2>&1 || true
+  git lfs pull || true
+  check_tts
+  [ "$tts_ok" -eq 1 ] && echo "  text-to-speech models fetched."
+fi
 if [ "$tts_ok" -ne 1 ]; then
   echo
-  echo "Note: the text-to-speech models are git-LFS files that weren't fetched, so audio" >&2
-  echo "(Greek/Hebrew pronunciation) is disabled. Everything else works. To enable audio:" >&2
+  echo "Note: text-to-speech models aren't available, so audio (Greek/Hebrew pronunciation)" >&2
+  echo "is disabled. Everything else works. To enable audio later:" >&2
   if git lfs version >/dev/null 2>&1; then
     echo "  git lfs pull" >&2
   else

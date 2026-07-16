@@ -18,5 +18,23 @@ echo "Building bible.db from vendored intermediates…"
 echo "Installing app dependencies…"
 ( cd app && npm install )
 
+# Verify the git-LFS text-to-speech models actually came down. Without git-lfs, a clone leaves
+# ~133-byte pointer files in their place and audio (Greek/Hebrew pronunciation) fails to load.
+# Non-fatal: everything except audio works regardless.
+tts_ok=1
+for m in app/public/tts/mms-heb.onnx app/public/tts/mms-ell.onnx; do
+  if [ ! -f "$m" ] || head -c 64 "$m" | grep -q "git-lfs.github.com"; then tts_ok=0; fi
+done
+if [ "$tts_ok" -ne 1 ]; then
+  echo
+  echo "Note: the text-to-speech models are git-LFS files that weren't fetched, so audio" >&2
+  echo "(Greek/Hebrew pronunciation) is disabled. Everything else works. To enable audio:" >&2
+  if git lfs version >/dev/null 2>&1; then
+    echo "  git lfs pull" >&2
+  else
+    echo "  install git-lfs (e.g. 'brew install git-lfs'), then:  git lfs install && git lfs pull" >&2
+  fi
+fi
+
 echo
 echo "Setup complete. Run ./start.sh to launch DeepVerse → http://localhost:5173"

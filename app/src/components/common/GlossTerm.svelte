@@ -2,7 +2,7 @@
   import { GLOSSARY } from '../../lib/glossary.js';
 
   let { term } = $props();
-  const entry = GLOSSARY[term];
+  const entry = $derived(GLOSSARY[term]);
 
   let el;                                             // the underlined term span
   let open = $state(false);

@@ -52,12 +52,12 @@
     max-width: 260px;
     padding: 7px 9px;
     border-radius: 6px;
-    background: var(--card, #1b2436);
-    border: 1px solid var(--line, #33415c);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, .4);
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .28);
     font-size: 12px;
     line-height: 1.45;
-    color: var(--fg, #e6ecf5);
+    color: var(--ink);
     pointer-events: none;                             /* popover never eats the hover */
     white-space: normal;
   }

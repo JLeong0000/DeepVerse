@@ -5,6 +5,7 @@
   import { parseDefinition, readTranslit } from '../../lib/display.js';
   import PlayButton from '../common/PlayButton.svelte';
   import WordInstances from './WordInstances.svelte';
+  import GlossedText from '../common/GlossedText.svelte';
 
   let instancesOpen = $state(false);
 
@@ -64,9 +65,9 @@
         {#if detail.lex.gloss}<div class="gloss">{detail.lex.gloss}</div>{/if}
         {#each defSenses as s}
           {#if s.level === -1}
-            <div class="lead">{s.text}</div>
+            <div class="lead"><GlossedText text={s.text} /></div>
           {:else}
-            <div class="sense lv{s.level}"><span class="mk">{s.marker}</span> {s.text}</div>
+            <div class="sense lv{s.level}"><span class="mk">{s.marker}</span> <GlossedText text={s.text} /></div>
           {/if}
         {/each}
       {:else}<div class="sense dim">No lexicon entry.</div>{/if}
@@ -103,9 +104,10 @@
   .grk { font-family: var(--greek); } .big { font-size: 18px; }
   .tl { color: var(--dim); font-style: italic; }
   .strong { color: var(--dim); font-size: .85em; margin-left: 6px; } .morph { color: var(--dim); font-size: .85em; }
+  .morph::before { content: '·'; margin: 0 .35em; opacity: .55; }
   .gloss { margin-top: 6px; font-weight: 600; }
-  .lead { margin-top: 4px; line-height: 1.5; color: var(--dim); }
-  .sense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; } /* hanging indent to the marker */
+  .lead { margin-top: 4px; line-height: 1.5; color: var(--dim); overflow-wrap: break-word; }
+  .sense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; overflow-wrap: break-word; } /* hanging indent to the marker */
   .sense.lv0 { padding-left: 18px; margin-top: 8px; } .sense.lv0 .mk { font-weight: 700; }
   .sense.lv1 { padding-left: 20px; }
   .sense.lv2 { padding-left: 40px; text-indent: -22px; }

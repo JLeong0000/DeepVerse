@@ -6,6 +6,7 @@
   import PlayButton from '../common/PlayButton.svelte';
   import WordSearch from './WordSearch.svelte';
   import WordInstances from '../workbench/WordInstances.svelte';
+  import GlossedText from '../common/GlossedText.svelte';
 
   let searchOpen = $state(false);
   let instancesOpen = $state(false);
@@ -52,7 +53,7 @@
         {#if top}
           <div class="feature">
             <span class="gloss lead">“{top.gloss}”</span> <span class="cnt">{top.count}×</span>
-            {#if def}<p class="def">{def}</p>{/if}
+            {#if def}<p class="def"><GlossedText text={def} /></p>{/if}
             {#if topOcc}<button class="occ feat-occ" onclick={() => jump(topOcc)}>Seen in {refText(topOcc.ref)} →</button>{/if}
           </div>
         {/if}
@@ -106,7 +107,7 @@
   .tl { font-style: italic; color: var(--dim); font-size: 12px; }
   .fact { color: var(--dim); font-size: 12px; margin-top: 6px; }
   .feature .lead { font-size: 15px; }
-  .def { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim);
+  .def { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim); overflow-wrap: break-word;
     display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   /* rows of "interpretation → the verse it's seen in": chip in the left column, verse link in the
      right, aligned under the two headers. */

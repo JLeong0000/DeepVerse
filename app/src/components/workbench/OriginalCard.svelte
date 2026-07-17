@@ -106,8 +106,8 @@
   .strong { color: var(--dim); font-size: .85em; margin-left: 6px; } .morph { color: var(--dim); font-size: .85em; }
   .morph::before { content: '·'; margin: 0 .35em; opacity: .55; }
   .gloss { margin-top: 6px; font-weight: 600; }
-  .lead { margin-top: 4px; line-height: 1.5; color: var(--dim); }
-  .sense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; } /* hanging indent to the marker */
+  .lead { margin-top: 4px; line-height: 1.5; color: var(--dim); overflow-wrap: break-word; }
+  .sense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; overflow-wrap: break-word; } /* hanging indent to the marker */
   .sense.lv0 { padding-left: 18px; margin-top: 8px; } .sense.lv0 .mk { font-weight: 700; }
   .sense.lv1 { padding-left: 20px; }
   .sense.lv2 { padding-left: 40px; text-indent: -22px; }

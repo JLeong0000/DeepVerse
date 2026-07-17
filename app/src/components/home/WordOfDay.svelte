@@ -107,7 +107,7 @@
   .tl { font-style: italic; color: var(--dim); font-size: 12px; }
   .fact { color: var(--dim); font-size: 12px; margin-top: 6px; }
   .feature .lead { font-size: 15px; }
-  .def { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim);
+  .def { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim); overflow-wrap: break-word;
     display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   /* rows of "interpretation → the verse it's seen in": chip in the left column, verse link in the
      right, aligned under the two headers. */

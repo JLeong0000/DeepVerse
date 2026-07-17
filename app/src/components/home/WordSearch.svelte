@@ -131,8 +131,8 @@
   .dorig { font-size: 30px; color: var(--a); line-height: 1; }
   /* indented lexicon senses, matching OriginalCard's definition rendering */
   .def { font-size: 12.5px; }
-  .lead { line-height: 1.5; color: var(--dim); }
-  .dsense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; color: var(--dim); }
+  .lead { line-height: 1.5; color: var(--dim); overflow-wrap: break-word; }
+  .dsense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; color: var(--dim); overflow-wrap: break-word; }
   .dsense.lv0 { margin-top: 8px; } .dsense.lv0 .mk { font-weight: 700; }
   .dsense.lv1 { padding-left: 20px; }
   .dsense.lv2 { padding-left: 40px; text-indent: -22px; }

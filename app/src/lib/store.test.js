@@ -25,6 +25,35 @@ describe('notes (IndexedDB)', () => {
   });
 });
 
+describe('profile (notes + settings)', () => {
+  test('export → wipe → import restores notes (merge) and settings', async () => {
+    await store.addNote({ target_type: 'free', ref: null, body: 'keep me' });
+    localStorage.setItem('prefs.theme', 'dark');
+    store.addStudy('agape vs phileo');
+    store.recordRead('John', 3);
+
+    const json = await store.exportProfile();
+    await store._clearAllForTest();
+    localStorage.setItem('prefs.theme', 'light'); // a stale value the import should overwrite
+
+    await store.importProfile(json);
+    expect((await store.allNotes()).map(n => n.body)).toEqual(['keep me']);
+    expect(localStorage.getItem('prefs.theme')).toBe('dark');
+    expect(store.activeStudy().map(i => i.text)).toEqual(['agape vs phileo']);
+    expect(store.chaptersRead()).toBe(1);
+  });
+
+  test('importProfile ignores settings keys outside the whitelist', async () => {
+    const json = JSON.stringify({
+      format: 'deepverse-profile', version: 1, notes: [],
+      settings: { 'prefs.theme': 'dark', evil_key: 'nope' },
+    });
+    await store.importProfile(json);
+    expect(localStorage.getItem('prefs.theme')).toBe('dark');
+    expect(localStorage.getItem('evil_key')).toBeNull();
+  });
+});
+
 describe('reading activity', () => {
   test('recordRead increments today; chaptersRead + daysThisYear', () => {
     store.recordRead('John', 3);

@@ -8,6 +8,7 @@
   import Study from './routes/Study.svelte';
   import Comparison from './routes/Comparison.svelte';
   import NotesPage from './routes/NotesPage.svelte';
+  import SettingsPage from './routes/SettingsPage.svelte';
   import Loading from './components/common/Loading.svelte';
   import { fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -27,7 +28,7 @@
   }
   function applyHash() {
     const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-    const view = ['home', 'study', 'compare', 'notes'].includes(parts[0]) ? parts[0] : 'home';
+    const view = ['home', 'study', 'compare', 'notes', 'settings'].includes(parts[0]) ? parts[0] : 'home';
     route.view = view;
     if ((view === 'study' || view === 'compare') && parts[1] && parts[2]) {
       study.book = parts[1];
@@ -76,7 +77,10 @@
       <button class="navlink" class:active={route.view === 'compare'} onclick={() => go('compare')}>Compare</button>
       <button class="navlink" class:active={route.view === 'notes'} onclick={() => go('notes')}>Memo</button>
     </nav>
-    <button class="toggle" onclick={flip} aria-label="Toggle theme">{dark ? '☀' : '☾'}</button>
+    <div class="right">
+      <button class="toggle" onclick={flip} aria-label="Toggle theme">{dark ? '☀' : '☾'}</button>
+      <button class="toggle gear" class:active={route.view === 'settings'} onclick={() => go('settings')} aria-label="Settings">⚙</button>
+    </div>
   </div>
 
   <div class="content">
@@ -89,6 +93,8 @@
         <Comparison />
       {:else if route.view === 'notes'}
         <NotesPage />
+      {:else if route.view === 'settings'}
+        <SettingsPage />
       {:else}
         <Home />
       {/if}
@@ -120,7 +126,10 @@
   }
   .navlink:hover { color: var(--ink); }
   .navlink.active { color: var(--a); }
-  .toggle { margin-left: auto; }
+  .right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .toggle.active { color: var(--a); }
+  /* ⚙ sits optically high in its em-box; larger glyph + line-height 1 recenters it in the circle */
+  .gear { font-size: 18px; line-height: 1; }
   .gate { padding: 40px 30px; }
   .err { color: var(--a); }
   .loadscreen {

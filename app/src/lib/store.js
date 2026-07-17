@@ -62,6 +62,32 @@ export async function importNotes(json) {
   return incoming.length;
 }
 
+// ---------- Profile (full backup: notes + settings) ----------
+// Every persistent localStorage key. Kept in sync with the sections below and theme.js.
+const SETTINGS_KEYS = ['prefs.theme', 'prefs', 'reading_activity', 'to_study', 'note_groups'];
+
+export async function exportProfile() {
+  const settings = {};
+  for (const k of SETTINGS_KEYS) {
+    const v = localStorage.getItem(k);
+    if (v !== null) settings[k] = v; // raw strings — lossless round-trip
+  }
+  return JSON.stringify(
+    { format: 'deepverse-profile', version: 1, exported_at: new Date().toISOString(),
+      notes: await allNotes(), settings }, null, 2);
+}
+
+// Merge: notes by id (via importNotes); whitelisted settings keys overwrite. Extra keys ignored.
+export async function importProfile(json) {
+  const data = typeof json === 'string' ? JSON.parse(json) : json;
+  const notes = Array.isArray(data.notes) ? await importNotes(data.notes) : 0;
+  let settings = 0;
+  for (const [k, v] of Object.entries(data.settings || {})) {
+    if (SETTINGS_KEYS.includes(k) && typeof v === 'string') { localStorage.setItem(k, v); settings++; }
+  }
+  return { notes, settings };
+}
+
 // ---------- Prefs (localStorage) ----------
 const PREFS = 'prefs';
 function readPrefs() { try { return JSON.parse(localStorage.getItem(PREFS)) || {}; } catch { return {}; } }

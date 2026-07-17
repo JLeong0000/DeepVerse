@@ -1,7 +1,6 @@
 <script>
   import { allNotes, addNote, updateNote, deleteNote,
-           allGroups, addGroup, renameGroup, deleteGroup,
-           exportNotes, importNotes } from '../lib/store.js';
+           allGroups, addGroup, renameGroup, deleteGroup } from '../lib/store.js';
   import { formatRef } from '../lib/refs.js';
   import { noteHtml } from '../lib/markdown.js';
   import { fade } from 'svelte/transition';
@@ -13,7 +12,6 @@
   let notes = $state([]);
   let groups = $state([]);
   let filter = $state('');
-  let fileInput;
   let boardEl = $state();
   let boardNonce = $state(0);
 
@@ -116,20 +114,6 @@
     openGroup_ = { group, originRect: { top: r.top - b.top, left: r.left - b.left, width: r.width, height: r.height } };
   }
   function closeGroup() { openGroup_ = null; boardNonce++; }
-
-  async function doExport() {
-    const blob = new Blob([await exportNotes()], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `deepverse-notes-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click(); URL.revokeObjectURL(url);
-  }
-  async function doImport(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const n = await importNotes(await file.text());
-    await load(); e.target.value = ''; alert(`Imported ${n} notes.`);
-  }
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape' && !menu && !overlay && selected.size) clearSelection(); }} />
@@ -152,9 +136,6 @@
       <input class="filter" placeholder="Filter memos…" bind:value={filter} />
       <button class="btn" onclick={openNewNote}>+ Memo</button>
       <button class="btn" onclick={async () => { addGroup(); await load(); }}>+ Group</button>
-      <button class="btn" onclick={doExport}>Export</button>
-      <button class="btn" onclick={() => fileInput.click()}>Import</button>
-      <input type="file" accept="application/json" bind:this={fileInput} onchange={doImport} hidden />
     </div>
   </div>
 

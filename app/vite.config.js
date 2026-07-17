@@ -34,6 +34,10 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Serve the web-app manifest + a dev service worker from `npm run dev` (localhost:5173).
+      // Without this, dev exposes no manifest, so Chrome can only "Create Shortcut" (favicon icon
+      // on a white square) instead of a real "Install" that uses the maskable icon.
+      devOptions: { enabled: true, type: 'module' },
       workbox: {
         // precache the app shell + wasm; the 135 MB bible.db is too big to precache, so it is
         // runtime-cached (CacheFirst) — after the first load the whole app works offline.
@@ -66,9 +70,11 @@ export default defineConfig({
         background_color: '#1c1813',
         display: 'standalone',
         icons: [
-          { src: '/deepverse-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/deepverse-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/deepverse-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          // macOS builds the app-shim (Dock/Launchpad) icon from the `any` icons, so these carry
+          // the navy background; the transparent browser-tab favicon lives in index.html (<link rel=icon>).
+          { src: '/deepverse-192-app.png', sizes: '192x192', type: 'image/png' },
+          { src: '/deepverse-512-app.png', sizes: '512x512', type: 'image/png' },
+          { src: '/deepverse-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

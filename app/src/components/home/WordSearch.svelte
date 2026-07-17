@@ -9,6 +9,7 @@
   import { openStudy } from '../../lib/router.svelte.js';
   import PlayButton from '../common/PlayButton.svelte';
   import SenseVerses from '../common/SenseVerses.svelte';
+  import GlossedText from '../common/GlossedText.svelte';
 
   let { onclose } = $props();
 
@@ -87,9 +88,9 @@
       <div class="def">
         {#each selected.defSenses as s}
           {#if s.level === -1}
-            <div class="lead">{s.text}</div>
+            <div class="lead"><GlossedText text={s.text} /></div>
           {:else}
-            <div class="dsense lv{s.level}"><span class="mk">{s.marker}</span> {s.text}</div>
+            <div class="dsense lv{s.level}"><span class="mk">{s.marker}</span> <GlossedText text={s.text} /></div>
           {/if}
         {/each}
       </div>

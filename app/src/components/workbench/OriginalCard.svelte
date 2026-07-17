@@ -5,6 +5,7 @@
   import { parseDefinition, readTranslit } from '../../lib/display.js';
   import PlayButton from '../common/PlayButton.svelte';
   import WordInstances from './WordInstances.svelte';
+  import GlossedText from '../common/GlossedText.svelte';
 
   let instancesOpen = $state(false);
 
@@ -64,9 +65,9 @@
         {#if detail.lex.gloss}<div class="gloss">{detail.lex.gloss}</div>{/if}
         {#each defSenses as s}
           {#if s.level === -1}
-            <div class="lead">{s.text}</div>
+            <div class="lead"><GlossedText text={s.text} /></div>
           {:else}
-            <div class="sense lv{s.level}"><span class="mk">{s.marker}</span> {s.text}</div>
+            <div class="sense lv{s.level}"><span class="mk">{s.marker}</span> <GlossedText text={s.text} /></div>
           {/if}
         {/each}
       {:else}<div class="sense dim">No lexicon entry.</div>{/if}

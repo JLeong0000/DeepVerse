@@ -6,6 +6,7 @@
   import PlayButton from '../common/PlayButton.svelte';
   import WordSearch from './WordSearch.svelte';
   import WordInstances from '../workbench/WordInstances.svelte';
+  import GlossedText from '../common/GlossedText.svelte';
 
   let searchOpen = $state(false);
   let instancesOpen = $state(false);
@@ -52,7 +53,7 @@
         {#if top}
           <div class="feature">
             <span class="gloss lead">“{top.gloss}”</span> <span class="cnt">{top.count}×</span>
-            {#if def}<p class="def">{def}</p>{/if}
+            {#if def}<p class="def"><GlossedText text={def} /></p>{/if}
             {#if topOcc}<button class="occ feat-occ" onclick={() => jump(topOcc)}>Seen in {refText(topOcc.ref)} →</button>{/if}
           </div>
         {/if}

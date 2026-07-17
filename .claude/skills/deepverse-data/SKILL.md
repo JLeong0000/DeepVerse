@@ -23,8 +23,8 @@ Output goes to this conversation. **Always cite `book ch:v`** for anything you a
 2. Never assert a lemma, gloss, semantic domain, date, or etymology the DB can't back.
 3. Cite references (`John 21:15`) and Strong's codes.
 4. Surface caveats: NIV text is **1984**; `chapter_entity`/`chapter_context` dates are **approximate**
-   and names can **collide** (Theographic); `chapter_recap` from `bible-summary` is **licensing-pending —
-   do not republish**.
+   and names can **collide** (Theographic). `chapter_recap` from `bible-summary` is **licensed (confirmed
+   2026-07-17) — may be quoted/republished with attribution** (Chris Juby, biblesummary.info).
 
 ## Gotchas (verified — these will bite you)
 
@@ -54,7 +54,7 @@ Everything joins on `(book, chapter, verse[, position])`, on `strongs`, or via `
 | `differences` | book+ch+v+position | `type` A/B, `strongs`, `detail` (JSON) |
 | `chapter_context` | book+ch | `osis_ref, writer, people_count, place_count` |
 | `chapter_entity` | book+ch+type+id | `name, latitude, longitude, feature_type, blurb, approx_year, sort_verse` |
-| `chapter_recap` | book+ch | `recap, source` (`bible-summary` = licensing-pending, `editorial` = fallback) |
+| `chapter_recap` | book+ch | `recap, source` (`bible-summary` = licensed, quotable w/ attribution; `editorial` = fallback) |
 | `study_notes` | covering range | `ref, osis_ref, body, seq`; `start/end_chapter`, `start/end_verse` |
 
 ### `differences.detail` JSON shapes
@@ -80,7 +80,7 @@ Everything joins on `(book, chapter, verse[, position])`, on `strongs`, or via `
 - `chapter_context`, `chapter_entity` — Theographic (CC BY-SA). **Approximate dates; name collisions.**
 - `study_notes` — Tyndale Open Study Notes (CC BY-SA), covering-range model (a note shows on every verse
   it spans).
-- `chapter_recap` — `bible-summary` (Chris Juby) **licensing-pending, do not republish**; `editorial` =
+- `chapter_recap` — `bible-summary` (Chris Juby) **licensed, confirmed 2026-07-17 — quotable with attribution**; `editorial` =
   hand-authored fallback.
 - Deeper trust/licensing notes: `research/bible-context/source-trust.md`, `docs/ATTRIBUTIONS.md`.
 

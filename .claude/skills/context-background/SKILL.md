@@ -10,7 +10,7 @@ Load `deepverse-data` first (source/trust map, licensing caveats). Query `data/b
 ## Playbook
 
 1. **Recap:** `SELECT recap,source FROM chapter_recap WHERE book=? AND chapter=?;`
-   - If `source='bible-summary'`, note it is **licensing-pending — do not republish** (fine to read here).
+   - `source='bible-summary'` is **licensed (confirmed 2026-07-17) — quotable with attribution** (Chris Juby, biblesummary.info).
    - `source='editorial'` is the hand-authored fallback.
 2. **Chapter frame:** `SELECT writer,people_count,place_count FROM chapter_context WHERE book=? AND chapter=?;`
    `writer` = traditional author (Theographic).

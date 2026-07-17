@@ -103,6 +103,7 @@
   .grk { font-family: var(--greek); } .big { font-size: 18px; }
   .tl { color: var(--dim); font-style: italic; }
   .strong { color: var(--dim); font-size: .85em; margin-left: 6px; } .morph { color: var(--dim); font-size: .85em; }
+  .morph::before { content: '·'; margin: 0 .35em; opacity: .55; }
   .gloss { margin-top: 6px; font-weight: 600; }
   .lead { margin-top: 4px; line-height: 1.5; color: var(--dim); }
   .sense { margin-top: 5px; line-height: 1.5; padding-left: 18px; text-indent: -18px; } /* hanging indent to the marker */

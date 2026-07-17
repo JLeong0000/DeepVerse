@@ -20,6 +20,14 @@
     open = true;
   }
   function hide() { open = false; }
+
+  // Render the popover at <body> so its position:fixed stays viewport-relative even when an ancestor
+  // has a transform (e.g. the WordSearch modal uses translate(-50%,-50%)) — a transformed ancestor
+  // otherwise becomes the containing block for fixed children and re-anchors/clips the popover.
+  function portal(node) {
+    document.body.appendChild(node);
+    return { destroy() { node.remove(); } };
+  }
 </script>
 
 {#if entry}
@@ -33,7 +41,7 @@
     onfocus={show}
     onblur={hide}
   >{term}{#if open}
-      <span class="gpop" class:above={pos.above} style="left:{pos.left}px; top:{pos.top}px;">
+      <span class="gpop" use:portal class:above={pos.above} style="left:{pos.left}px; top:{pos.top}px;">
         <span class="glabel">{entry.label}</span>
         <span class="gtext">{entry.text}</span>
       </span>

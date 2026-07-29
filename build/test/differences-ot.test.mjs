@@ -2,14 +2,16 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { loadHebrewDomains } from '../lib/macula-hebrew.mjs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { computeDifferences, isHebrewContent } from '../lib/differences.mjs';
 
-const HEB_DIR = '../backup-data/macula-hebrew/WLC/lowfat';
+// word_domain is baked into bible.db by build-db.mjs from the committed intermediates, so these
+// fixtures need no backup-data/ tree — only a built DB.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 let db;
 before(() => {
-  db = new DatabaseSync('../data/bible.db');
-  loadHebrewDomains(db, HEB_DIR);   // idempotent (INSERT OR IGNORE); ensures Hebrew domains present
+  db = new DatabaseSync(`${ROOT}/data/bible.db`);
   computeDifferences(db);
 });
 

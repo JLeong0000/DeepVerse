@@ -12,3 +12,4 @@ app/public/sql-wasm.wasm
 app/public/tts/ort/
 .playwright-mcp/
 app/.playwright-mcp/
+.claude/worktrees/

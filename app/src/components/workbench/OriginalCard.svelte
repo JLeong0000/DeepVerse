@@ -2,7 +2,7 @@
   import { getInterlinear, getVerseDifferences, getLexicon, countLemma, getChapterLanguages } from '../../lib/db.js';
   import { study, selectWord } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
-  import { parseDefinition, readTranslit } from '../../lib/display.js';
+  import { parseDefinition, readTranslit, cleanGloss } from '../../lib/display.js';
   import PlayButton from '../common/PlayButton.svelte';
   import WordInstances from './WordInstances.svelte';
   import GlossedText from '../common/GlossedText.svelte';
@@ -52,7 +52,7 @@
         class:active={study.word?.position === w.position && study.word?.strongs === w.strongs}>
         <span class="g grk">{w.original}</span>
         <span class="p">{readTranslit(w.translit)}</span>
-        <span class="e">{w.gloss}</span>
+        <span class="e">{cleanGloss(w.gloss)}</span>
       </div>
     {/each}
   </div>
@@ -62,7 +62,7 @@
         <PlayButton text={detail.word.original} lang={detail.word.lang || detail.word.strongs} />
         <span class="strong">{detail.word.strongs}</span>{#if detail.word.morph} <span class="morph">{detail.word.morph}</span>{/if}</div>
       {#if detail.lex}
-        {#if detail.lex.gloss}<div class="gloss">{detail.lex.gloss}</div>{/if}
+        {#if detail.lex.gloss}<div class="gloss">{cleanGloss(detail.lex.gloss)}</div>{/if}
         {#each defSenses as s}
           {#if s.level === -1}
             <div class="lead"><GlossedText text={s.text} /></div>

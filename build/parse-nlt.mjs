@@ -4,6 +4,7 @@ import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { toOsis } from './lib/books.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PDF = `${ROOT}/backup-data/bibles-licensed/NLT-New-Living-Translation.pdf`;
@@ -31,6 +32,12 @@ const BOOKS = {
   Jud:['Jude','Jude'], Rev:['Rev','Revelation'],
 };
 
+// The NLT token -> OSIS half of this map is duplicated in lib/books.mjs. Fail loudly if they
+// ever disagree rather than silently parsing a book into the wrong slot.
+for (const [token, [osis]] of Object.entries(BOOKS))
+  if (toOsis(token) !== osis)
+    throw new Error(`parse-nlt: ${token} -> ${osis} disagrees with books.mjs (${toOsis(token)})`);
+
 const data = new Uint8Array(fs.readFileSync(PDF));
 const doc = await getDocument({ data, useSystemFonts: true }).promise;
 const VERSE = /^([1-3]?[A-Z][A-Za-z]+)\.?\s+(\d+):(\d+)\s+(.*)$/;
@@ -47,7 +54,8 @@ for (let p = 1; p <= doc.numPages; p++) {
     if (!ln) return;
     const m = ln.match(VERSE);
     if (m && BOOKS[m[1]]) {
-      const [osis, name] = BOOKS[m[1]];
+      const osis = toOsis(m[1]);          // alias resolution now owned by books.mjs
+      const name = BOOKS[m[1]][1];        // display name stays local to the NLT parser
       const ch = m[2], vs = m[3];
       bible[osis] ??= { name, chapters: {} };
       bible[osis].chapters[ch] ??= {};

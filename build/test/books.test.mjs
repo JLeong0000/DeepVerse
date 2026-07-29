@@ -37,16 +37,43 @@ test('toOsis: Tyndale Roman scheme (StudyNotes name attribute)', () => {
   assert.equal(toOsis('IThes'), '1Thess');
 });
 
-test('toOsis: STEPBible scheme', () => {
-  assert.equal(toOsis('1Th'), '1Thess');
-  assert.equal(toOsis('Sng'), 'Song');
-  assert.equal(toOsis('Jhn'), 'John');
+// Full STEP2OSIS map recovered from `git show 0855615:build/lib/refs.mjs` (66 entries).
+// Asserted whole, not spot-checked: a dropped token (e.g. the missing Ezr that broke
+// parse-nlt.mjs) must fail this test, not slip through a handful of examples.
+const STEPBIBLE_TOKENS = {
+  Gen: 'Gen', Exo: 'Exod', Lev: 'Lev', Num: 'Num', Deu: 'Deut', Jos: 'Josh', Jdg: 'Judg', Rut: 'Ruth',
+  '1Sa': '1Sam', '2Sa': '2Sam', '1Ki': '1Kgs', '2Ki': '2Kgs', '1Ch': '1Chr', '2Ch': '2Chr', Ezr: 'Ezra', Neh: 'Neh',
+  Est: 'Esth', Job: 'Job', Psa: 'Ps', Pro: 'Prov', Ecc: 'Eccl', Sng: 'Song', Isa: 'Isa', Jer: 'Jer', Lam: 'Lam',
+  Ezk: 'Ezek', Dan: 'Dan', Hos: 'Hos', Jol: 'Joel', Amo: 'Amos', Oba: 'Obad', Jon: 'Jonah', Mic: 'Mic', Nam: 'Nah',
+  Hab: 'Hab', Zep: 'Zeph', Hag: 'Hag', Zec: 'Zech', Mal: 'Mal', Mat: 'Matt', Mrk: 'Mark', Luk: 'Luke', Jhn: 'John',
+  Act: 'Acts', Rom: 'Rom', '1Co': '1Cor', '2Co': '2Cor', Gal: 'Gal', Eph: 'Eph', Php: 'Phil', Col: 'Col',
+  '1Th': '1Thess', '2Th': '2Thess', '1Ti': '1Tim', '2Ti': '2Tim', Tit: 'Titus', Phm: 'Phlm', Heb: 'Heb', Jas: 'Jas',
+  '1Pe': '1Pet', '2Pe': '2Pet', '1Jn': '1John', '2Jn': '2John', '3Jn': '3John', Jud: 'Jude', Rev: 'Rev',
+};
+
+test('toOsis: STEPBible scheme — full 66-book coverage', () => {
+  assert.equal(Object.keys(STEPBIBLE_TOKENS).length, 66);
+  for (const [token, osis] of Object.entries(STEPBIBLE_TOKENS))
+    assert.equal(toOsis(token), osis, `STEPBible token ${token} should resolve to ${osis}`);
 });
 
-test('toOsis: NLT scheme', () => {
-  assert.equal(toOsis('Sol'), 'Song');
-  assert.equal(toOsis('Joh'), 'John');
-  assert.equal(toOsis('1Sa'), '1Sam');
+// Full NLT BOOKS map recovered from `git show 0855615:build/parse-nlt.mjs` (66 entries,
+// display name dropped — only the token -> OSIS half matters here).
+const NLT_TOKENS = {
+  Gen: 'Gen', Exo: 'Exod', Lev: 'Lev', Num: 'Num', Deu: 'Deut', Jos: 'Josh', Jdg: 'Judg', Rut: 'Ruth',
+  '1Sa': '1Sam', '2Sa': '2Sam', '1Ki': '1Kgs', '2Ki': '2Kgs', '1Ch': '1Chr', '2Ch': '2Chr', Ezr: 'Ezra', Neh: 'Neh',
+  Est: 'Esth', Job: 'Job', Psa: 'Ps', Pro: 'Prov', Ecc: 'Eccl', Sol: 'Song', Isa: 'Isa', Jer: 'Jer', Lam: 'Lam',
+  Eze: 'Ezek', Dan: 'Dan', Hos: 'Hos', Joe: 'Joel', Amo: 'Amos', Oba: 'Obad', Jon: 'Jonah', Mic: 'Mic', Nah: 'Nah',
+  Hab: 'Hab', Zep: 'Zeph', Hag: 'Hag', Zec: 'Zech', Mal: 'Mal', Mat: 'Matt', Mar: 'Mark', Luk: 'Luke', Joh: 'John',
+  Act: 'Acts', Rom: 'Rom', '1Co': '1Cor', '2Co': '2Cor', Gal: 'Gal', Eph: 'Eph', Phi: 'Phil', Col: 'Col',
+  '1Th': '1Thess', '2Th': '2Thess', '1Ti': '1Tim', '2Ti': '2Tim', Tit: 'Titus', Phm: 'Phlm', Heb: 'Heb', Jam: 'Jas',
+  '1Pe': '1Pet', '2Pe': '2Pet', '1Jo': '1John', '2Jo': '2John', '3Jo': '3John', Jud: 'Jude', Rev: 'Rev',
+};
+
+test('toOsis: NLT scheme — full 66-book coverage', () => {
+  assert.equal(Object.keys(NLT_TOKENS).length, 66);
+  for (const [token, osis] of Object.entries(NLT_TOKENS))
+    assert.equal(toOsis(token), osis, `NLT token ${token} should resolve to ${osis}`);
 });
 
 test('toOsis: THROWS on an unknown code (the regression guard)', () => {

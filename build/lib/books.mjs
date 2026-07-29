@@ -36,9 +36,11 @@ export const ALIASES = {
   Act: 'Acts', '1Co': '1Cor', '2Co': '2Cor', Php: 'Phil',
   '1Th': '1Thess', '2Th': '2Thess', '1Ti': '1Tim', '2Ti': '2Tim', Tit: 'Titus', Phm: 'Phlm',
   '1Pe': '1Pet', '2Pe': '2Pet', '1Jn': '1John', '2Jn': '2John', '3Jn': '3John', Jud: 'Jude',
+  Ezr: 'Ezra',
 
   // --- NLT tokens (was BOOKS in parse-nlt.mjs); overlaps with STEPBible are identical ---
   Sol: 'Song', Eze: 'Ezek', Joe: 'Joel', Mar: 'Mark', Joh: 'John',
+  Phi: 'Phil', Jam: 'Jas', '1Jo': '1John', '2Jo': '2John', '3Jo': '3John',
 
   // --- Tyndale, Roman scheme: StudyNotes.xml `name` attribute (was BOOK_FIX) ---
   ISam: '1Sam', IISam: '2Sam', IKgs: '1Kgs', IIKgs: '2Kgs', IChr: '1Chr', IIChr: '2Chr',

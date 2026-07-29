@@ -185,7 +185,7 @@ CREATE TABLE dict_verse (             -- ~39k rows: the ?bref= index
   lex_hit INTEGER NOT NULL);          -- precomputed relatedness signal D
 CREATE INDEX idx_dict_verse ON dict_verse(book, chapter, verse);
 
-CREATE TABLE tyndale_passages (       -- 298 themes + 124 profiles; mirrors study_notes shape
+CREATE TABLE tyndale_passages (       -- 298 themes + 125 profiles; mirrors study_notes shape
   kind TEXT NOT NULL,                 -- 'theme' | 'profile'
   title TEXT NOT NULL, book TEXT NOT NULL,
   start_chapter INTEGER NOT NULL, start_verse INTEGER NOT NULL,
@@ -331,7 +331,7 @@ In-app: the existing `.srcinfo` ⓘ tooltip on each new section and on the explo
 - Zero orphan books: `SELECT DISTINCT book FROM dict_verse LEFT JOIN verses … WHERE verses.book IS
   NULL` returns empty, same for `tyndale_passages` and `book_intros`. This is the check that catches
   a silent join failure.
-- Row counts: 6,141 `dict_articles`, 422 `tyndale_passages`, 66 `book_intros`.
+- Row counts: 6,141 `dict_articles`, 423 `tyndale_passages`, 66 `book_intros`.
 
 **Queries (`app/src/lib/db.queries.test.js`)** — covering-range behaviour, ranking order, book-level
 intro lookup, supplement attachment.

@@ -902,16 +902,16 @@ Run: `cd build && node parse-tyndale.mjs`
 
 Expected output (counts must match — these are verified facts about the source):
 ```
-verse text loaded: 31102 verses
+verse text loaded: 31104 verses
 dictionary articles: 6010
 supplements (textbox+chart): 131 (13 never embedded, host_id NULL)
 verse index rows: ~39000 (lex_hit on ~18000)
-passages (theme+profile): 422 {"theme":298,"profile":124}
+passages (theme+profile): 423 {"theme":298,"profile":125}
 book intros: 66
 bref links: 44132 seen, ~39000 kept, ~5000 dropped (apocrypha + chapter-only)
 ```
 
-**If `dictionary articles` is not exactly 6010, or `passages` is not 422 with theme=298 and profile=124, stop and fix the parser before continuing.** A count of 299 themes means the misfiled Profile was routed by filename instead of typename.
+**If `dictionary articles` is not exactly 6010, or `passages` is not 423 with theme=298 and profile=125, stop and fix the parser before continuing.** A count of 299 themes means the misfiled Profile was routed by filename instead of typename. (Profiles are 125, not 124: `Profiles.xml` holds 124 and `ThemeNotes.xml` contributes the misfiled one, `TheChurch`, verified unique — no name collision between the files.)
 
 - [ ] **Step 3: Verify the intermediates are a sane size**
 
@@ -1041,7 +1041,7 @@ In the `CREATE INDEX` block at the end, add:
 ```bash
 cd build && node build-db.mjs && node validate-db.mjs
 sqlite3 ../data/bible.db "SELECT COUNT(*) FROM dict_articles;"       # expect 6141
-sqlite3 ../data/bible.db "SELECT COUNT(*) FROM tyndale_passages;"    # expect 422
+sqlite3 ../data/bible.db "SELECT COUNT(*) FROM tyndale_passages;"    # expect 423
 sqlite3 ../data/bible.db "SELECT COUNT(*) FROM book_intros;"         # expect 66
 echo "--- orphan books (MUST be empty) ---"
 sqlite3 ../data/bible.db "SELECT DISTINCT d.book FROM dict_verse d LEFT JOIN verses v ON v.book=d.book WHERE v.book IS NULL;"
@@ -1646,7 +1646,7 @@ git commit -m "docs: attribute Tyndale Open Bible Dictionary (CC BY-SA 4.0)"
 - [ ] `cd app && npm test` — 116/116 green (104 pre-existing, none regressed)
 - [ ] `bible.db` rebuilds with `backup-data/` renamed away
 - [ ] Zero orphan books across `dict_verse`, `tyndale_passages`, `book_intros`
-- [ ] `dict_articles` 6,141 · `tyndale_passages` 422 (298 theme + 124 profile) · `book_intros` 66
+- [ ] `dict_articles` 6,141 · `tyndale_passages` 423 (298 theme + 125 profile) · `book_intros` 66
 - [ ] Context tab shows seven collapsible sections with working `q w e r t y u` hotkeys, scoped to the Context tab
 - [ ] Dictionary grid ranks `Abba` first at Mark 14:36 and includes `Centurion*` at Acts 10:1
 - [ ] `docs/ATTRIBUTIONS.md` records the CC BY-SA 4.0 attribution and the changes made

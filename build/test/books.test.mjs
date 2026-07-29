@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { OSIS_BOOKS, APOCRYPHA, ALIASES, toOsis, toOsisOrNull } from '../lib/books.mjs';
 
 test('OSIS_BOOKS: canonical 66 in order', () => {
@@ -126,4 +127,27 @@ test('ALIASES: no alias shadows a different canonical book', () => {
   const canon = new Set(OSIS_BOOKS);
   for (const [alias, osis] of Object.entries(ALIASES))
     if (canon.has(alias)) assert.equal(alias, osis, `alias ${alias} shadows canonical ${alias}`);
+});
+
+test('parse-nlt.mjs BOOKS: sync with toOsis, parsed as text to avoid PDF parser side effects', () => {
+  // CRITICAL: This test parses parse-nlt.mjs as text instead of importing it. The script
+  // loads a large PDF file and writes output files (data/bibles/NLT/*.json) as a side effect.
+  // Running that during test execution would pollute the data directory and slow tests. By
+  // parsing the source text with a regex instead, we extract and validate the BOOKS map
+  // without triggering the parser. If a future reader changes this to an import, they will
+  // reintroduce unwanted side effects in tests.
+  const src = fs.readFileSync(new URL('../parse-nlt.mjs', import.meta.url), 'utf8');
+  const entries = [...src.matchAll(/([A-Za-z0-9']+)\s*:\s*\['([A-Za-z0-9]+)'/g)]
+    .map((m) => [m[1].replace(/'/g, ''), m[2]]);
+
+  assert.equal(entries.length, 66, 'parse-nlt.mjs BOOKS should have exactly 66 entries');
+
+  for (const [token, declaredOsis] of entries) {
+    const resolvedOsis = toOsis(token);
+    assert.equal(
+      resolvedOsis,
+      declaredOsis,
+      `parse-nlt token '${token}' resolves to '${resolvedOsis}' but BOOKS declares '${declaredOsis}'`
+    );
+  }
 });

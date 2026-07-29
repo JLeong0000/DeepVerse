@@ -23,9 +23,13 @@ const ITEM_RE = /<item\b([^>]*)>\s*(?:<title>(.*?)<\/title>\s*)?(?:<refs>(.*?)<\
 const ATTR = (attrs, key) => (attrs.match(new RegExp(`(?:^|\\s)${key}="([^"]*)"`)) || [])[1] || null;
 
 export function* iterItems(xml) {
-  ITEM_RE.lastIndex = 0;
+  // Create a fresh regex instance per call so each generator has its own lastIndex state.
+  // Without this, nested iterItems calls share the same regex object and corrupt each other's
+  // position via the lastIndex property. String.prototype.matchAll and .replace do not have
+  // this issue, but repeated .exec() on a g-flagged regex does.
+  const re = new RegExp(ITEM_RE.source, ITEM_RE.flags);
   let m;
-  while ((m = ITEM_RE.exec(xml))) {
+  while ((m = re.exec(xml))) {
     yield {
       typename: ATTR(m[1], 'typename'),
       name: ATTR(m[1], 'name'),

@@ -152,3 +152,32 @@ test('titleTerms: head words for the lexical signal, qualifiers and stopwords dr
   assert.deepEqual(titleTerms('Joshua, Book of'), ['joshua']);
   assert.deepEqual(titleTerms('Urim and Thummim'), ['urim', 'thummim']);
 });
+
+test('iterItems: nested generators do not corrupt each other via shared regex state', () => {
+  const outer = `<items>
+  <item typename="Article" name="A"><title>A</title><body>a1</body></item>
+  <item typename="Article" name="B"><title>B</title><body>b1</body></item>
+  </items>`;
+  const inner = `<items>
+  <item typename="ThemeNote" name="X"><title>X</title><body>x1</body></item>
+  <item typename="ThemeNote" name="Y"><title>Y</title><body>y1</body></item>
+  <item typename="ThemeNote" name="Z"><title>Z</title><body>z1</body></item>
+  </items>`;
+
+  // Interleave two generators: partially consume outer, fully consume inner, resume outer
+  const outerGen = iterItems(outer);
+  const first = outerGen.next().value;
+  assert.equal(first.name, 'A', 'first outer item should be A');
+
+  // Now fully consume inner while outer is paused mid-iteration
+  const innerResults = [...iterItems(inner)];
+  assert.equal(innerResults.length, 3, 'inner should yield all 3 items');
+  assert.equal(innerResults[0].name, 'X');
+  assert.equal(innerResults[1].name, 'Y');
+  assert.equal(innerResults[2].name, 'Z');
+
+  // Resume outer and verify it continues correctly
+  const remaining = [...outerGen];
+  assert.equal(remaining.length, 1, 'outer should have 1 remaining item');
+  assert.equal(remaining[0].name, 'B', 'second outer item should be B');
+});

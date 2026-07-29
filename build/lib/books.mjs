@@ -59,8 +59,7 @@ export function isOsis(code) {
 // Strict: the caller asserts this code must be a real book in bible.db.
 export function toOsis(code) {
   if (CANON.has(code)) return code;
-  const mapped = ALIASES[code];
-  if (mapped) return mapped;
+  if (Object.hasOwn(ALIASES, code)) return ALIASES[code];
   if (APOCRYPHA.has(code)) throw new Error(`apocryphal book code: ${code} (use toOsisOrNull)`);
   throw new Error(`unknown book code: ${code}`);
 }

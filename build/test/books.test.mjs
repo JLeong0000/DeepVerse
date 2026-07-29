@@ -54,6 +54,20 @@ test('toOsis: THROWS on an unknown code (the regression guard)', () => {
   assert.throws(() => toOsis('Blah'), /unknown book code: Blah/);
 });
 
+test('toOsis: prototype-key bypass guard — rejects Object.prototype members', () => {
+  assert.throws(() => toOsis('constructor'), /unknown book code: constructor/);
+  assert.throws(() => toOsis('toString'), /unknown book code: toString/);
+  assert.throws(() => toOsis('hasOwnProperty'), /unknown book code: hasOwnProperty/);
+  assert.throws(() => toOsis('valueOf'), /unknown book code: valueOf/);
+});
+
+test('toOsisOrNull: prototype-key bypass guard — rejects Object.prototype members', () => {
+  assert.throws(() => toOsisOrNull('constructor'), /unknown book code: constructor/);
+  assert.throws(() => toOsisOrNull('toString'), /unknown book code: toString/);
+  assert.throws(() => toOsisOrNull('hasOwnProperty'), /unknown book code: hasOwnProperty/);
+  assert.throws(() => toOsisOrNull('valueOf'), /unknown book code: valueOf/);
+});
+
 test('toOsis: apocrypha throws — callers must use toOsisOrNull', () => {
   assert.throws(() => toOsis('1Macc'), /apocryphal book code: 1Macc/);
 });

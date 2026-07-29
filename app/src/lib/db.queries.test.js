@@ -46,6 +46,8 @@ describe('1.3 interlinear', () => {
     expect(db.getLexicon('H0996G')).not.toBeNull(); // base H0996 lookup after stripping trailing G
     // dStrong homograph sub-spelling: words key on H2235B, whose lexicon def sits under the dStrong column
     expect(db.getLexicon('H2235B')?.definition?.toLowerCase()).toContain('vegetable');
+    // bare normalized code (near-synonym) with only homograph-split entries H2654A/H2654a resolves via prefix
+    expect(db.getLexicon('H2654')).not.toBeNull();
   });
   test('word strongs drop the sub-sense suffix (both _A and _a) so they key on the base lemma', () => {
     // regression: lowercase _a/_b used to slip past the uppercase-only strip, leaving unresolvable codes

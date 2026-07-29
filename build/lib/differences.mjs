@@ -14,7 +14,10 @@ const SYN_MIN = 0.45;        // below this a near-synonym is used near-interchan
 const SYN_MAX = 0.60;        // above this it is not really a synonym
 const A_FREQ_MAX = 300;      // Type A: skip common words (copula/quantifiers/"say"/"God") — grammatical, not interpretive
 const SENSE_MIN_FRAC = 0.05;
+const SENSE_MIN_COUNT = 3;   // a sense rendered <3× is anecdotal, not a real spread — drop the sliver
 const SENSE_MIN_LEMMA_OCC = 8;
+const VERB_FREQ_MAX = 1000;  // Type B (OT): a predominantly-verb lemma above this is a grammatical
+                             // workhorse (say/be/go) whose gloss spread is inflection, not sense — drop it
 
 const isGreekContent = m => /^(N-|V-|A-|N|V)/.test(String(m || '')) && !/^(ADV|CONJ|PREP|PRT|T-)/.test(m);
 const grcTop = ln => String(ln || '').split('.')[0];
@@ -38,21 +41,23 @@ export function computeDifferences(db) {
   runLanguageGroup(db, insD, {
     langs: ['grc'], keyPrefix: 'G', normKey: s => s,
     isContent: isGreekContent, senseKeyFn: senseKey, topFn: grcTop,
-    typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX },
+    typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX,
+             excludeProperNouns: true, excludeCognates: true },
   });
 
   runLanguageGroup(db, insD, {
     langs: ['hbo', 'arc'], keyPrefix: 'H', normKey: baseHeb,
     isContent: isHebrewContent, senseKeyFn: hebrewSenseKey, topFn: hebTop,
     typeA: { synMin: SYN_MIN, synMax: SYN_MAX, freqMax: A_FREQ_MAX, freqMin: SENSE_MIN_LEMMA_OCC,
-             excludeProperNouns: true, requireDiffSense: true },
+             excludeProperNouns: true, requireDiffSense: true, excludeCognates: true },
+    typeB: { suppressVerbsAboveFreq: VERB_FREQ_MAX, excludeProperNouns: true },
   });
 
   db.exec('CREATE INDEX idx_diff_ref ON differences(book,chapter,verse);');
 }
 
 function runLanguageGroup(db, insD, cfg) {
-  const { langs, keyPrefix, normKey, isContent, senseKeyFn, topFn, typeA } = cfg;
+  const { langs, keyPrefix, normKey, isContent, senseKeyFn, topFn, typeA, typeB } = cfg;
   const inClause = langs.map(l => `'${l}'`).join(',');
 
   // --- domain per normalized strongs: full domain string + top-level ---
@@ -63,6 +68,35 @@ function runLanguageGroup(db, insD, cfg) {
     if (k && !lnFull.has(k)) lnFull.set(k, String(r.ln).trim());
   }
   const lnTop = new Map([...lnFull].map(([s, ln]) => [s, topFn(ln)]));
+
+  // --- cognate detection: a "near-synonym" that shares a ROOT with the word (makarizō/makarios,
+  // smyrna/smyrnizō) is the same word in another form, not a distinction English hides. Compare the
+  // diacritic-stripped dictionary lemmas; agapaō/phileō (different roots, same gloss "love") stay. ---
+  const stripDia = s => String(s || '').normalize('NFD').replace(/[̀-֑ͯ-ׇ]/g, '').toLowerCase();
+  const lemmaByKey = new Map();
+  if (typeA && typeA.excludeCognates) {
+    for (const r of db.prepare('SELECT code, lemma FROM lexicon').all()) {
+      if (!String(r.code).startsWith(keyPrefix) || !r.lemma) continue;
+      const k = normKey(r.code);
+      if (k && !lemmaByKey.has(k)) lemmaByKey.set(k, stripDia(r.lemma));
+    }
+  }
+  function longestCommon(a, b) {
+    let best = 0; const dp = Array(b.length + 1).fill(0);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = 0;
+      for (let j = 1; j <= b.length; j++) { const tmp = dp[j]; dp[j] = a[i - 1] === b[j - 1] ? prev + 1 : 0; if (dp[j] > best) best = dp[j]; prev = tmp; }
+    }
+    return best;
+  }
+  function areCognate(k1, k2) {
+    const a = lemmaByKey.get(k1), b = lemmaByKey.get(k2);
+    if (!a || !b) return false;
+    const lcs = longestCommon(a, b);
+    // >=3 catches short Greek/Hebrew roots (eri-, seb-, 3-consonant Hebrew roots); the half-length
+    // guard blocks coincidental overlap (agapaō/phileō share <3, so the flagship pair survives).
+    return lcs >= 3 && lcs >= Math.min(a.length, b.length) / 2;
+  }
 
   // --- symmetric synonym adjacency (normalized keys) ---
   const adj = new Map();
@@ -83,10 +117,19 @@ function runLanguageGroup(db, insD, cfg) {
   // --- OT-only Type-A precision filters (empty/no-op unless the group requests them) ---
   const properNoun = new Set();   // base strongs whose majority morph is a proper noun (Np)
   const repSense = new Map();     // base strongs -> representative cleaned sense key (most common gloss)
-  if (typeA && typeA.excludeProperNouns) {
-    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%' THEN 1 ELSE 0 END) np, COUNT(*) tot
+  if ((typeA && typeA.excludeProperNouns) || (typeB && typeB.excludeProperNouns)) {
+    // Hebrew/Aramaic proper nouns are morph 'Np…'; Greek tags them 'N-…-P' (person) / 'N-…-L' (place).
+    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'Np%' OR morph LIKE 'HNp%' OR morph LIKE 'ANp%'
+          OR morph LIKE 'N-%-P' OR morph LIKE 'N-%-L' THEN 1 ELSE 0 END) np, COUNT(*) tot
         FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
       const k = normKey(r.strongs); if (k && r.np > r.tot / 2) properNoun.add(k);
+    }
+  }
+  const verbLemma = new Set();    // base strongs whose majority morph is a verb (V) — for Type-B suppression
+  if (typeB && typeB.suppressVerbsAboveFreq) {
+    for (const r of db.prepare(`SELECT strongs, SUM(CASE WHEN morph LIKE 'V%' OR morph LIKE 'HV%' OR morph LIKE 'AV%' THEN 1 ELSE 0 END) v, COUNT(*) tot
+        FROM words WHERE lang IN (${inClause}) AND strongs<>'' GROUP BY strongs`).all()) {
+      const k = normKey(r.strongs); if (k && r.v > r.tot / 2) verbLemma.add(k);
     }
   }
   if (typeA && typeA.requireDiffSense) {
@@ -112,6 +155,7 @@ function runLanguageGroup(db, insD, cfg) {
           && lnTop.get(o) === dom && lnFull.get(o) !== sub
           && (!typeA.freqMin || ((freq.get(o) || 0) >= typeA.freqMin && (freq.get(strongs) || 0) >= typeA.freqMin))
           && (!typeA.excludeProperNouns || (!properNoun.has(o) && !properNoun.has(strongs)))
+          && (!typeA.excludeCognates || !areCognate(strongs, o))
           && (!typeA.requireDiffSense || (repSense.get(o) && repSense.get(strongs) && repSense.get(o) !== repSense.get(strongs))))
         .sort((x, y) => x[1] - y[1]).slice(0, 4)
         .map(([o, d]) => ({ strongs: o, distance: Number(d.toFixed(3)) }));
@@ -129,16 +173,19 @@ function runLanguageGroup(db, insD, cfg) {
     const gm = byStrong.get(k); gm.set(r.gloss_norm, (gm.get(r.gloss_norm) || 0) + r.c);
   }
   for (const [k, gm] of byStrong) {
+    if (typeB && typeB.suppressVerbsAboveFreq && verbLemma.has(k) && (freq.get(k) || 0) > typeB.suppressVerbsAboveFreq) continue;
+    if (typeB && typeB.excludeProperNouns && properNoun.has(k)) continue;   // place/person names have no sense-spread
     const total = [...gm.values()].reduce((n, c) => n + c, 0);
     if (total < SENSE_MIN_LEMMA_OCC) continue;
     const clusters = new Map();
     for (const [gloss, c] of gm) {
       const key = senseKeyFn(gloss);
+      if (!key) continue;   // all-stopword gloss (pronoun/auxiliary) — no lexical sense to count
       const cl = clusters.get(key) || { gloss, count: 0, top: 0 };
       cl.count += c; if (c > cl.top) { cl.top = c; cl.gloss = gloss; }
       clusters.set(key, cl);
     }
-    const senses = [...clusters.values()].filter(s => s.count / total >= SENSE_MIN_FRAC).sort((a, b) => b.count - a.count);
+    const senses = [...clusters.values()].filter(s => s.count >= SENSE_MIN_COUNT && s.count / total >= SENSE_MIN_FRAC).sort((a, b) => b.count - a.count);
     if (senses.length >= 2) senseByStrong.set(k, { senses: senses.map(s => ({ gloss: s.gloss, count: s.count })), total });
   }
 

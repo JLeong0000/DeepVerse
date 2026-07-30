@@ -53,6 +53,7 @@
 | `app/src/components/library/BookIndex.svelte` *(new)* | 66-cell grid |
 | `app/src/components/library/BookHub.svelte` *(new)* | Intro + themes + profiles + top-citing articles |
 | `app/src/components/library/ArticleSurface.svelte` *(new)* | Article body, doors, verse previews |
+| `app/src/components/library/PassageSurface.svelte` *(new)* | A theme or profile, rendered as prose |
 | `app/src/components/library/SearchSurface.svelte` *(new)* | Grouped results across all four routes |
 | `app/src/components/library/PathMap.svelte` *(new)* | Spine + branches modal, drag-to-pan |
 | `app/src/components/workbench/ArticleView.svelte` *(new)* | Article body renderer, extracted from `ArticleModal` |
@@ -820,6 +821,30 @@ describe('library explorer', () => {
     expect(x.out.find((o) => o.id === 'Animals').anchor).toBe('Cattle');
   });
 
+  test('getPassage returns a theme body, keyed by kind and title', () => {
+    const t = db.getPassage('theme', 'Holy War');
+    expect(t.book).toBe('Deut');
+    expect(t.ref).toBe('7:1-6');
+    expect(t.body.length).toBeGreaterThan(200);
+    expect(db.getPassage('profile', 'Holy War')).toBeNull();   // kind is part of the key
+  });
+
+  test('getPassage returns a profile body', () => {
+    const p = db.getPassage('profile', 'The Philistines');
+    expect(p.book).toBe('Judg');
+    expect(p.body.length).toBeGreaterThan(200);
+  });
+
+  test('every theme and profile in the index is retrievable', () => {
+    for (const t of db.getThemeIndex()) expect(db.getPassage('theme', t.title)).not.toBeNull();
+    for (const p of db.getProfileIndex()) expect(db.getPassage('profile', p.title)).not.toBeNull();
+  });
+
+  test('getXrefs.out carries the source wording for each target', () => {
+    const beast = db.getXrefs('Beast').out;
+    expect(beast.find((o) => o.id === 'MarkofGodMarkoftheBeast').raw).toBe('Mark of the Beast');
+  });
+
   test('getXrefs reports targets the source names but the corpus lacks', () => {
     // "Advent of Christ" is nothing but a See clause, one of whose three targets does not exist
     const x = db.getXrefs('AdventofChrist');
@@ -940,12 +965,23 @@ export function getArticle(id) {
   return query(`SELECT id, title, body, n_refs FROM dict_articles WHERE id=?`, [id])[0] || null;
 }
 
+// A theme or profile, so the Themes and Profiles routes are readable and not just browsable.
+// tyndale_passages has no id column, but titles are unique within a kind (298 themes, 125
+// profiles, all distinct), so (kind, title) is a safe key.
+export function getPassage(kind, title) {
+  return query(`SELECT kind, title, book, ref, body FROM tyndale_passages
+    WHERE kind = ? AND title = ?`, [kind, title])[0] || null;
+}
+
 // Both directions, plus the targets the source names that do not exist. Outbound feeds the doors
 // row; inbound is what the path map can reveal and nothing else in the UI can; `missing` is shown
 // honestly rather than dropped, because hiding it would overstate how complete the graph is.
 export function getXrefs(id) {
   return {
-    out: query(`SELECT a.id, a.title, x.anchor FROM dict_xref x
+    // `raw` is the target exactly as the source wrote it. The in-prose linkifier needs it to match
+    // the "See …" clause text: the clause says "Mark of the Beast", the article's title is
+    // "Mark of God*, Mark of the Beast". Matching on title alone would silently miss those.
+    out: query(`SELECT a.id, a.title, x.raw, x.anchor FROM dict_xref x
       JOIN dict_articles a ON a.id = x.dst
       WHERE x.src = ? AND x.dst IS NOT NULL ORDER BY x.seq`, [id]),
     in: query(`SELECT a.id, a.title FROM dict_xref x
@@ -1144,7 +1180,7 @@ export function nodeLabel(n) {
   if (n.kind === 'route') return ROUTE_NAMES[n.route] + (n.letter ? ` · ${n.letter}` : '');
   if (n.kind === 'search') return `“${n.q}”`;
   if (n.kind === 'hub') return n.book;
-  return displayTitle(n.title);
+  return displayTitle(n.title);   // 'article' and 'passage' both carry a title
 }
 
 export function articleDepth(stack) {
@@ -1895,8 +1931,10 @@ Create `app/src/components/library/PassageIndex.svelte`:
   });
   let profiles = $derived(kind === 'profiles' ? getProfileIndex() : []);
 
-  // A theme or profile is a passage, not a dictionary article — it opens at its anchor.
-  const openPassage = (p) => pushNode({ kind: 'hub', book: p.book });
+  // A theme or profile opens its own text. Its anchor passage is reachable from there — sending
+  // the user to the book hub instead would make these two routes browsable but unreadable.
+  const openPassage = (kindName, p) =>
+    pushNode({ kind: 'passage', pkind: kindName, title: p.title, book: p.book });
 </script>
 
 {#if kind === 'themes'}
@@ -1910,7 +1948,7 @@ Create `app/src/components/library/PassageIndex.svelte`:
         <div class="grouphd">{bookName(g.book)} · {g.items.length}</div>
         {#each g.items as t (t.title)}
           <div class="entry">
-            <button class="et" onclick={() => openPassage(t)}>{t.title}</button>
+            <button class="et" onclick={() => openPassage('theme', t)}>{t.title}</button>
             <span class="ref">{t.ref}</span>
           </div>
         {/each}
@@ -1927,7 +1965,7 @@ Create `app/src/components/library/PassageIndex.svelte`:
   <div class="cols3">
     {#each profiles as p (p.title)}
       <div class="entry">
-        <button class="et" onclick={() => openPassage(p)}>{p.title}</button>
+        <button class="et" onclick={() => openPassage('profile', p)}>{p.title}</button>
         {#if p.alsoArticle}<span class="also">also a dictionary article</span>{/if}
         <span class="ref">{bookName(p.book)} {p.ref}</span>
       </div>
@@ -2279,8 +2317,8 @@ Add above the markup:
     if (!m) return null;
     const targets = m[3].split(';').map((t) => {
       const raw = t.trim();
-      const hit = xrefs.out.find((o) => o.title === raw)
-        ?? xrefs.out.find((o) => o.title.split(', ').includes(raw));
+      // dict_xref.raw is the source's own wording, so this is an exact match, not a guess
+      const hit = xrefs.out.find((o) => o.raw === raw);
       return { raw, id: hit?.id ?? null };
     });
     return { lead: m[1], see: m[2], targets };
@@ -2439,6 +2477,97 @@ git commit -m "feat(app): add the library article surface with its exit doors"
 
 ---
 
+### Task 12b: Passage surface
+
+Themes and profiles must be readable, not just listable. Small task, but it is what makes two of the four routes function.
+
+**Files:**
+- Create: `app/src/components/library/PassageSurface.svelte`
+- Modify: `app/src/routes/Library.svelte`
+
+**Interfaces:**
+- Consumes: `getPassage` (Task 4); `ArticleView` (Task 6); `goToPassage` from `study.svelte.js`; `bookName` from `refs.js`.
+- Produces: `PassageSurface` with props `{ pkind, title }`.
+
+- [ ] **Step 1: Create the surface**
+
+Create `app/src/components/library/PassageSurface.svelte`:
+
+```svelte
+<script>
+  // A theme or profile: Tyndale's own essay, anchored to a passage. Rendered through the same
+  // ArticleView as a dictionary article — these are prose in the same block format.
+  import { getPassage } from '../../lib/db.js';
+  import { goToPassage } from '../../lib/study.svelte.js';
+  import { go } from '../../lib/router.svelte.js';
+  import { bookName } from '../../lib/refs.js';
+  import ArticleView from '../workbench/ArticleView.svelte';
+
+  // themes and profiles ship in the study-notes package, not the dictionary
+  const NOTE_SRC = 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
+
+  let { pkind, title } = $props();
+  let passage = $derived(getPassage(pkind, title));
+
+  function openInStudy() {
+    // `ref` is a display span like "7:1-6"; its first chapter:verse is the anchor
+    const [ch, v] = String(passage.ref).split('–')[0].split('-')[0].split(':');
+    goToPassage({ book: passage.book, chapter: +ch, verse: v ? +v : null });
+    go('study');
+  }
+</script>
+
+{#if passage}
+  <h3 class="stitle">{passage.title}</h3>
+  <div class="smeta">
+    {pkind === 'theme' ? 'Theme' : 'Profile'} · {bookName(passage.book)} {passage.ref} ·
+    <button class="jump" onclick={openInStudy}>Open in Study →</button>
+  </div>
+  <div class="body">
+    <ArticleView article={{ title: passage.title, body: passage.body, book: passage.book }}
+      source={NOTE_SRC} />
+  </div>
+{:else}
+  <p class="missing">That {pkind} is not in the corpus.</p>
+{/if}
+
+<style>
+  .stitle { font-size: 22px; margin: 0 0 4px; }
+  .smeta { font-size: 11.5px; color: var(--dim); margin-bottom: 14px; }
+  .jump { background: none; border: none; padding: 0; font-family: inherit; font-size: 11.5px;
+    color: var(--a); cursor: pointer; }
+  .jump:hover { text-decoration: underline; }
+  .body { max-width: 74ch; }
+  .missing { font-size: 12px; color: var(--dim); font-style: italic; }
+</style>
+```
+
+- [ ] **Step 2: Wire it in**
+
+In `app/src/routes/Library.svelte`:
+
+```javascript
+  import PassageSurface from '../components/library/PassageSurface.svelte';
+```
+
+```svelte
+    {:else if current.kind === 'passage'}
+      <PassageSurface pkind={current.pkind} title={current.title} />
+```
+
+- [ ] **Step 3: Check it live**
+
+Start → Themes → **Holy War**: the essay renders with `Theme · Deuteronomy 7:1-6` and a source footer, and `Open in Study →` lands on Deuteronomy 7:1. Start → Profiles → **The Philistines**: same shape, labelled `Profile`. The breadcrumb reads `Start › Themes › Holy War`. Both themes.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add app/src/components/library/PassageSurface.svelte app/src/routes/Library.svelte
+git commit -m "feat(app): make themes and profiles readable, not just browsable"
+```
+
+---
+
 ### Task 13: Search surface
 
 **Files:**
@@ -2492,7 +2621,8 @@ Create `app/src/components/library/SearchSurface.svelte`:
       <div class="cols2">
         {#each list as p (p.title)}
           <div class="entry">
-            <button class="et" onclick={() => pushNode({ kind: 'hub', book: p.book })}>{p.title}</button>
+            <button class="et" onclick={() => pushNode({ kind: 'passage',
+              pkind: label === 'Themes' ? 'theme' : 'profile', title: p.title, book: p.book })}>{p.title}</button>
             <span class="ref">{bookName(p.book)} {p.ref}</span>
           </div>
         {/each}
@@ -2813,6 +2943,7 @@ In `app/src/App.svelte`, extend `serialize()` so the library's current surface i
       const n = lib.stack.at(-1);
       if (n.kind === 'article') return `#/library/article/${encodeURIComponent(n.id)}`;
       if (n.kind === 'hub') return `#/library/book/${n.book}`;
+      if (n.kind === 'passage') return `#/library/${n.pkind}/${encodeURIComponent(n.title)}`;
       if (n.kind === 'route') return `#/library/${n.route}${n.letter ? '/' + n.letter : ''}`;
       return '#/library';
     }
@@ -2833,6 +2964,8 @@ In `applyHash`, restore the stack from the URL when entering the library directl
         pushNode({ kind: 'article', id: decodeURIComponent(parts[2]), title: decodeURIComponent(parts[2]) });
       } else if (parts[1] === 'book' && parts[2]) {
         pushNode({ kind: 'hub', book: parts[2] });
+      } else if ((parts[1] === 'theme' || parts[1] === 'profile') && parts[2]) {
+        pushNode({ kind: 'passage', pkind: parts[1], title: decodeURIComponent(parts[2]) });
       } else if (['dict', 'themes', 'profiles', 'books'].includes(parts[1])) {
         pushNode({ kind: 'route', route: parts[1], letter: parts[2] ?? undefined });
       }
@@ -2842,13 +2975,19 @@ In `applyHash`, restore the stack from the URL when entering the library directl
 Extend `keyOf()` so an article change pushes a history entry rather than replacing:
 
 ```javascript
-  const keyOf = () => `${route.view}/${study.book}/${study.chapter}/${route.view === 'library' ? lib.stack.length : ''}`;
+  // keyed on the current node's identity, not stack depth: a path-map branch jump truncates then
+  // pushes and can land on the same depth, which would skip the history entry.
+  const libKey = () => {
+    const n = lib.stack.at(-1);
+    return `${lib.stack.length}:${n.kind}:${n.id ?? n.book ?? n.q ?? n.route ?? ''}${n.letter ?? ''}`;
+  };
+  const keyOf = () => `${route.view}/${study.book}/${study.chapter}/${route.view === 'library' ? libKey() : ''}`;
 ```
 
 And add `lib.stack.length` to the effect's reactive dependencies:
 
 ```javascript
-    void `${route.view}/${study.book}/${study.chapter}/${study.verse}/${lib.stack.length}`;
+    void `${route.view}/${study.book}/${study.chapter}/${study.verse}/${lib.stack.length}/${lib.stack.at(-1)?.id ?? ''}`;
 ```
 
 > A restored article node carries its id as its title until the surface loads the real one. `ArticleSurface` reads the article from the DB by id, so the heading is always correct; only the breadcrumb label is briefly the id. Fix by having `ArticleSurface` write the real title back:

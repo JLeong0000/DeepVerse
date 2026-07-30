@@ -1,0 +1,934 @@
+<meta charset="utf-8" />
+<h2>Library (#/library) — single column, drill-down, breadcrumb spine</h2>
+<p class="subtitle">
+  Phase 2 of the Tyndale cultural layer. No sidebar: one surface at a time — <b>start → a route's index → an
+  article</b> — under a centred, linkable breadcrumb that <i>is</i> the navigation stack. The <code>Start</code>
+  crumb is the way home, so there is no separate return button.
+</p>
+<p class="subtitle">
+  <b>Try it:</b> pick <b>Dictionary → B</b> · open <b>Beast</b> · follow two or three <b>Where this leads</b> doors ·
+  then hit <b>⁂ View path map</b>. It draws your route as a spine with every branch you <i>didn’t</i> take hanging
+  off it — click one and the trail rewinds to that step and continues from there. Also try <b>✦ Wander in</b>,
+  search <code>revelation</code> (one query, three datasets), and <b>Books → Revelation</b> for the hub.
+  Toggle light/dark top-right.
+</p>
+<p class="subtitle" style="font-style:italic">
+  Every title, body, cross-reference, theme, profile, count and citation figure is real, queried from
+  <code>data/bible.db</code>. Nothing is invented — including the warts listed at the bottom.
+</p>
+
+<style>
+  .lb { --bg:#f2ede2; --panel:#f7f3ea; --ink:#201d18; --dim:#6b6459; --rule:#d8cdb8; --a:#8a2f2f; --b:#33407a;
+    background:var(--bg); color:var(--ink); font-family:"Iowan Old Style",Charter,Georgia,serif;
+    border-radius:8px; overflow:hidden; border:1px solid rgba(127,127,127,.25); transition:background .25s,color .25s;
+    position:relative; }  /* the path-map overlay positions against this box */
+  .lb.dark { --bg:#1c1813; --panel:#24201a; --ink:#e6ddc9; --dim:#9a9080; --rule:#3a3327; --a:#d98070; --b:#93a3da; }
+
+  /* ---- app header (matches App.svelte) ---- */
+  .lb .top { display:flex; align-items:center; gap:18px; padding:9px 22px; border-bottom:1px solid var(--rule); }
+  .lb .brand { font-size:13px; font-variant:small-caps; letter-spacing:.1em; color:var(--dim); }
+  .lb nav { display:flex; gap:4px; }
+  .lb .navlink { background:none; border:none; cursor:pointer; font-family:inherit; color:var(--dim);
+    font-variant:small-caps; letter-spacing:.06em; font-size:12px; padding:3px 8px; border-radius:5px; }
+  .lb .navlink:hover { color:var(--ink); }
+  .lb .navlink.active { color:var(--a); }
+  .lb .toggle { margin-left:auto; cursor:pointer; border:1px solid var(--rule); border-radius:50%; width:26px; height:26px;
+    display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:14px; background:transparent; }
+
+  /* ---- persistent frame: return + breadcrumb + search ---- */
+  .lb .frame { border-bottom:1px solid var(--rule); background:var(--panel); padding:10px 30px 12px; }
+  /* the breadcrumb is the primary control here, so it sits below the search field and carries the
+     larger type. There is no separate "return to start" — the Start crumb is it. Trail left,
+     map button right, so the button holds one position instead of sliding as the trail grows. */
+  .lb .navrow { display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+    min-height:21px; margin-top:11px; }
+  .lb .crumbs { display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; min-width:0;
+    font-size:14px; color:var(--dim); }
+  /* a link, not a button — it is a way of looking at the trail beside it, not an action on the page */
+  .lb .mapbtn { background:none; border:none; padding:0; font-family:inherit; font-size:12px;
+    color:var(--b); cursor:pointer; white-space:nowrap; }
+  .lb .mapbtn:hover { text-decoration:underline; text-underline-offset:2px; }
+  /* the middle-truncation expander */
+  .lb .crumbs .ell { color:var(--dim); letter-spacing:.06em; }
+  .lb .crumbs .ell:hover { color:var(--ink); text-decoration:none; }
+  .lb .crumbs button { background:none; border:none; font-family:inherit; font-size:14px; color:var(--b);
+    cursor:pointer; padding:0; }
+  .lb .crumbs button:hover { text-decoration:underline; }
+  .lb .crumbs .sep { opacity:.5; font-size:12px; }
+  .lb .crumbs .cur { color:var(--ink); }
+  /* depth marker — appears once the chain is worth remarking on */
+  .lb .depth { font-size:10px; color:var(--a); border:1px solid var(--rule); border-radius:9px;
+    padding:1px 7px; letter-spacing:.08em; font-variant:small-caps; }
+  .lb .searchrow { display:flex; gap:8px; }
+  .lb .search { flex:1; font-family:inherit; font-size:13.5px; padding:8px 11px; border:1px solid var(--rule);
+    border-radius:6px; background:var(--bg); color:var(--ink); }
+  .lb .search:focus { outline:none; border-color:var(--a); }
+  .lb .wander { background:transparent; border:1px solid var(--rule); border-radius:6px; padding:0 14px;
+    font-family:inherit; font-size:12px; color:var(--a); cursor:pointer; white-space:nowrap;
+    font-variant:small-caps; letter-spacing:.06em; }
+  .lb .wander:hover { border-color:var(--a); background:var(--bg); }
+
+  /* ---- the surface ---- */
+  /* content centres at 1100px, matching Home.svelte's .page — a 74ch measure left-aligned in a
+     full-width pane leaves the right half empty and reads as broken */
+  .lb .surface { height:582px; overflow-y:auto; padding:22px 30px 40px; }
+  .lb .inner, .lb .navrow, .lb .searchrow { max-width:1100px; margin-left:auto; margin-right:auto; }
+  .lb .stitle { font-size:22px; margin:0 0 4px; }
+  .lb .smeta { font-size:11.5px; color:var(--dim); margin-bottom:20px; }
+  .lb .smeta .jump { color:var(--a); cursor:pointer; }
+  .lb .smeta .jump:hover { text-decoration:underline; }
+
+  /* ---- start page: route cards ---- */
+  .lb .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:14px; }
+  .lb .card { background:var(--panel); border:1px solid var(--rule); border-radius:8px; padding:15px 17px 16px;
+    cursor:pointer; text-align:left; font-family:inherit; color:var(--ink); transition:border-color .15s, transform .15s; }
+  .lb .card:hover { border-color:var(--a); transform:translateY(-2px); }
+  .lb .card .cn { font-size:16px; margin-bottom:2px; }
+  .lb .card .cc { font-size:10.5px; color:var(--dim); font-variant:small-caps; letter-spacing:.06em; }
+  .lb .card .cd { font-size:12px; color:var(--dim); line-height:1.5; margin-top:9px; }
+  .lb .card .eg { display:block; margin-top:9px; padding-top:8px; border-top:1px dashed var(--rule);
+    font-size:12px; color:var(--ink); }
+  .lb .card .eg .egl { font-size:9.5px; color:var(--dim); font-variant:small-caps; letter-spacing:.07em; display:block; }
+  .lb .card .eg .egr { color:var(--b); font-size:10.5px; margin-left:6px; }
+  .lb .stats { margin-top:24px; padding-top:14px; border-top:1px solid var(--rule); display:flex; gap:30px; }
+  .lb .stat .sv { font-size:20px; } .lb .stat .sl2 { font-size:10px; color:var(--dim);
+    font-variant:small-caps; letter-spacing:.06em; }
+  .lb .starthint { font-size:11.5px; color:var(--dim); font-style:italic; margin-top:16px; line-height:1.55; }
+
+  /* ---- index surfaces ---- */
+  .lb .azgrid { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:18px; }
+  .lb .azgrid button { background:transparent; border:1px solid var(--rule); border-radius:4px; min-width:26px;
+    padding:3px 5px; font-family:inherit; font-size:11.5px; color:var(--dim); cursor:pointer; }
+  .lb .azgrid button:hover { color:var(--ink); border-color:var(--a); }
+  .lb .azgrid button.on { color:var(--bg); background:var(--a); border-color:var(--a); }
+  .lb .cols3 { columns:3; column-gap:34px; }
+  .lb .cols2 { columns:2; column-gap:34px; }
+  @media (max-width:900px) { .lb .cols3, .lb .cols2 { columns:1; } }
+  .lb .e { break-inside:avoid; margin-bottom:9px; }
+  .lb .e button.et { background:none; border:none; font-family:inherit; font-size:13px; color:var(--ink);
+    cursor:pointer; padding:0; text-align:left; }
+  .lb .e button.et:hover { color:var(--a); }
+  .lb .e .eg2 { font-size:11px; color:var(--dim); line-height:1.4; display:block; margin-top:1px; }
+  .lb .e .er { font-size:10.5px; color:var(--b); margin-left:5px; }
+  .lb .e .also { font-size:9px; color:var(--b); border:1px solid var(--rule); border-radius:3px;
+    padding:0 3px; margin-left:5px; }
+  /* a bare "See X." stub is a redirect line, not an entry */
+  .lb .e.rd { font-size:11.5px; color:var(--dim); }
+  .lb .e.rd button { background:none; border:none; font-family:inherit; font-size:11.5px; color:var(--a);
+    cursor:pointer; padding:0; }
+  .lb .e.rd button:hover { text-decoration:underline; }
+  .lb .grouphd { font-variant:small-caps; letter-spacing:.06em; font-size:11px; color:var(--b);
+    margin:0 0 6px; break-after:avoid; }
+  .lb .groupblk { break-inside:avoid-column; margin-bottom:17px; }
+  .lb .bookgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:5px; }
+  .lb .bookgrid button { background:transparent; border:1px solid var(--rule); border-radius:5px; padding:6px 9px;
+    font-family:inherit; font-size:12.5px; color:var(--ink); cursor:pointer; text-align:left; }
+  .lb .bookgrid button:hover { border-color:var(--a); }
+
+  /* ---- article ---- */
+  .lb .ablk { margin:0 0 11px; font-size:14px; line-height:1.75; max-width:74ch; }
+  .lb .ahead { margin:22px 0 8px; font-size:12px; font-weight:600; color:var(--b);
+    font-variant:small-caps; letter-spacing:.06em; }
+  .lb .aitem { margin:0 0 6px; padding-left:16px; font-size:14px; line-height:1.65; max-width:74ch; }
+  .lb .xref { background:none; border:none; font-family:inherit; font-size:inherit; color:var(--a);
+    cursor:pointer; padding:0; border-bottom:1px dotted var(--a); }
+  .lb .xref:hover { border-bottom-style:solid; }
+  .lb .xref.dead { color:var(--ink); border-bottom:none; cursor:default; }
+  .lb .sref { background:none; border:none; font-family:inherit; font-size:inherit; color:var(--b);
+    cursor:pointer; padding:0; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; }
+  .lb .sref:hover { text-decoration-style:solid; }
+  .lb .prev { margin:8px 0 13px; padding:9px 12px; border-left:2px solid var(--b); background:var(--panel);
+    font-size:13px; line-height:1.6; border-radius:0 5px 5px 0; max-width:74ch; }
+  .lb .prev .pr { font-size:10.5px; color:var(--b); font-variant:small-caps; letter-spacing:.05em; }
+  .lb .prev .open { display:block; margin-top:5px; background:none; border:none; font-family:inherit;
+    font-size:11px; color:var(--a); cursor:pointer; padding:0; }
+  .lb .prev .open:hover { text-decoration:underline; }
+
+  /* ---- "Where this leads" — the exit row that makes an article a junction ---- */
+  .lb .leads { margin-top:26px; padding:14px 16px 15px; border:1px solid var(--rule); border-radius:8px;
+    background:var(--panel); }
+  .lb .leads .ll { font-variant:small-caps; letter-spacing:.07em; font-size:11px; color:var(--dim); margin-bottom:9px; }
+  .lb .doors { display:flex; flex-wrap:wrap; gap:6px; }
+  .lb .door { background:var(--bg); border:1px solid var(--rule); border-radius:6px; padding:5px 11px;
+    font-family:inherit; font-size:12.5px; color:var(--ink); cursor:pointer; }
+  .lb .door:hover { border-color:var(--a); color:var(--a); }
+  .lb .door .sub { color:var(--dim); font-size:10px; margin-left:5px; }
+  .lb .deadend { font-size:12px; color:var(--dim); font-style:italic; line-height:1.55; }
+  .lb .named { margin-top:9px; font-size:11px; color:var(--dim); line-height:1.5; font-style:italic; }
+
+  /* ---- path map: the breadcrumb as a spine, with every untaken branch hanging off it ---- */
+  .lb .backdrop { position:absolute; inset:0; z-index:80; background:rgba(0,0,0,.45); }
+  .lb .mapmodal { position:absolute; z-index:81; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:calc(100% - 48px); max-height:calc(100% - 48px); background:var(--panel);
+    border:1px solid var(--rule); border-radius:10px; display:flex; flex-direction:column;
+    box-shadow:0 18px 60px rgba(0,0,0,.4); }
+  .lb .maphd { display:flex; align-items:baseline; gap:10px; padding:13px 17px 9px;
+    border-bottom:1px solid var(--rule); }
+  .lb .maphd .ll { font-size:14px; color:var(--ink); }
+  .lb .maphd .sub { font-size:11px; color:var(--dim); }
+  .lb .maphd .close { margin-left:auto; background:transparent; border:none; color:var(--dim);
+    font-family:inherit; font-size:13px; cursor:pointer; }
+  .lb .maphd .close:hover { color:var(--ink); }
+  .lb .mapscroll { overflow:auto; padding:6px 10px; }
+  .lb .mapscroll.pannable { cursor:grab; }
+  .lb .mapscroll.panning { cursor:grabbing; user-select:none; }
+  .lb .mapsvg { display:block; }
+  .lb .mapsvg .lnk { stroke:var(--rule); stroke-width:1.2; }
+  .lb .mapsvg .lnk.path { stroke:var(--a); stroke-width:2; }
+  .lb .mapsvg .lnk.jumped { stroke:var(--dim); stroke-width:1.2; stroke-dasharray:4 4; }
+  .lb .mapsvg .lnk.gone { stroke:var(--dim); stroke-dasharray:2 3; opacity:.55; }
+  .lb .mapsvg .nd { fill:var(--bg); stroke:var(--dim); stroke-width:1.3; cursor:pointer; }
+  .lb .mapsvg .nd:hover { stroke:var(--a); stroke-width:2.2; }
+  .lb .mapsvg .nd.on { fill:var(--a); stroke:var(--a); }
+  .lb .mapsvg .nd.spine { fill:var(--panel); stroke:var(--a); stroke-width:1.8; }
+  .lb .mapsvg .nd.step { fill:var(--panel); stroke:var(--dim); stroke-dasharray:3 2; }
+  .lb .mapsvg .nd.gone { fill:none; stroke:var(--dim); stroke-dasharray:2 2; cursor:not-allowed; opacity:.6; }
+  .lb .mapsvg text { font-size:10.5px; fill:var(--ink); pointer-events:none; }
+  .lb .mapsvg text.on { fill:var(--a); font-weight:600; }
+  .lb .mapsvg text.spine { fill:var(--ink); font-weight:600; }
+  .lb .mapsvg text.step { fill:var(--dim); }
+  .lb .mapsvg text.gone { fill:var(--dim); font-style:italic; }
+  .lb .maplg { display:flex; flex-wrap:wrap; gap:15px; padding:9px 17px 13px; font-size:10.5px;
+    color:var(--dim); border-top:1px solid var(--rule); }
+  .lb .maplg span { display:inline-flex; align-items:center; gap:5px; }
+  .lb .maplg i { width:17px; height:0; border-top:1px solid var(--rule); display:inline-block; }
+  .lb .maplg i.path { border-top:2px solid var(--a); }
+  .lb .maplg i.jumped { border-top:1px dashed var(--dim); }
+
+  .lb .src { margin-top:24px; padding-top:11px; border-top:1px solid var(--rule); font-size:11px;
+    line-height:1.5; color:var(--dim); }
+  .lb .src .sl { font-variant:small-caps; letter-spacing:.05em; }
+
+  /* ---- book hub ---- */
+  .lb .hubfield { margin:0 0 10px; max-width:74ch; }
+  .lb .hubfield .k { font-size:11px; color:var(--b); font-variant:small-caps; letter-spacing:.06em; display:block; }
+  .lb .hubfield .v { font-size:13.5px; line-height:1.6; }
+  .lb .hubsec { margin-top:24px; padding-top:13px; border-top:1px solid var(--rule); }
+  .lb .hubsec > .hl { font-variant:small-caps; letter-spacing:.06em; font-size:11px; color:var(--dim); margin-bottom:8px; }
+  .lb .chips { display:flex; flex-wrap:wrap; gap:5px; }
+  .lb .chip { background:transparent; border:1px solid var(--rule); border-radius:5px; padding:4px 9px;
+    font-family:inherit; font-size:12px; color:var(--ink); cursor:pointer; text-align:left; }
+  .lb .chip:hover { border-color:var(--a); }
+  .lb .chip .n { color:var(--dim); font-size:10px; margin-left:5px; }
+  .lb .chip .r { color:var(--b); font-size:10px; margin-left:5px; }
+  .lb .note { font-size:11px; color:var(--dim); line-height:1.55; margin-top:8px; font-style:italic; max-width:74ch; }
+  .lb .reslbl { font-variant:small-caps; letter-spacing:.06em; font-size:11px; color:var(--b);
+    margin:18px 0 7px; padding-top:11px; border-top:1px solid var(--rule); }
+  .lb .reslbl:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+  .lb .nores { font-size:12.5px; color:var(--dim); font-style:italic; }
+</style>
+
+<div class="lb" id="lb">
+  <div class="top">
+    <span class="brand">DeepVerse</span>
+    <nav>
+      <button class="navlink">Home</button><button class="navlink">Study</button>
+      <button class="navlink active">Library</button>
+      <button class="navlink">Compare</button><button class="navlink">Memo</button>
+    </nav>
+    <button class="toggle" id="lbToggle">☾</button>
+  </div>
+
+  <div class="frame">
+    <div class="searchrow">
+      <input class="search" id="lbSearch" type="text" placeholder="Search the library — press / to focus…" autocomplete="off" />
+      <button class="wander" id="lbWander">✦ Wander in</button>
+    </div>
+    <div class="navrow">
+      <div class="crumbs" id="lbCrumbs"></div>
+      <div id="lbMapBtn"></div>
+    </div>
+  </div>
+
+  <div class="surface"><div class="inner" id="lbSurface"></div></div>
+  <div id="lbMap"></div>
+</div>
+
+<script>
+(function () {
+  const root = document.getElementById('lb');
+  document.getElementById('lbToggle').onclick = function () {
+    root.classList.toggle('dark');
+    this.textContent = root.classList.contains('dark') ? '☀' : '☾';
+  };
+
+  const DICT_SRC = 'Tyndale Open Bible Dictionary · © 2023 Tyndale House Publishers · CC BY-SA 4.0';
+  const NOTE_SRC = 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  // Tyndale files scripture books under an inverted headword — "Revelation, Book of" — which is
+  // right for an A–Z index and wrong everywhere the title is used as a name. De-inverting is only
+  // safe against an EXACT allowlist of these ten phrases (62 articles): the corpus also contains
+  // inversions with no marker ("Paulus, Sergius", "Calf, Golden") that are indistinguishable from
+  // alternate spellings ("Elect, Election", "Zidon*, Zidonian*"), so a general rule would mangle
+  // hundreds of titles. Same discipline as scripture.js: an exact allowlist, never a prefix.
+  const INVERSIONS = ['Book of the', 'Books of First and Second', 'Book of', 'Books of',
+    'Gospel of', 'Letter to the', 'Letters to the', 'Letter to', 'Letter of', 'Letters of'];
+  function displayTitle(t) {
+    const i = t.lastIndexOf(', ');
+    if (i < 0) return t;
+    const head = t.slice(0, i), tail = t.slice(i + 2);
+    return INVERSIONS.includes(tail) ? `${tail} ${head}` : t;
+  }
+
+  // ---- real NIV previews for the scripture refs that appear in these bodies ----
+  const VERSES = {
+    'Gn 1:24':   ['Gen 1:24',   'And God said, "Let the land produce living creatures according to their kinds: livestock, creatures that move …'],
+    'Dn 7':      ['Dan 7:3',    'Four great beasts, each different from the others, came up out of the sea.'],
+    '1 Jn 2:18': ['1John 2:18', 'Dear children, this is the last hour; and as you have heard that the antichrist is coming, even now many antic…'],
+    '2 Thes 2:3':['2Thess 2:3', "Don't let anyone deceive you in any way, for that day will not come until the rebellion occurs and the man of …"],
+    'Rv 13:1':   ['Rev 13:1',   'And the dragon stood on the shore of the sea.'],
+  };
+
+  // ---- real article bodies ----
+  const A = {
+    babel: { id:'babel', title:'Babel', refs:9, body:
+`Ancient city in the plain of Shinar where, according to Genesis 11, the descendants of Noah attempted to build a tower reaching to the heavens, and where God confused their language and scattered them over the earth. The Hebrew name is the same word rendered “Babylon” everywhere else in the OT.
+The narrative explains the diversity of human language as a judgment on collective pride. The builders said, “let us make a name for ourselves” — the opposite of the promise God would later make to Abraham, that he would make Abraham’s name great.
+See Babylon, Babylonia; Shinar; Nimrod.` },
+
+    beast: { id:'beast', title:'Beast', refs:34, body:
+`Animal in both the OT and NT, having in some cases a figurative significance. The word has a variety of meanings in the OT. Some of the diversity is due to inconsistent translations of several Hebrew words that can signify “living creature” as well as “beast,” but which have sometimes been translated only as “beast.” In the OT, therefore, beast can refer to the following:
+- 1. In general, any animal (e.g., Gn 1:24; Ps 36:6), but often distinguished from fish, birds, and insects.
+- 2. A domesticated animal (e.g., Ex 19:13; 22:10; Nm 3:13).
+- 3. A wild and sometimes carnivorous animal (e.g., Gn 37:20; Ex 23:11; Dt 28:26).
+- 4. The figurative usage of the word “beast” is most apparent in the books of Daniel and Revelation. In Daniel (especially Dn 7) the beast is a symbol of a world ruler who persecutes and oppresses the people of God. In Revelation the apostle John took over that concept with its vivid imagery to speak of the final persecution of God’s people at the end of history. John’s beast in its apostasy closely resembles the “antichrist” of his earlier epistles (1 Jn 2:18, 22; 4:3) and Paul’s “man of lawlessness” (2 Thes 2:3). Many Bible commentators regard the three as designating the same individual. See Antichrist; Armageddon; Mark of the Beast; Revelation, Book of.` },
+
+    babylon: { id:'babylon', title:'Babylon, Babylonia', refs:118, body:
+`City on the Euphrates and the empire it governed, the dominant power of the ancient Near East in the seventh and sixth centuries BC, and the agent of Judah’s exile.
+## The City
+Babylon lay on both banks of the Euphrates about 50 miles south of modern Baghdad. Nebuchadnezzar II rebuilt it on a monumental scale, and the classical writers counted its walls among the wonders of the world.
+## Babylon in Prophecy
+The prophets treat Babylon both as a historical empire and as a symbol of organised human arrogance, a usage the book of Revelation takes up directly.
+See Babel; Nebuchadnezzar, Nebuchadrezzar; Exile; Revelation, Book of.` },
+
+    antichrist: { id:'antichrist', title:'Antichrist', refs:12, body:
+`According to 1 John, anyone who denies that Jesus is the Christ, that he is the unique Son of God, or that he has come in the flesh. The biblical term, however, principally refers to a particular person in whom that denial reaches its consummate expression and who will play a key role in the final stage of history.
+The word “antichrist” occurs only four times, all in John’s epistles (1 Jn 2:18, 22; 4:3; 2 Jn 1:7). First John 2:18 refers also to “many antichrists.” John assumed that his Christian readers knew about the Antichrist and had been taught to expect his coming. The presence of many antichrists, in fact, indicated that the end times had arrived. But John warned that a final Antichrist who, like the others, would deny that Jesus is the Christ, would yet make an appearance.
+See also False Christs, False Messiahs; Mark of the Beast; Prophets, False; Beast; Revelation, Book of.` },
+
+    markofgod: { id:'markofgod', title:'Mark of God*, Mark of the Beast', refs:16, body:
+`Ensignia placed on people either by God or by the Antichrist. Though the phrase is limited to the book of Revelation, a mark was used in Ezekiel 9:4-6. In his vision Ezekiel saw the inhabitants of Jerusalem slain for their wickedness, except those upon whose foreheads God had put a mark. The mark was one of identification for the purpose of protection.
+In Revelation 13 the specific phrase “the mark of the beast” is used. The context is John’s vision of the two beasts. The one from the sea (Rv 13:1) symbolizes the Antichrist with political power over the inhabitants of the earth.
+See Antichrist; Beast; Revelation, Book of.` },
+
+    armageddon: { id:'armageddon', title:'Armageddon', refs:6, body:
+`Place where the final battle between the forces of good and evil is to be fought. The name occurs only once in Scripture, in Revelation 16:16.
+See Beast; Revelation, Book of.` },
+
+    revbook: { id:'revbook', title:'Revelation, Book of', refs:225, body:
+`Last book of the NT, and the only one that is wholly apocalyptic in form. Its author identifies himself simply as John, a servant of Jesus Christ, writing to seven churches in the Roman province of Asia.
+## Author
+The traditional view identifies the author with John the apostle. The book itself claims only the name John, without the apostolic title.
+## Purpose
+To strengthen churches facing persecution by disclosing the ultimate victory of God over every power arrayed against him.
+See Antichrist; Beast; Jerusalem, New.` },
+
+    nazirite: { id:'nazirite', title:'Nazarite*, Nazirite', refs:19, body:
+`Person who was either chosen or consecrated for life or for a set period of time to complete a vow to God. The Nazirite devoted himself to self-imposed discipline in order to perform some special service.
+Israelite tradition viewed the Nazirite as consecrated for life. Samson was the ancient hero of the Nazirites. He was “consecrated to God” through the vow of his mother and remained under that vow to the “day of his death.” As long as Samson’s hair was not cut, he was able to receive the Spirit of the Lord and thereby perform amazing physical feats.
+Naziritism developed into a ritual for those who sought to consecrate themselves temporarily to God. During the period of consecration, the devotee abstained from drinking wine, allowed his hair to grow, and avoided all contact with dead bodies.` },
+
+    shepherd: { id:'shepherd', title:'Shepherd', refs:41, body:
+`One who tends a flock — an occupation so common in Israel that it became the standard image for leadership, both human and divine.
+The shepherd’s work was constant and unglamorous: finding pasture and water in dry country, counting the flock, carrying the weak, and defending against predators and thieves through the night.
+That daily reality is what gives the metaphor its force when it is applied to kings, to prophets, and to God himself.` },
+  };
+
+  // "Mark of the Beast" is the SECOND headword of "Mark of God*, Mark of the Beast" — reached by the
+  // unique-title-segment tier, not by an exact title match. The nulls are named by the source but
+  // genuinely absent from the corpus (5% of all targets), so they must degrade to plain text.
+  const XREF = {
+    'Antichrist':'antichrist', 'Armageddon':'armageddon', 'Beast':'beast', 'Babel':'babel',
+    'Mark of the Beast':'markofgod', 'Revelation, Book of':'revbook', 'Babylon, Babylonia':'babylon',
+    'False Christs, False Messiahs':null, 'Prophets, False':null, 'Jerusalem, New':null,
+    'Shinar':null, 'Nimrod':null, 'Nebuchadnezzar, Nebuchadrezzar':null, 'Exile':null,
+  };
+
+  // ---- real dictionary entries, letter B ----
+  const DICT_B = [
+    ['Baal (Idol)',1730],['Baal (Person)',226],['Baal* (Place)',137],['Baal-Berith',358],['Baal-Gad',157],
+    ['Baal-Hamon',145],['Baal-Hanan',270],['Baal-Hazor',575],['Baal-Hermon',312],['Baal-Meon',377],
+    ['Baal-Peor',457],['Baal-Perazim',420],['Baal-Shalishah',266],['Baal-Tamar',249],['Baal-Zebub',812],
+    ['Baal-Zephon',384],['Baalah',10,'Balah'],['Baalath',242],['Baalath-Beer',498],
+    ['Baale-Judah*, Baale of Judah*',115],['Baali*',504],['Baalis',291],['Baalsamus*',175],['Baana',391],
+    ['Baanah',1112],['Baara',61],['Baaseiah',149],['Baasha',1207],['Baba Bathra*',668],['Babel',1938,null,'babel'],
+    ['Babylon, Babylonia',13499,null,'babylon'],['Babylonian Captivity*',197],['Baca*, Valley of',815],
+    ['Bacchides',2724],['Bacenor',230],['Bachrite*',89],['Backsliding',1290],['Badger',106],['Baean',182],
+    ['Bagoas',251],['Bagpipe*',209],['Baharum*, Baharumite*, Bahurim',579],['Bajith*',106],['Bakbakkar',160],
+    ['Beast',1425,null,'beast'],
+  ];
+
+  const THEMES = [
+    ['Genesis',[['The Creation','1:1–2:25'],['Blessing','1:22-30'],['Human Sexuality','1:27-28'],
+      ['Biblical Marriage','2:18-25'],['The Fall','3:1-24'],['Retribution','6:1–7:24'],
+      ['God’s Covenant with Noah','9:1-17'],['Babel: The Dispersion of Nations','11:1-9'],
+      ['God’s Covenants','12:1-9'],['Promised Land','12:1-7'],['Famine','12:10'],
+      ['God’s Covenant with Abraham','15:1-21'],['Circumcision','17:9-14'],['Altars','22:9-14'],
+      ['Infertility','25:21'],['Death','49:29-33']]],
+    ['Exodus',[['Hardened Hearts','3:19'],['Hardship in Following God','5:1-23'],['The Plagues','7:3–11:10'],
+      ['The Passover','11:1–13:16'],['The Exodus as History','14:15–15:21'],
+      ['The Purpose of the Sinai Covenant','19:1–24:18'],['Ancient Law Codes','20:1–23:19'],
+      ['The Tabernacle','25:1–31:11'],['The Glory of God','40:34-38']]],
+    ['Leviticus',[['Atonement','16:1-34']]],
+    ['Deuteronomy',[['Holy War','7:1-6']]],
+    ['Revelation',[['Symbolic Numbers','1:12-20'],['Letters to the Seven Churches','2:1–3:22'],
+      ['Security and Obedience','2:1–3:22'],['The Purpose of the Judgments','2:24-29'],
+      ['The Theater and Revelation','4:1–5:14'],['The Antichrist','13:11-18'],
+      ['The Worship of Angels','19:10'],['The Thousand Years (The Millennium)','20:1-10']]],
+  ];
+
+  // third field: has a same-title dictionary article (84 of the 125 do) — a second door in
+  const PROFILES = [
+    ['Aaron','Exod 4:14-16',1],['Abiathar','1Sam 22:20-23',1],['Abishai','2Sam 16:9-12',1],
+    ['Abner','2Sam 2:8-31',1],['Abraham','Gen 11:26–25:11',1],['Absalom','2Sam 13:1–19:10',1],
+    ['Adam and Eve','Gen 2:7–4:2',0],['Ahab','1Kgs 16:28–17:1',1],['Ahaz','2Kgs 15:38–16:20',1],
+    ['The Amalekites','1Sam 14:48',0],['Annas and Caiaphas','John 11:49-53',0],['Antiochus IV','Dan 11:21-39',0],
+    ['Apollos','Acts 18:24–19:1',1],['Arameans','1Kgs 20:1-34',0],['Asa','2Chr 14:1–16:14',1],
+    ['Assyria','2Kgs 15:19–19:37',0],['Babylon','2Kgs 24:1–25:30',0],['Corinth','1Cor 1:1–16:24',1],
+    ['Cyrus II','Ezra 1:1-8',0],['Egypt','Exod 1:8-22',0],['Hellenistic Kingdoms','Dan 11:4-45',0],
+    ['Ishmael','Gen 16:11-16',1],['Jeremiah','Jer 1:1–52:34',1],['John the Baptist','John 1:6-37',1],
+    ['Jonathan','1Sam 13:2–14:49',1],['Maccabees','Dan 11:32-35',0],['Martha, Mary, and Lazarus','Luke 10:38-42',0],
+    ['The Medes and Persians','Dan 5:28',0],['Nebuchadnezzar II','2Kgs 24:1-17',0],
+    ['The Philistines','Judg 13:1–16:31',0],['Priscilla and Aquila','Acts 18:1-3',1],['Rebekah','Gen 24:15-67',0],
+    ['The Son of Man','Dan 7:13-14',0],['Xerxes I','Esth 1:1-9',0],
+  ];
+
+  const BOOKS = ['Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
+    '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles','Ezra','Nehemiah','Esther',
+    'Job','Psalms','Proverbs','Ecclesiastes','Song of Songs','Isaiah','Jeremiah','Lamentations','Ezekiel',
+    'Daniel','Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk','Zephaniah','Haggai',
+    'Zechariah','Malachi','Matthew','Mark','Luke','John','Acts','Romans','1 Corinthians','2 Corinthians',
+    'Galatians','Ephesians','Philippians','Colossians','1 Thessalonians','2 Thessalonians','1 Timothy',
+    '2 Timothy','Titus','Philemon','Hebrews','James','1 Peter','2 Peter','1 John','2 John','3 John',
+    'Jude','Revelation'];
+
+  const REVHUB = {
+    book:'Revelation',
+    fields:[['Purpose','To challenge readers to remain faithful in the midst of persecution by pointing them to God’s victory over evil and to their future hope'],
+      ['Author','John (likely the apostle)'],
+      ['Date','Most likely the AD 90s, but possibly the AD 60s'],
+      ['Setting','Written to a group of churches in Asia who were experiencing persecution at the hands of the Roman Empire']],
+    themes:[['Symbolic Numbers','1:12-20'],['Letters to the Seven Churches','2:1–3:22'],
+      ['Security and Obedience','2:1–3:22'],['The Purpose of the Judgments','2:24-29'],
+      ['The Theater and Revelation','4:1–5:14'],['The Antichrist','13:11-18'],
+      ['The Worship of Angels','19:10'],['The Thousand Years (The Millennium)','20:1-10']],
+    profiles:[['Roman Emperors','17:9-11']],
+    dict:[['Revelation, Book of',81,'revbook'],['Color',18],['Mark of God*, Mark of the Beast',16,'markofgod'],
+      ['Jerusalem, New',15],['Dead, Place of the',15],['Minerals* and Metals',13],['Animals',12],
+      ['Numbers and Numerology*',11],['Crown',9],['Bottomless Pit',9]],
+  };
+
+  const ORPHANS = [
+    ['chart','Jeremiah’s Parallels with 2 Kings and 2 Chronicles'],
+    ['chart','Similarities between Peter’s Words in 1 Peter and Jesus’ Words in the Gospels'],
+    ['chart','Some Psalms from David’s Experiences'],
+    ['textbox','Abraham’s Bosom'],['textbox','Ahab’s Failure'],['textbox','Ahaz’s Lack of Faith'],
+    ['textbox','Antilegomena: The Books that Didn’t Make It'],
+    ['textbox','Archaeological Evidence Sheds Light on Jeremiah’s Writings'],
+    ['textbox','Isthmian Games at Corinth and Paul’s Athletic Imagery'],
+    ['textbox','Josephus’s Words about Jesus'],['textbox','Rembrandt’s Samson and Delilah'],
+    ['textbox','The Church’s View of Spiritual Gifts'],
+    ['textbox','The Excavation of Nebuchadnezzar’s Babylon'],
+  ];
+
+  // rotating real examples for the route cards
+  const EGS = {
+    dict:[['Nazarite*, Nazirite','cites 19 verses','nazirite'],['Babylon, Babylonia','cites 118 verses','babylon'],
+      ['Shepherd','cites 41 verses','shepherd'],['Beast','cites 34 verses','beast']],
+    themes:[['All Is “Vapor”','Ecclesiastes 1:2–9:12'],['Holy War','Deuteronomy 7:1-6'],
+      ['Atonement','Leviticus 16:1-34'],['Bribes','Proverbs 17:8'],['Empowering Leadership','Acts 6:1-7'],
+      ['God’s Change of Mind','1 Samuel 15:10-35']],
+    profiles:[['The Philistines','Judges 13:1–16:31'],['Priscilla and Aquila','Acts 18:1-3'],
+      ['Hellenistic Kingdoms','Daniel 11:4-45'],['Martha, Mary, and Lazarus','Luke 10:38-42']],
+    books:[['Revelation','Written to churches in Asia under persecution'],
+      ['Ecclesiastes','Wisdom literature, authorship debated'],['Jonah','A prophet and a reluctant errand']],
+  };
+
+  const ROUTES = [
+    ['dict','Dictionary','6,010 articles','Look up a person, place, object or idea. A–Z, or search.'],
+    ['themes','Themes','298 articles','Essays anchored to a passage — read them in canonical order.'],
+    ['profiles','Profiles','125 profiles','People, peoples and places, each tied to the passage they act in.'],
+    ['books','Books','66 introductions','Purpose, author, date and setting — plus everything anchored in that book.'],
+  ];
+
+  // the "Wander in" pool: substantial articles only. 2,271 of the 6,010 are under 120 chars and
+  // 576 are bare "See X." redirects — an unweighted random door would land on one a third of the time.
+  const POOL = ['babel','babylon','beast','antichrist','markofgod','armageddon','revbook','nazirite','shepherd'];
+
+  // ---- state ----
+  let stack = [{ kind:'start' }];   // the breadcrumb IS the stack
+  let term = '', openRef = null, egTick = 0, crumbsOpen = false;
+  let visited = new Set(), deepest = 1;
+
+  const cur = () => stack[stack.length - 1];
+
+  function push(node) {
+    stack.push(node); openRef = null; crumbsOpen = false;   // a new step re-collapses the trail
+    if (node.kind === 'article') { visited.add(node.id); }
+    const chain = stack.filter(n => n.kind === 'article').length;
+    if (chain > deepest) deepest = chain;
+    render(); root.querySelector('.surface').scrollTop = 0;   // the scroller is .surface, not .inner
+  }
+  function truncate(i) { stack = stack.slice(0, i + 1); openRef = null; term = ''; crumbsOpen = false;
+    document.getElementById('lbSearch').value = ''; render(); }
+
+  const label = n => n.kind === 'start' ? 'Start'
+    : n.kind === 'route' ? ROUTES.find(r => r[0] === n.route)[1] + (n.letter ? ' · ' + n.letter : '')
+    : n.kind === 'hub' ? n.book
+    : n.kind === 'search' ? '“' + n.q + '”'
+    : displayTitle(A[n.id].title);
+
+  // ---- search across all four datasets ----
+  function search(q) {
+    q = q.trim().toLowerCase(); if (q.length < 2) return null;
+    const hit = s => s.toLowerCase().includes(q);
+    const seen = new Set(), d = [];
+    Object.values(A).forEach(a => { if (hit(a.title)) { d.push([a.title, a.id]); seen.add(a.title); } });
+    DICT_B.forEach(r => { if (hit(r[0]) && !seen.has(r[0])) { d.push([r[0], r[3] || null]); seen.add(r[0]); } });
+    const th = []; THEMES.forEach(([bk, l]) => l.forEach(([t, r]) => { if (hit(t)) th.push([t, bk + ' ' + r]); }));
+    return { dict:d.slice(0,8), themes:th.slice(0,6),
+      profiles:PROFILES.filter(p => hit(p[0])).slice(0,6), books:BOOKS.filter(b => hit(b)).slice(0,6) };
+  }
+
+  // ---- article body: linkify only inside a "See …" clause ----
+  function renderBody(body) {
+    return body.split('\n').map(line => {
+      if (line.startsWith('## ')) return `<div class="ahead">${esc(line.slice(3))}</div>`;
+      const item = line.startsWith('- ');
+      const text = item ? line.slice(2) : line;
+      const m = text.match(/^(.*?)(\bSee(?: also)? )([^.]+)\.\s*$/);
+      let html;
+      if (m) {
+        html = linkRefs(m[1]) + esc(m[2]) + m[3].split(';').map(t => t.trim()).map(t => XREF[t]
+          ? `<button class="xref" data-open="${XREF[t]}">${esc(t)}</button>`
+          : `<span class="xref dead" title="named by the source, but no such article exists">${esc(t)}</span>`
+        ).join('; ') + '.';
+      } else html = linkRefs(text);
+      const prev = (openRef && text.includes(openRef)) ? previewHtml() : '';
+      return `<p class="${item ? 'aitem' : 'ablk'}">${html}</p>` + prev;
+    }).join('');
+  }
+  function linkRefs(text) {
+    let out = esc(text);
+    Object.keys(VERSES).forEach(r => {
+      out = out.split(esc(r)).join(`<button class="sref" data-ref="${esc(r)}">${esc(r)}</button>`); });
+    return out;
+  }
+  function previewHtml() {
+    const v = VERSES[openRef];
+    return `<div class="prev"><div class="pr">${esc(v[0])} · NIV</div>${esc(v[1])}`
+      + `<button class="open">Open in Study →</button></div>`;
+  }
+
+  // ---- the cross-reference edge list ----
+  // In the real app this is `dict_xref` (5,052 rows), precomputed at build time: resolving 6,010
+  // bodies at query time would mean pulling 8.4 MB of prose through sql.js. Derived here from the
+  // same "See …" clauses so the mockup's graph is the real one for these articles.
+  const EDGES = (() => {
+    const out = [];
+    for (const a of Object.values(A))
+      for (const m of a.body.matchAll(/\bSee(?: also)? ([^.\n]+)\./g))
+        for (const raw of m[1].split(';')) {
+          const t = raw.trim(), id = XREF[t];
+          if (id === undefined) continue;
+          // id === null: named by the source but absent from the corpus — kept as a phantom node,
+          // because hiding them would overstate how complete the graph is
+          out.push([a.id, id === null ? 'x:' + t : id, id === null]);
+        }
+    return out;
+  })();
+
+  const NBR = new Map();   // id -> Map(other -> 'out' | 'in' | 'both')
+  for (const [s, t] of EDGES) {
+    if (!NBR.has(s)) NBR.set(s, new Map());
+    if (!NBR.has(t)) NBR.set(t, new Map());
+    NBR.get(s).set(t, NBR.get(s).get(t) === 'in' ? 'both' : 'out');
+    NBR.get(t).set(s, NBR.get(t).get(s) === 'out' ? 'both' : 'in');
+  }
+
+  const MAXB = 7;    // branches drawn per step; a hub like Plants has 150 and would swamp the spine
+  let mapOpen = false;
+
+  const nodeLabel = id => displayTitle(id.startsWith('x:') ? id.slice(2) : A[id].title);
+  const shortLabel = s => s.length > 22 ? s.slice(0, 21).trimEnd() + '…' : s;
+
+  // The path map: the breadcrumb drawn as a left-to-right spine, with each article step's
+  // untaken cross-references branching above and below it. Clicking a branch truncates the trail
+  // back to the step it hangs off and continues from there — so the breadcrumb stays a real
+  // account of the route taken, not a log of everywhere you clicked.
+  function pathMap() {
+    const COL = 208, H = 348, cy = H / 2;
+    const spine = stack.map((n, i) => ({ i, node: n, id: n.kind === 'article' ? n.id : null }));
+    const onSpine = new Set(spine.filter(s => s.id).map(s => s.id));
+    const claimed = new Set(onSpine);   // a neighbour is drawn once, at its earliest step
+    for (const s of spine) {
+      s.branches = []; s.hidden = 0;
+      if (!s.id) continue;
+      const all = [...(NBR.get(s.id) || new Map()).keys()].filter(o => !claimed.has(o));
+      const keep = all.slice(0, MAXB);
+      s.hidden = all.length - keep.length;
+      for (const o of keep) { claimed.add(o); s.branches.push(o); }
+    }
+    const W = Math.max(700, 120 + (spine.length - 1) * COL + 120);
+    const px = i => 120 + i * COL;
+
+    let lines = '', dots = '';
+    for (const s of spine) {
+      const x = px(s.i);
+      // spine link back to the previous step: solid if the two are genuinely linked in the corpus,
+      // dashed if the user arrived some other way (a search, a route, a random door)
+      if (s.i > 0) {
+        const prev = spine[s.i - 1];
+        const linked = s.id && prev.id && NBR.get(prev.id)?.has(s.id);
+        lines += `<line class="lnk ${linked ? 'path' : 'jumped'}" x1="${px(prev.i)}" y1="${cy}" `
+          + `x2="${x}" y2="${cy}" />`;
+      }
+      s.branches.forEach((o, k) => {
+        const side = k % 2 ? -1 : 1, row = Math.floor(k / 2);
+        const by = cy + side * (54 + row * 42);
+        lines += `<line class="lnk${o.startsWith('x:') ? ' gone' : ''}" x1="${x}" y1="${cy}" `
+          + `x2="${x}" y2="${by}" />`;
+        const gone = o.startsWith('x:');
+        dots += `<g><title>${esc(nodeLabel(o))}`
+          + `${gone ? ' — named by the source, but no such article exists' : ''}</title>`
+          + `<circle class="nd${gone ? ' gone' : ''}" cx="${x}" cy="${by}" r="5" `
+          + `${gone ? '' : `data-jump="${s.i}:${o}"`} />`
+          + `<text class="${gone ? 'gone' : ''}" x="${x}" y="${by + (side < 0 ? -11 : 17)}" `
+          + `text-anchor="middle">${esc(shortLabel(nodeLabel(o)))}</text></g>`;
+      });
+      if (s.hidden)
+        dots += `<text class="step" x="${x}" y="${cy - 54 - Math.floor(MAXB/2) * 42 - 24}" `
+          + `text-anchor="middle">+${s.hidden} more</text>`;
+      // the step itself
+      const last = s.i === spine.length - 1;
+      const cls = last ? 'on' : s.id ? 'spine' : 'step';
+      dots += `<g><title>${esc(label(s.node))}</title>`
+        + `<circle class="nd ${cls}" cx="${x}" cy="${cy}" r="${last ? 9 : 7}" data-crumb="${s.i}" />`
+        + `<text class="${cls}" x="${x}" y="${cy + 24}" text-anchor="middle">`
+        + `${esc(shortLabel(label(s.node)))}</text></g>`;
+    }
+
+    const steps = spine.filter(s => s.id).length;
+    return `<div class="backdrop" data-mapclose="1"></div><div class="mapmodal" role="dialog" aria-modal="true">`
+      + `<div class="maphd"><span class="ll">Your path</span>`
+      + `<span class="sub">${steps} article${steps === 1 ? '' : 's'} · `
+      + `every branch you haven’t taken is clickable</span>`
+      + `<button class="close" data-mapclose="1" aria-label="Close">✕</button></div>`
+      + `<div class="mapscroll"><svg class="mapsvg" width="${W}" height="${H}" `
+      + `viewBox="0 0 ${W} ${H}">${lines}${dots}</svg></div>`
+      + `<div class="maplg">`
+      + `<span><i class="path"></i> the step followed a cross-reference</span>`
+      + `<span><i class="jumped"></i> arrived another way — search, a route, or ✦ Wander in</span>`
+      + `<span><i></i> a branch not taken</span>`
+      + `<span><i class="jumped"></i> named by the source, absent from the corpus</span>`
+      + `<span class="panhint">drag to pan</span>`
+      + `</div></div>`;
+  }
+
+  // collect an article's outbound cross-references into the exit row
+  function doorsFor(body) {
+    const out = [], dead = [];
+    for (const m of body.matchAll(/\bSee(?: also)? ([^.\n]+)\./g))
+      for (const raw of m[1].split(';')) {
+        const t = raw.trim();
+        if (XREF[t]) { if (!out.some(x => x[0] === t)) out.push([t, XREF[t]]); }
+        else if (!dead.includes(t)) dead.push(t);
+      }
+    return { out, dead };
+  }
+
+  // ---- frame ----
+  // A long trail would push the row into two or three lines and shove the map link around, so it
+  // truncates in the middle: the first crumb, an expander, and the last few. Start and the current
+  // article are the two that must always be visible — where you began and where you are.
+  const MAXC = 6;
+  function crumbHtml() {
+    const n = stack.length;
+    const tail = MAXC - 2;
+    const idx = (!crumbsOpen && n > MAXC)
+      ? [0, -1, ...Array.from({ length: tail }, (_, i) => n - tail + i)]
+      : stack.map((_, i) => i);
+    return idx.map(i => {
+      if (i === -1) {
+        const hidden = stack.slice(1, n - tail).map(label).join(' › ');
+        return `<button class="ell" data-expand="1" title="${esc(hidden)}">…</button>`;
+      }
+      return i === n - 1
+        ? `<span class="cur">${esc(label(stack[i]))}</span>`
+        : `<button data-crumb="${i}">${esc(label(stack[i]))}</button>`;
+    }).join('<span class="sep">›</span>');
+  }
+
+  function renderFrame() {
+    const chain = stack.filter(n => n.kind === 'article').length;
+    document.getElementById('lbCrumbs').innerHTML = crumbHtml()
+      + (chain >= 3 ? `<span class="depth">${chain} deep</span>` : '');
+    document.getElementById('lbMapBtn').innerHTML = stack.length > 1
+      ? `<button class="mapbtn" data-mapopen="1">⁂ View path map</button>` : '';
+    const host = document.getElementById('lbMap');
+    host.innerHTML = mapOpen ? pathMap() : '';
+    if (mapOpen) markPannable();
+  }
+
+  // drag-to-pan is only offered when the spine actually overruns its frame — a grab cursor on
+  // content that cannot move is a lie about what the control does
+  function markPannable() {
+    const sc = root.querySelector('.mapscroll');
+    if (!sc) return;
+    const over = sc.scrollWidth > sc.clientWidth + 1 || sc.scrollHeight > sc.clientHeight + 1;
+    sc.classList.toggle('pannable', over);
+    const hint = root.querySelector('.panhint');
+    if (hint) hint.style.display = over ? '' : 'none';
+  }
+
+  // ---- surfaces ----
+  function renderSurface() {
+    const s = document.getElementById('lbSurface'), n = cur();
+
+    if (n.kind === 'start') {
+      const eg = k => { const l = EGS[k]; return l[egTick % l.length]; };
+      s.innerHTML = `<h3 class="stitle">The Library</h3>`
+        + `<div class="smeta">Tyndale’s Open Bible Dictionary and companion content · 6,499 pieces, four ways in</div>`
+        + `<div class="cards">` + ROUTES.map(([k, name, count, desc]) => {
+            const e = eg(k);
+            return `<button class="card" data-route="${k}"><div class="cn">${name}</div>`
+              + `<div class="cc">${count}</div><div class="cd">${desc}</div>`
+              + `<span class="eg"><span class="egl">for instance</span>${esc(e[0])}`
+              + `<span class="egr">${esc(e[1])}</span></span></button>`;
+          }).join('') + `</div>`
+        + `<div class="stats">`
+        + `<div class="stat"><div class="sv">${visited.size}</div><div class="sl2">articles this session</div></div>`
+        + `<div class="stat"><div class="sv">${deepest}</div><div class="sl2">deepest chain</div></div>`
+        + `<div class="stat"><div class="sv">1,839</div><div class="sl2">substantial articles</div></div>`
+        + `</div>`
+        + `<p class="starthint">Search reaches all four at once. <b>✦ Wander in</b> opens a random article — `
+        + `weighted to substantial ones, because 2,271 of the 6,010 entries are under 120 characters and 576 are `
+        + `bare “See X.” redirects.</p>`;
+      return;
+    }
+
+    if (n.kind === 'search') {
+      const r = search(n.q);
+      const grp = (lbl, rows, fmt) => rows.length ? `<div class="reslbl">${lbl} · ${rows.length}</div>`
+        + `<div class="cols2">` + rows.map(fmt).join('') + `</div>` : '';
+      const total = r.dict.length + r.themes.length + r.profiles.length + r.books.length;
+      s.innerHTML = `<h3 class="stitle">“${esc(n.q)}”</h3>`
+        + `<div class="smeta">one query, all four routes</div>`
+        + (total ? grp('Dictionary', r.dict, x => `<div class="e"><button class="et" data-open="${x[1]||''}">${esc(displayTitle(x[0]))}</button></div>`)
+          + grp('Themes', r.themes, x => `<div class="e"><button class="et">${esc(x[0])}</button><span class="er">${esc(x[1])}</span></div>`)
+          + grp('Profiles', r.profiles, x => `<div class="e"><button class="et">${esc(x[0])}</button><span class="er">${esc(x[1])}</span></div>`)
+          + grp('Books', r.books, x => `<div class="e"><button class="et" data-hub="${esc(x)}">${esc(x)}</button></div>`)
+          : `<p class="nores">Nothing matches “${esc(n.q)}”.</p>`);
+      return;
+    }
+
+    if (n.kind === 'hub') {
+      const h = REVHUB;
+      s.innerHTML = `<h3 class="stitle">${esc(h.book)}</h3>`
+        + `<div class="smeta">Book introduction · <span class="jump">Open in Study →</span></div>`
+        + h.fields.map(([k, v]) => `<div class="hubfield"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('')
+        + `<div class="hubsec"><div class="hl">Read the full introduction</div>`
+        + `<p class="note">The long-form intro runs to thousands of characters and opens as its own surface.</p></div>`
+        + `<div class="hubsec"><div class="hl">Themes anchored here · ${h.themes.length}</div><div class="chips">`
+        + h.themes.map(([t, r]) => `<button class="chip">${esc(t)}<span class="r">${esc(r)}</span></button>`).join('')
+        + `</div></div>`
+        + `<div class="hubsec"><div class="hl">Profiles anchored here · ${h.profiles.length}</div><div class="chips">`
+        + h.profiles.map(([t, r]) => `<button class="chip">${esc(t)}<span class="r">${esc(r)}</span></button>`).join('')
+        + `</div></div>`
+        + `<div class="hubsec"><div class="hl">Dictionary articles citing this book most · ${h.dict.length}</div><div class="chips">`
+        + h.dict.map(d => `<button class="chip" data-open="${d[2]||''}">${esc(displayTitle(d[0]))}<span class="n">${d[1]}</span></button>`).join('')
+        + `</div><p class="note">Ranked by how many verses of ${esc(h.book)} each article cites — straight from `
+        + `<code>dict_verse</code>, not a hand-made list.</p></div>`
+        + `<div class="src"><div class="sl">Source</div>${NOTE_SRC}</div>`;
+      return;
+    }
+
+    if (n.kind === 'route') {
+      if (n.route === 'dict') {
+        const L = n.letter;
+        s.innerHTML = `<h3 class="stitle">Dictionary</h3>`
+          + `<div class="smeta">6,010 articles · ${L ? L + ' · 447 entries' : 'pick a letter, or search'}</div>`
+          + `<div class="azgrid">` + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(x =>
+              `<button data-letter="${x}" class="${x===L?'on':''}">${x}</button>`).join('') + `</div>`
+          + (L ? `<div class="cols3">` + DICT_B.map(r => r[2]
+              ? `<div class="e rd">${esc(r[0])} → <button data-open="">${esc(r[2])}</button></div>`
+              : `<div class="e"><button class="et" data-open="${r[3]||''}">${esc(r[0])}</button></div>`).join('')
+            + `</div>`
+            + `<div class="hubsec"><div class="hl">Charts &amp; textboxes with no host article · ${ORPHANS.length}</div>`
+            + `<div class="chips">` + ORPHANS.map(([k, t]) =>
+                `<button class="chip">${k==='chart'?'▦':'▤'} ${esc(t)}</button>`).join('') + `</div>`
+            + `<p class="note">Their <code>host_id</code> never resolved, so nothing else in the app can reach them.</p></div>`
+            : `<p class="note">Titles are shown in full — <code>sort_title</code> strips the disambiguating `
+              + `parenthetical, and 131 groups of articles collide once it does. This index is also the one `
+              + `place that keeps Tyndale’s inverted headwords (<i>Revelation, Book of</i>): inversion is what `
+              + `makes an A–Z browse work. Everywhere the title is used as a <i>name</i> it reads `
+              + `<i>Book of Revelation</i>.</p>`);
+      } else if (n.route === 'themes') {
+        s.innerHTML = `<h3 class="stitle">Themes</h3>`
+          + `<div class="smeta">298 articles · canonical order, grouped by the book they are anchored in · 56 books carry themes</div>`
+          + `<div class="cols3">` + THEMES.map(([bk, l]) => `<div class="groupblk">`
+              + `<div class="grouphd">${esc(bk)} · ${l.length}</div>`
+              + l.map(([t, r]) => `<div class="e"><button class="et">${esc(t)}</button>`
+                  + `<span class="eg2"><span class="er" style="margin:0">${esc(r)}</span></span></div>`).join('')
+              + `</div>`).join('') + `</div>`
+          + `<p class="note">The source carries no thematic categorisation, so these are grouped by anchor book — `
+          + `data that exists — and never by an invented subject taxonomy.</p>`;
+      } else if (n.route === 'profiles') {
+        s.innerHTML = `<h3 class="stitle">Profiles</h3>`
+          + `<div class="smeta">125 profiles · A–Z · people, peoples and places</div>`
+          + `<div class="cols3">` + PROFILES.map(([t, r, also]) => `<div class="e">`
+              + `<button class="et">${esc(t)}</button>${also ? `<span class="also">also a dictionary article</span>` : ''}`
+              + `<span class="eg2"><span class="er" style="margin:0">${esc(r)}</span></span></div>`).join('') + `</div>`
+          + `<p class="note">Not 125 people: <b>The Philistines</b>, <b>Assyria</b>, <b>Corinth</b> and `
+          + `<b>Hellenistic Kingdoms</b> are all in here. 84 of the 125 also have a same-title dictionary `
+          + `article — a second door to the same subject.</p>`;
+      } else {
+        s.innerHTML = `<h3 class="stitle">Books</h3>`
+          + `<div class="smeta">66 introductions · canonical order</div>`
+          + `<div class="bookgrid">` + BOOKS.map(b =>
+              `<button data-hub="${esc(b)}">${esc(b)}</button>`).join('') + `</div>`
+          + `<p class="note">Each opens a hub: purpose, author, date and setting, plus every theme, profile and `
+          + `most-citing dictionary article anchored in that book.</p>`;
+      }
+      return;
+    }
+
+    // ---- article ----
+    const a = A[n.id], d = doorsFor(a.body);
+    s.innerHTML = `<h3 class="stitle">${esc(displayTitle(a.title))}</h3>`
+      + `<div class="smeta">Dictionary article · cites ${a.refs} verses · <span class="jump">Open in Study →</span></div>`
+      + renderBody(a.body)
+      + `<div class="leads"><div class="ll">Where this leads</div>`
+      + (d.out.length
+          ? `<div class="doors">` + d.out.map(([t, id]) =>
+              `<button class="door" data-open="${id}">${esc(displayTitle(t))}</button>`).join('') + `</div>`
+          : `<div class="deadend">A dead end — this article names no other entry. Search, `
+            + `pick another route, or ✦ Wander in.</div>`)
+      + (d.dead.length ? `<div class="named">Also named by the source, but absent from the corpus: `
+          + d.dead.map(esc).join(', ') + `.</div>` : '')
+      + `</div>`
+      + `<div class="src"><div class="sl">Source</div>${DICT_SRC}</div>`;
+  }
+
+  function render() { renderFrame(); renderSurface(); }
+
+  // ---- drag-to-pan the path map ----
+  let pan = null, dragged = false;
+  root.addEventListener('pointerdown', e => {
+    const sc = e.target.closest?.('.mapscroll');
+    if (!sc || !sc.classList.contains('pannable')) return;
+    pan = { sc, x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop };
+    dragged = false;
+    sc.classList.add('panning');
+    sc.setPointerCapture?.(e.pointerId);
+    e.preventDefault();                       // otherwise the pointer starts a text selection
+  });
+  root.addEventListener('pointermove', e => {
+    if (!pan) return;
+    const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragged = true;
+    pan.sc.scrollLeft = pan.l - dx;
+    pan.sc.scrollTop = pan.t - dy;
+  });
+  for (const ev of ['pointerup', 'pointercancel'])
+    root.addEventListener(ev, () => { if (pan) { pan.sc.classList.remove('panning'); pan = null; } });
+
+  // ---- events ----
+  root.addEventListener('click', e => {
+    // a pan that ended over a node must not also open it
+    if (dragged) { dragged = false; return; }
+    const t = e.target.closest('[data-route],[data-open],[data-hub],[data-ref],[data-crumb],'
+      + '[data-letter],[data-mapopen],[data-mapclose],[data-jump],[data-expand]');
+    if (!t) return;
+    if (t.dataset.expand) { crumbsOpen = true; return renderFrame(); }
+    if (t.dataset.mapopen) { mapOpen = true; return renderFrame(); }
+    if (t.dataset.mapclose) { mapOpen = false; return renderFrame(); }
+    // a branch: rewind the trail to the step it hangs off, then continue from there
+    if (t.dataset.jump) {
+      const [i, id] = t.dataset.jump.split(/:(.*)/);
+      mapOpen = false;
+      stack = stack.slice(0, +i + 1);
+      return push({ kind:'article', id });
+    }
+    if (t.dataset.crumb !== undefined) { mapOpen = false; return truncate(+t.dataset.crumb); }
+    if (t.dataset.route) return push({ kind:'route', route:t.dataset.route });
+    if (t.dataset.letter) { stack[stack.length-1] = { kind:'route', route:'dict', letter:t.dataset.letter };
+      openRef = null; return render(); }
+    if (t.dataset.hub !== undefined) return push({ kind:'hub', book:t.dataset.hub });
+    if (t.dataset.ref) { openRef = openRef === t.dataset.ref ? null : t.dataset.ref; return renderSurface(); }
+    if (t.dataset.open !== undefined) { if (A[t.dataset.open]) push({ kind:'article', id:t.dataset.open }); return; }
+  });
+
+  document.getElementById('lbWander').onclick = () => {
+    egTick++;
+    let id; do { id = POOL[Math.floor(Math.random() * POOL.length)]; }
+    while (POOL.length > 1 && cur().kind === 'article' && id === cur().id);
+    push({ kind:'article', id });
+  };
+
+  const input = document.getElementById('lbSearch');
+  input.addEventListener('input', () => {
+    term = input.value;
+    if (term.trim().length < 2) { if (cur().kind === 'search') { stack.pop(); render(); } return; }
+    if (cur().kind === 'search') stack[stack.length - 1] = { kind:'search', q:term.trim() };
+    else stack.push({ kind:'search', q:term.trim() });
+    render();
+  });
+  root.addEventListener('keydown', e => {
+    if (e.key === '/' && e.target !== input) { e.preventDefault(); input.focus(); }
+    if (e.key === 'Escape') {
+      if (mapOpen) { mapOpen = false; return renderFrame(); }     // the map closes before the field clears
+      if (e.target === input) { input.value = ''; term = '';
+        if (cur().kind === 'search') stack.pop(); render(); }
+    }
+  });
+
+  render();
+})();
+</script>
+
+<h3 style="margin-top:28px">What this asserts</h3>
+<ul>
+  <li><b>The breadcrumb is the stack.</b> There is no separate navigation state — each surface pushes a crumb, and
+    clicking a crumb truncates back to it. That is also what makes browser back/forward work for free, and why
+    <code>Start</code> needs no companion “return” button.</li>
+  <li><b>The path map is the breadcrumb with its branches shown.</b> Same stack, drawn as a spine: each step is a
+    crumb, and each article step fans out the cross-references you passed over. Clicking one rewinds the trail to
+    that step and continues from there — so the breadcrumb stays a truthful account of the route, never a log of
+    every click. A solid spine link means the step followed a cross-reference; a dashed one means you arrived by
+    search, a route, or ✦ Wander in.
+    <br />This replaced a per-article “neighbourhood” graph, which looked good and did nothing the doors row
+    didn't already do better.</li>
+  <li><b>Search is a surface, not a mode.</b> Typing pushes a search crumb; clearing the field pops it. One query
+    reaches all four routes, because making you first guess <i>which</i> route holds your answer would tax the
+    primary objective.</li>
+  <li><b>“Where this leads” is the rabbit hole.</b> The prose links stay, but every article also ends with its
+    outbound cross-references as explicit doors — and when there are none, it says so and offers a way onward
+    rather than leaving you at a silent dead end. Try <b>Shepherd</b> via ✦ Wander in.</li>
+  <li><b>Each route's index is shaped to its data</b> — a letter grid for 6,010, book-grouped for 298, A–Z for 125,
+    a 66-cell grid opening onto hubs. Four datasets, four shapes, not four copies of one list.</li>
+  <li><b>Scripture books read as names, except in the A–Z.</b> Tyndale files them inverted
+    (<code>Revelation, Book of</code>), which is correct for alphabetical browse and wrong everywhere else, so
+    the index keeps the source form and every other surface shows <b>Book of Revelation</b>. The de-inversion
+    runs off an <b>exact allowlist of ten phrases</b> covering 62 articles — never a general rule, because the
+    corpus also holds unmarked inversions (<code>Paulus, Sergius</code>, <code>Calf, Golden</code>) that are
+    indistinguishable from alternate spellings (<code>Elect, Election</code>, <code>Zidon*, Zidonian*</code>).</li>
+  <li><b>Cross-references are linkified only inside a <code>See …</code> clause.</b> <code>Calf</code>,
+    <code>Clay</code>, <code>Hour</code>, <code>Evening</code> and <code>Command</code> are all real article titles;
+    linkifying titles wherever they occur in prose would make every paragraph a minefield.</li>
+</ul>
+
+<h3>Warts on display, all real</h3>
+<ul>
+  <li><b>5% of cross-reference targets don't exist.</b> Open <b>Antichrist</b>: <code>False Christs, False
+    Messiahs</code> and <code>Prophets, False</code> are named by Tyndale and absent from the corpus. They stay
+    plain text in the prose and are listed honestly under the doors instead of 404-ing.</li>
+  <li><b><code>Mark of the Beast</code> is not a title.</b> It is the second headword of <code>Mark of God*, Mark of
+    the Beast</code>, and resolves only via the unique-title-segment tier.</li>
+  <li><b><code>sort_title</code> is not unique</b> — 131 colliding groups. The Dictionary index shows
+    <code>Baal (Idol)</code> / <code>Baal (Person)</code> / <code>Baal* (Place)</code> in full, because sorting by
+    <code>sort_title</code> while <i>displaying</i> it would print “Baal” three identical times.</li>
+  <li><b>13 charts and textboxes have no host article</b> and are unreachable anywhere in the app today. The
+    Dictionary index lists them.</li>
+</ul>

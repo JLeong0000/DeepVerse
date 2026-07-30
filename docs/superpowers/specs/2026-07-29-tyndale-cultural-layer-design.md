@@ -344,6 +344,32 @@ Explorer tests belong to Phase 2, alongside its UI design.
 ## Non-goals
 
 - Maps (80, 20 MB of PDFs) and Pictures (images not licensed) — see Scope.
-- Clickable scripture refs inside article bodies — still plain text, as with study notes.
 - Reader-pane markers — rejected for study notes, same reasoning here.
 - Thematic categorisation of the 298 themes — not in the source.
+
+## Amendments after implementation
+
+Three things landed that this design either ruled out or did not anticipate. Recorded here so the
+document matches the code.
+
+1. **Clickable scripture references inside bodies — now implemented** (was a non-goal). Tyndale's
+   prose mixes three abbreviation systems in one sentence (`Gn`/`Gen`/`Genesis`, `1 Sm`/`1Sam`)
+   and separates a numbered book from its name with a **non-breaking space** — 244 distinct tokens.
+   `app/src/lib/scripture.js` matches an **exact allowlist, never a prefix**, which is load-bearing:
+   `Ecclus` (apocryphal) must not resolve as Ecclesiastes, `Jdt` must not resolve as Jude, and `In`
+   occurs 48 times as an ordinary English word ahead of a bare `1:1`. Validated across the corpus:
+   37,563 links, 99.99% resolve to a real verse (the 3 exceptions are `Est 11:1`/`12:1`, the
+   apocryphal Additions to Esther — a source quirk). A citation that omits its book because the
+   previous one supplied it (`; 13:7`) stays plain rather than guessing.
+2. **Article bodies keep their structure.** `cleanBody` flattened every `<p>` into one run, which
+   made a 20k-character article unreadable. `structureBody` preserves newline-separated blocks with
+   subheads marked `## `, and drops the blocks that only restate the item's own title (`h1`,
+   `theme-title`, `profile-title`, `intro-title` — an article's `h1` equals its `<title>` in all
+   6,010 cases, verified). Long bodies open in `ArticleModal` rather than expanding in the card.
+3. **Every Context section is collapsible with a letter hotkey** (`q w e r t y u`), and the source
+   credit sits on the accordion header rather than being repeated inside the expanded body.
+
+**Operational note, pre-existing and unrelated to this import:** `vite.config.js` runtime-caches
+`bible.db` **CacheFirst** with the service worker enabled in dev, so once cached the browser never
+revalidates it. After any rebuild the app keeps serving the previous database until that cache is
+cleared — a rebuild otherwise looks like it silently did nothing.

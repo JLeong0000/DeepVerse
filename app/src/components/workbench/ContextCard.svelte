@@ -8,6 +8,9 @@
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
   import { getPref, setPref } from '../../lib/store.js';
+  import { articlePreview, parseArticleBlocks } from '../../lib/display.js';
+  import ArticleModal from './ArticleModal.svelte';
+  import RefText from '../common/RefText.svelte';
 
   const CAP = 4;
   let tab = $state('context'); // 'xrefs' | 'context'; default to the context view.
@@ -43,8 +46,7 @@
   const RECAP_CLAMP = 280; // collapsed length ~3 lines
   let recap = $derived(getChapterRecap(study.book, study.chapter));
   let recapOpen = $state(false);
-  let introOpen = $state(false);
-  $effect(() => { study.book; study.chapter; recapOpen = false; introOpen = false; });
+  $effect(() => { study.book; study.chapter; recapOpen = false; });
   let entities = $derived.by(() => {
     const byType = { person: [], place: [], event: [], group: [] };
     for (const e of getChapterEntities(study.book, study.chapter)) (byType[e.entity_type] ||= []).push(e);
@@ -72,15 +74,12 @@
   let dictArticles = $derived(study.verse == null ? []
     : getDictForVerse(study.book, study.chapter, study.verse));
   let dictSel = $state(null);      // selected article id
-  let dictOpen = $state(false);    // "Read more" state for the selected body
   let dictEl = $state(null);
+  let modal = $state(null);        // { article, focusId } — the full-article overlay
   // selection is meaningless once the verse changes
-  $effect(() => { study.book; study.chapter; study.verse; dictSel = null; dictOpen = false; });
+  $effect(() => { study.book; study.chapter; study.verse; dictSel = null; });
   let dictDetail = $derived(dictArticles.find(a => a.id === dictSel) || null);
   let dictSupps = $derived(dictDetail ? getArticleSupplements(dictDetail.id) : []);
-  let suppSel = $state(null);
-  $effect(() => { dictSel; suppSel = null; });   // a new article clears any open supplement
-  let suppDetail = $derived(dictSupps.find(s => s.id === suppSel) || null);
   $effect(() => { if (dictDetail && dictEl) dictEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
 
   // Collapsible sections. Keys are bound to fixed sections so a hotkey never shifts meaning
@@ -135,15 +134,25 @@
   <button class="tab" class:on={tab === 'xrefs'} onclick={() => (tab = 'xrefs')}>Cross-references</button>
 </div>
 
-{#snippet secHeader(id, label, extra = '')}
+{#snippet secHeader(id, label, extra = '', srcTip = null)}
   {@const n = counts[id]}
   <button class="sechd" onclick={() => toggleSec(id)} disabled={n === 0}>
     <span class="caret" class:open={sec[id]}>›</span>
     <span class="seclbl">{label}</span>
     {#if n > 0 && extra !== 'noCount'}<span class="secn">· {n}</span>{/if}
+    <!-- the source credit rides on the accordion title so the expanded body needn't repeat it -->
+    {#if srcTip}<span class="srcinfo">ⓘ<span class="srctip">{@render srcTip()}</span></span>{/if}
     <span class="seckey">{SECTIONS.find(s => s.id === id).key}</span>
   </button>
 {/snippet}
+
+{#snippet recapSrc()}
+  {#if recap?.source === 'bible-summary'}
+    <a href="https://biblesummary.info" target="_blank" rel="noopener">Bible Summary · biblesummary.info</a>
+  {:else}{RECAP_SRC[recap?.source] || recap?.source}{/if}
+{/snippet}
+{#snippet notesSrc()}Tyndale Open Study Notes · CC BY-SA 4.0{/snippet}
+{#snippet dictSrc()}Tyndale Open Bible Dictionary · CC BY-SA 4.0{/snippet}
 
 {#if tab === 'xrefs'}
   {#if study.verse == null}
@@ -186,23 +195,22 @@
   {@render secHeader('intro', 'Book introduction', 'noCount')}
   {#if sec.intro && bookIntro}
     <div class="grp">
-      <p class="recaptext">{bookIntro.summary}</p>
-      <p class="recaptext introfull">{introOpen ? bookIntro.intro
-        : bookIntro.intro.slice(0, RECAP_CLAMP).trimEnd() + '…'}</p>
-      <button class="seemore" onclick={() => (introOpen = !introOpen)}>
-        {introOpen ? 'Read less' : 'Read the full introduction'}</button>
+      {#each parseArticleBlocks(bookIntro.summary) as b}
+        <p class="recaptext" class:introfield={b.kind === 'head'}>{b.text}</p>
+      {/each}
+      <p class="recaptext introfull">{articlePreview(bookIntro.intro, RECAP_CLAMP)}</p>
+      <!-- the full intro runs to 16k characters, so it opens in the overlay like an article -->
+      <button class="seemore" onclick={() => (modal = {
+        article: { id: `intro:${study.book}`, title: bookName(study.book), body: bookIntro.intro },
+        focusId: null, source: 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0',
+      })}>Read the full introduction</button>
     </div>
   {/if}
 
-  {@render secHeader('recap', 'Recap', 'noCount')}
+  {@render secHeader('recap', 'Recap', 'noCount', recap ? recapSrc : null)}
   {#if sec.recap && recap}
     {@const long = recap.recap.length > RECAP_CLAMP}
     <div class="grp recap">
-      <div class="grplbl">Recap<span class="srcinfo">ⓘ<span class="srctip">
-        {#if recap.source === 'bible-summary'}
-          <a href="https://biblesummary.info" target="_blank" rel="noopener">Bible Summary · biblesummary.info</a>
-        {:else}{RECAP_SRC[recap.source] || recap.source}{/if}
-      </span></span></div>
       <p class="recaptext">{long && !recapOpen ? recap.recap.slice(0, RECAP_CLAMP).trimEnd() + '…' : recap.recap}</p>
       {#if long}
         <button class="seemore" onclick={() => (recapOpen = !recapOpen)}>{recapOpen ? 'Read less' : 'Read more'}</button>
@@ -280,10 +288,11 @@
     {/if}
   {/if}
 
-  {@render secHeader('notes', 'Study notes')}
+  {@render secHeader('notes', 'Study notes', '', noteCount > 0 ? notesSrc : null)}
   {#if sec.notes}
     <div class="grp studynotes">
-      <div class="grplbl">Study Notes<span class="srcinfo">ⓘ<span class="srctip">Tyndale Open Study Notes · CC BY-SA 4.0</span></span> {#if noteCount > 0}<span class="sub">· {noteCount} in this chapter</span>{/if}</div>
+      <!-- the header's count is verse-level; this is the chapter total, so it is not a duplicate -->
+      {#if noteCount > 0}<div class="grpnote">{noteCount} in this chapter</div>{/if}
       {#if noteCount === 0}
         <div class="empty">No study notes for this chapter.</div>
       {:else if study.verse == null}
@@ -294,7 +303,7 @@
         {#each studyNotes as n}
           <div class="snote">
             <div class="snref">{n.ref}</div>
-            <p class="snbody">{n.body}</p>
+            <p class="snbody"><RefText text={n.body} /></p>
           </div>
         {/each}
       {/if}
@@ -305,7 +314,10 @@
   {#if sec.themes}
     <div class="grp">
       {#each themes as t}
-        <div class="snote"><div class="snref">{t.title} · {t.ref}</div><p class="snbody">{t.body}</p></div>
+        <div class="snote">
+          <div class="snref">{t.title} · {t.ref}</div>
+          <p class="snbody"><RefText text={t.body} /></p>
+        </div>
       {/each}
     </div>
   {/if}
@@ -314,18 +326,21 @@
   {#if sec.profiles}
     <div class="grp">
       {#each profiles as p}
-        <div class="snote"><div class="snref">{p.title} · {p.ref}</div><p class="snbody">{p.body}</p></div>
+        <div class="snote">
+          <div class="snref">{p.title} · {p.ref}</div>
+          <p class="snbody"><RefText text={p.body} /></p>
+        </div>
       {/each}
     </div>
   {/if}
 
-  {@render secHeader('dict', 'Dictionary')}
+  {@render secHeader('dict', 'Dictionary', '', dictCount > 0 ? dictSrc : null)}
   {#if sec.dict}
     <div class="grp">
       <div class="dictgrid">
         {#each dictArticles as a (a.id)}
           <button class="dchip" class:active={dictSel === a.id}
-            onclick={() => { dictSel = dictSel === a.id ? null : a.id; dictOpen = false; }}>
+            onclick={() => (dictSel = dictSel === a.id ? null : a.id)}>
             {a.title}
           </button>
         {/each}
@@ -334,40 +349,33 @@
         {@const long = dictDetail.body.length > DICT_CLAMP}
         <div class="ddetail" bind:this={dictEl}>
           <div class="dtitle">{dictDetail.title}</div>
-          <p class="snbody">{long && !dictOpen
-            ? dictDetail.body.slice(0, DICT_CLAMP).trimEnd() + '…' : dictDetail.body}</p>
+          <!-- articlePreview drops subheads and bullets: the card shows an opening, not a document -->
+          <p class="snbody"><RefText text={articlePreview(dictDetail.body, DICT_CLAMP)} /></p>
+          <!-- long articles and embedded charts/textboxes open in an overlay rather than in place:
+               bodies reach 106k characters, which would bury every section below this one -->
           {#if long}
-            <button class="seemore" onclick={() => (dictOpen = !dictOpen)}>
-              {dictOpen ? 'Read less' : 'Read more'}</button>
+            <button class="seemore" onclick={() => (modal = { article: dictDetail, focusId: null })}>
+              Read the full article</button>
           {/if}
           {#if dictSupps.length}
             <div class="dictgrid supps">
               {#each dictSupps as s (s.id)}
-                <button class="dchip supp" class:active={suppSel === s.id}
-                  onclick={() => (suppSel = suppSel === s.id ? null : s.id)}>
+                <button class="dchip supp"
+                  onclick={() => (modal = { article: dictDetail, focusId: s.id })}>
                   {s.kind === 'chart' ? '▦' : '▤'} {s.title}
                 </button>
               {/each}
             </div>
-            {#if suppDetail}
-              <div class="sdetail">
-                <div class="dtitle">{suppDetail.title}</div>
-                <!-- charts are the only Tyndale content that cannot flatten to text. The markup
-                     is generated by our own parser (tags whitelisted to table/tr/td/th, all
-                     attributes stripped), never raw source, so {@html} has no untrusted input. -->
-                {#if suppDetail.is_html}
-                  <div class="charttbl">{@html suppDetail.body}</div>
-                {:else}
-                  <p class="snbody">{suppDetail.body}</p>
-                {/if}
-              </div>
-            {/if}
           {/if}
         </div>
       {/if}
-      <div class="srcnote">Tyndale Open Bible Dictionary · CC BY-SA 4.0</div>
     </div>
   {/if}
+{/if}
+
+{#if modal}
+  <ArticleModal article={modal.article} supplements={modal.source ? [] : getArticleSupplements(modal.article.id)}
+    focusId={modal.focusId} source={modal.source} onclose={() => (modal = null)} />
 {/if}
 
 <style>
@@ -410,8 +418,7 @@
     color: var(--a); font-family: inherit; font-size: 11px; cursor: pointer; padding: 1px 2px 4px; }
   .seemore:hover { text-decoration: underline; }
   .l2 { padding: 6px 11px 10px; font-size: 11px; color: var(--dim); border-top: 1px solid var(--rule); margin-top: 4px; }
-  /* Chapter recap */
-  .recap { border-bottom: 1px solid var(--rule); }
+  /* Chapter recap — likewise no border; the next .sechd supplies it */
   .recaptext { margin: 0; font-size: 12px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; }
   /* Context entities */
   .chips { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -421,9 +428,9 @@
   .ent .name { color: var(--ink); }
   .ent .tag { color: var(--dim); font-size: 10.5px; }
   .ent .pin { font-size: 10px; cursor: help; }
-  /* Study notes */
-  .grplbl .sub { color: var(--dim); font-size: .92em; }
-  .studynotes { border-top: 1px solid var(--rule); margin-top: 6px; padding-top: 8px; }
+  /* Study notes — no border of its own: every .sechd already draws the section separator */
+  /* chapter-level total under a verse-level section header */
+  .grpnote { font-size: 10.5px; color: var(--dim); margin: 4px 0 2px; }
   .snote { margin: 6px 0; }
   .snref { font-size: 11px; color: var(--b); font-weight: 600; }
   .snbody { font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; margin: 2px 0 0; }
@@ -440,6 +447,8 @@
   .seckey { margin-left: auto; font-size: 9.5px; opacity: .5; border: 1px solid var(--rule);
     border-radius: 3px; padding: 0 4px; }
   .introfull { margin-top: 6px; }
+  /* the summary's Purpose/Author/Date/Setting labels arrive as heading blocks */
+  .introfield { color: var(--b); font-variant: small-caps; letter-spacing: .05em; margin-top: 6px; }
   /* dictionary: chip grid + one detail body, mirroring the Original tab's interlinear */
   .dictgrid { display: flex; flex-wrap: wrap; gap: 4px; }
   .dchip { border: 1px solid var(--rule); background: transparent; border-radius: 5px;
@@ -449,14 +458,8 @@
   .dchip.active { border-color: var(--a); background: color-mix(in srgb, var(--panel) 60%, var(--bg)); }
   .ddetail { border-top: 1px solid var(--rule); margin-top: 8px; padding-top: 8px; }
   .dtitle { font-size: 12px; color: var(--b); font-weight: 600; margin-bottom: 3px; }
-  .srcnote { margin-top: 8px; font-size: 10px; color: var(--dim); font-style: italic; }
-  /* embedded textboxes + charts */
+  /* embedded textboxes + charts — chips only; their bodies render in ArticleModal */
   .dictgrid.supps { margin-top: 8px; }
   .dchip.supp { font-size: 11px; color: var(--dim); }
-  .dchip.supp:hover, .dchip.supp.active { color: var(--ink); }
-  .sdetail { margin-top: 7px; padding-left: 9px; border-left: 2px solid var(--rule); }
-  .charttbl { overflow-x: auto; }
-  .charttbl :global(table) { border-collapse: collapse; font-size: 11.5px; width: 100%; }
-  .charttbl :global(td), .charttbl :global(th) { border: 1px solid var(--rule);
-    padding: 3px 6px; text-align: left; vertical-align: top; color: var(--ink); }
+  .dchip.supp:hover { color: var(--ink); }
 </style>

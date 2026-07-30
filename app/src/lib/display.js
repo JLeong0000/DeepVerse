@@ -100,3 +100,22 @@ function parseHebrewDef(d) {
     return { level, marker: s.slice(0, m[0].length).trim(), text: s.slice(m[0].length).trim() };
   });
 }
+
+// Tyndale article bodies are stored as newline-separated blocks, with subheads prefixed "## "
+// by build/lib/tyndale.mjs (structureBody). Splitting them back out is what lets a 20k-character
+// article render as headings and paragraphs instead of one unreadable run.
+const HEAD_MARK = '## ';
+
+export function parseArticleBlocks(body) {
+  return String(body || '').split('\n').filter(Boolean).map((line) =>
+    line.startsWith(HEAD_MARK)
+      ? { kind: 'head', text: line.slice(HEAD_MARK.length) }
+      : { kind: line.startsWith('•') ? 'item' : 'para', text: line });
+}
+
+// A one-line preview for the card: headings and bullets are structural, so drop them and run the
+// prose together. Used where only the opening of an article is shown.
+export function articlePreview(body, max) {
+  const prose = parseArticleBlocks(body).filter((b) => b.kind === 'para').map((b) => b.text).join(' ');
+  return prose.length > max ? prose.slice(0, max).trimEnd() + '…' : prose;
+}

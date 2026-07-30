@@ -1,7 +1,7 @@
 // Resolves Tyndale's own "See …" cross-references into article-to-article edges.
 //
 // The dictionary writes cross-references as prose sentences ("See Sin.", "See Antichrist;
-// Armageddon."). This module turns them into a graph. It resolves 96.9% of the 5,299 targets the
+// Armageddon."). This module turns them into a graph. It resolves 96.9% of the 5,336 targets the
 // corpus names; the rest are genuine source defects ("Jesus Christ, Life and Teachings of" is
 // cited 19 times and does not exist) and must degrade to nothing rather than throw.
 
@@ -66,8 +66,8 @@ export function resolveTarget(rawTarget, ix) {
   return { dst: host, anchor: ix.subheads.get(host)?.get(normKey(m[2])) ?? null };
 }
 
-// Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 144 of the
-// 5,196 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
+// Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 145 of the
+// 5,233 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
 // Teachings of" is cited 19 times. The UI shows these honestly rather than silently dropping them,
 // so the resolver must keep them.
 export function extractXrefs(article, ix) {

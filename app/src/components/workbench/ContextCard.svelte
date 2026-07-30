@@ -302,6 +302,11 @@
       {/each}
     </div>
   {/if}
+
+  {@render secHeader('dict', 'Dictionary')}
+  {#if sec.dict}
+    <!-- Dictionary grid with expandable article detail panel arrives here -->
+  {/if}
 {/if}
 
 <style>

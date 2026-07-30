@@ -1,9 +1,12 @@
 <script>
+  import { onMount } from 'svelte';
   import { getCrossRefs, getChapterCrossRefStats, getRefPreview,
     getChapterContext, getChapterEntities, getChapterRecap,
-    getStudyNotes, getChapterStudyNoteCount } from '../../lib/db.js';
+    getStudyNotes, getChapterStudyNoteCount,
+    getBookIntro, getTyndalePassages, getDictCountForVerse } from '../../lib/db.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
+  import { getPref, setPref } from '../../lib/store.js';
 
   const CAP = 4;
   let tab = $state('context'); // 'xrefs' | 'context'; default to the context view.
@@ -39,7 +42,8 @@
   const RECAP_CLAMP = 280; // collapsed length ~3 lines
   let recap = $derived(getChapterRecap(study.book, study.chapter));
   let recapOpen = $state(false);
-  $effect(() => { study.book; study.chapter; recapOpen = false; });
+  let introOpen = $state(false);
+  $effect(() => { study.book; study.chapter; recapOpen = false; introOpen = false; });
   let entities = $derived.by(() => {
     const byType = { person: [], place: [], event: [], group: [] };
     for (const e of getChapterEntities(study.book, study.chapter)) (byType[e.entity_type] ||= []).push(e);
@@ -53,12 +57,77 @@
 
   let noteCount = $derived(getChapterStudyNoteCount(study.book, study.chapter));
   let studyNotes = $derived(study.verse == null ? [] : getStudyNotes(study.book, study.chapter, study.verse));
+
+  // --- Tyndale cultural layer ---
+  let bookIntro = $derived(getBookIntro(study.book));
+  let themes = $derived(study.verse == null ? []
+    : getTyndalePassages('theme', study.book, study.chapter, study.verse));
+  let profiles = $derived(study.verse == null ? []
+    : getTyndalePassages('profile', study.book, study.chapter, study.verse));
+  let dictCount = $derived(study.verse == null ? 0
+    : getDictCountForVerse(study.book, study.chapter, study.verse));
+
+  // Collapsible sections. Keys are bound to fixed sections so a hotkey never shifts meaning
+  // as counts change. Order here is display order.
+  const SECTIONS = [
+    { id: 'intro', key: 'q', label: 'Book introduction' },
+    { id: 'recap', key: 'w', label: 'Recap' },
+    { id: 'entities', key: 'e', label: 'People, places, events' },
+    { id: 'notes', key: 'r', label: 'Study notes' },
+    { id: 'themes', key: 't', label: 'Themes' },
+    { id: 'profiles', key: 'y', label: 'Profiles' },
+    { id: 'dict', key: 'u', label: 'Dictionary' },
+  ];
+  const DEFAULT_OPEN = { intro: false, recap: true, entities: false,
+    notes: true, themes: false, profiles: false, dict: false };
+  let sec = $state({ ...DEFAULT_OPEN, ...getPref('contextSections', {}) });
+  $effect(() => { setPref('contextSections', sec); });
+
+  // count per section — a section with 0 renders its header but cannot expand
+  let counts = $derived({
+    intro: bookIntro ? 1 : 0,
+    recap: recap ? 1 : 0,
+    entities: entities.person.length + entities.place.length
+      + entities.event.length + entities.group.length,
+    notes: studyNotes.length,
+    themes: themes.length,
+    profiles: profiles.length,
+    dict: dictCount,
+  });
+
+  function toggleSec(id) { if (counts[id] > 0) sec[id] = !sec[id]; }
+
+  // Hotkeys are live only while this card is open AND the Context tab is showing, so they never
+  // fire from the Cross-references tab or a collapsed card. Letters, because Workbench owns 1..n.
+  function onKey(e) {
+    if (tab !== 'context') return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    const hit = SECTIONS.find(s => s.key === e.key.toLowerCase());
+    if (!hit) return;
+    toggleSec(hit.id);   // no-op when the section is empty
+    e.preventDefault();
+  }
+  onMount(() => {
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 </script>
 
 <div class="tabs">
   <button class="tab" class:on={tab === 'context'} onclick={() => (tab = 'context')}>Context</button>
   <button class="tab" class:on={tab === 'xrefs'} onclick={() => (tab = 'xrefs')}>Cross-references</button>
 </div>
+
+{#snippet secHeader(id, label, extra = '')}
+  {@const n = counts[id]}
+  <button class="sechd" class:empty={n === 0} onclick={() => toggleSec(id)} disabled={n === 0}>
+    <span class="caret" class:open={sec[id]}>›</span>
+    <span class="seclbl">{label}</span>
+    {#if n > 0 && extra !== 'noCount'}<span class="secn">· {n}</span>{/if}
+    <span class="seckey">{SECTIONS.find(s => s.id === id).key}</span>
+  </button>
+{/snippet}
 
 {#if tab === 'xrefs'}
   {#if study.verse == null}
@@ -98,7 +167,19 @@
     <div class="l2">Whole chapter: {chapStats.total} cross-references across {chapStats.versesWithRefs} verses.</div>
   {/if}
 {:else}
-  {#if recap}
+  {@render secHeader('intro', 'Book introduction')}
+  {#if sec.intro && bookIntro}
+    <div class="grp">
+      <p class="recaptext">{bookIntro.summary}</p>
+      <p class="recaptext introfull">{introOpen ? bookIntro.intro
+        : bookIntro.intro.slice(0, RECAP_CLAMP).trimEnd() + '…'}</p>
+      <button class="seemore" onclick={() => (introOpen = !introOpen)}>
+        {introOpen ? 'Read less' : 'Read the full introduction'}</button>
+    </div>
+  {/if}
+
+  {@render secHeader('recap', 'Recap', 'noCount')}
+  {#if sec.recap && recap}
     {@const long = recap.recap.length > RECAP_CLAMP}
     <div class="grp recap">
       <div class="grplbl">Recap<span class="srcinfo">ⓘ<span class="srctip">
@@ -113,90 +194,114 @@
     </div>
   {/if}
 
-  <div class="hd">
-    Context for <b>{bookName(study.book)} {study.chapter}</b> <span class="q">ⓘ</span>
-    {#if ctx?.writer}<span class="sub">· traditionally attributed to {ctx.writer}</span>{/if}
-    <div class="tip">
-      This context is auto-linked from the
-      <b>Theographic Bible Metadata</b> knowledge graph
-      (CC BY-SA 4.0): the people, places, and events named in this chapter’s verses. Auto-linked, so it
-      can occasionally mis-tag a name shared by a person and a place (e.g. “Moab” or “Judah”), and dates
-      are approximate traditional chronology.
+  {@render secHeader('entities', 'People, places, events')}
+  {#if sec.entities}
+    <div class="hd">
+      Context for <b>{bookName(study.book)} {study.chapter}</b> <span class="q">ⓘ</span>
+      {#if ctx?.writer}<span class="sub">· traditionally attributed to {ctx.writer}</span>{/if}
+      <div class="tip">
+        This context is auto-linked from the
+        <b>Theographic Bible Metadata</b> knowledge graph
+        (CC BY-SA 4.0): the people, places, and events named in this chapter’s verses. Auto-linked, so it
+        can occasionally mis-tag a name shared by a person and a place (e.g. “Moab” or “Judah”), and dates
+        are approximate traditional chronology.
+      </div>
     </div>
-  </div>
 
-  {#if !entities.person.length && !entities.place.length && !entities.event.length && !entities.group.length}
-    <div class="empty">No linked people, places, or events in this chapter.</div>
-  {:else}
-    {#if entities.person.length}
-      <div class="grp">
-        <div class="grplbl">People · {entities.person.length}</div>
-        <div class="chips">
-          {#each entities.person as e}
-            <span class="chip" title={e.blurb || ''}>{e.name}</span>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    {#if entities.place.length || entities.event.length}
-      <div class="grp placeevent">
-        {#if entities.place.length}
-          <div class="col">
-            <div class="grplbl">Places · {entities.place.length}</div>
-            {#each entities.place as e}
-              <div class="ent" title={e.blurb || ''}>
-                <span class="name">{e.name}</span>
-                {#if e.feature_type}<span class="tag">{e.feature_type}</span>{/if}
-                {#if e.latitude != null && e.longitude != null}<span class="pin" title="{e.latitude}, {e.longitude}">📍</span>{/if}
-              </div>
+    {#if !entities.person.length && !entities.place.length && !entities.event.length && !entities.group.length}
+      <div class="empty">No linked people, places, or events in this chapter.</div>
+    {:else}
+      {#if entities.person.length}
+        <div class="grp">
+          <div class="grplbl">People · {entities.person.length}</div>
+          <div class="chips">
+            {#each entities.person as e}
+              <span class="chip" title={e.blurb || ''}>{e.name}</span>
             {/each}
           </div>
-        {/if}
+        </div>
+      {/if}
 
-        {#if entities.event.length}
-          <div class="col">
-            <div class="grplbl">Events <span class="note">· approximate, traditional chronology</span></div>
-            {#each entities.event as e}
-              <div class="ent" title={e.blurb || ''}>
-                <span class="name">{e.name}</span>
-                {#if e.approx_year != null}<span class="tag">{yearLabel(e.approx_year)}</span>{/if}
-              </div>
+      {#if entities.place.length || entities.event.length}
+        <div class="grp placeevent">
+          {#if entities.place.length}
+            <div class="col">
+              <div class="grplbl">Places · {entities.place.length}</div>
+              {#each entities.place as e}
+                <div class="ent" title={e.blurb || ''}>
+                  <span class="name">{e.name}</span>
+                  {#if e.feature_type}<span class="tag">{e.feature_type}</span>{/if}
+                  {#if e.latitude != null && e.longitude != null}<span class="pin" title="{e.latitude}, {e.longitude}">📍</span>{/if}
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#if entities.event.length}
+            <div class="col">
+              <div class="grplbl">Events <span class="note">· approximate, traditional chronology</span></div>
+              {#each entities.event as e}
+                <div class="ent" title={e.blurb || ''}>
+                  <span class="name">{e.name}</span>
+                  {#if e.approx_year != null}<span class="tag">{yearLabel(e.approx_year)}</span>{/if}
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      {#if entities.group.length}
+        <div class="grp">
+          <div class="grplbl">Groups · {entities.group.length}</div>
+          <div class="chips">
+            {#each entities.group as e}
+              <span class="chip" title={e.blurb || ''}>{e.name}</span>
             {/each}
           </div>
-        {/if}
-      </div>
-    {/if}
-
-    {#if entities.group.length}
-      <div class="grp">
-        <div class="grplbl">Groups · {entities.group.length}</div>
-        <div class="chips">
-          {#each entities.group as e}
-            <span class="chip" title={e.blurb || ''}>{e.name}</span>
-          {/each}
         </div>
-      </div>
+      {/if}
     {/if}
   {/if}
 
-  <div class="grp studynotes">
-    <div class="grplbl">Study Notes<span class="srcinfo">ⓘ<span class="srctip">Tyndale Open Study Notes · CC BY-SA 4.0</span></span> {#if noteCount > 0}<span class="sub">· {noteCount} in this chapter</span>{/if}</div>
-    {#if noteCount === 0}
-      <div class="empty">No study notes for this chapter.</div>
-    {:else if study.verse == null}
-      <div class="empty">Select a verse to read its notes.</div>
-    {:else if studyNotes.length === 0}
-      <div class="empty">No study note for this verse.</div>
-    {:else}
-      {#each studyNotes as n}
-        <div class="snote">
-          <div class="snref">{n.ref}</div>
-          <p class="snbody">{n.body}</p>
-        </div>
+  {@render secHeader('notes', 'Study notes')}
+  {#if sec.notes}
+    <div class="grp studynotes">
+      <div class="grplbl">Study Notes<span class="srcinfo">ⓘ<span class="srctip">Tyndale Open Study Notes · CC BY-SA 4.0</span></span> {#if noteCount > 0}<span class="sub">· {noteCount} in this chapter</span>{/if}</div>
+      {#if noteCount === 0}
+        <div class="empty">No study notes for this chapter.</div>
+      {:else if study.verse == null}
+        <div class="empty">Select a verse to read its notes.</div>
+      {:else if studyNotes.length === 0}
+        <div class="empty">No study note for this verse.</div>
+      {:else}
+        {#each studyNotes as n}
+          <div class="snote">
+            <div class="snref">{n.ref}</div>
+            <p class="snbody">{n.body}</p>
+          </div>
+        {/each}
+      {/if}
+    </div>
+  {/if}
+
+  {@render secHeader('themes', 'Themes')}
+  {#if sec.themes}
+    <div class="grp">
+      {#each themes as t}
+        <div class="snote"><div class="snref">{t.title} · {t.ref}</div><p class="snbody">{t.body}</p></div>
       {/each}
-    {/if}
-  </div>
+    </div>
+  {/if}
+
+  {@render secHeader('profiles', 'Profiles')}
+  {#if sec.profiles}
+    <div class="grp">
+      {#each profiles as p}
+        <div class="snote"><div class="snref">{p.title} · {p.ref}</div><p class="snbody">{p.body}</p></div>
+      {/each}
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -256,4 +361,17 @@
   .snote { margin: 6px 0; }
   .snref { font-size: 11px; color: var(--b); font-weight: 600; }
   .snbody { font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; margin: 2px 0 0; }
+  /* collapsible section headers */
+  .sechd { display: flex; align-items: baseline; gap: 5px; width: 100%; text-align: left;
+    background: transparent; border: none; border-top: 1px solid var(--rule);
+    padding: 7px 11px 5px; cursor: pointer; font-family: inherit; color: var(--dim); }
+  .sechd:hover:not(:disabled) { color: var(--ink); }
+  .sechd:disabled { cursor: default; opacity: .55; }
+  .sechd .caret { display: inline-block; transition: transform .12s; font-size: 11px; }
+  .sechd .caret.open { transform: rotate(90deg); }
+  .seclbl { font-variant: small-caps; letter-spacing: .05em; font-size: 10.5px; }
+  .secn { font-size: 10.5px; }
+  .seckey { margin-left: auto; font-size: 9.5px; opacity: .5; border: 1px solid var(--rule);
+    border-radius: 3px; padding: 0 4px; }
+  .introfull { margin-top: 6px; }
 </style>

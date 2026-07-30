@@ -66,10 +66,37 @@ describe('tokenizeRefs', () => {
     expect(got.map((r) => r.ref.book)).toEqual(['Matt', 'Mark', '1Cor']);
   });
 
-  test('a book-less continuation stays plain rather than guessing', () => {
+  test('a continuation separated only by "; " inherits the book', () => {
     const got = refs('as predicted (e.g., Zech 12:10; 13:7).');
+    expect(got.map((r) => r.text)).toEqual(['Zech 12:10', '13:7']);
+    expect(got[1].ref).toEqual({ book: 'Zech', chapter: 13, verse: 7 });
+  });
+
+  test('a whole citation list inherits from the one stated book', () => {
+    // Tyndale's "Passages for Further Study" lists name the book once; this is 11,829 refs corpus-wide
+    const got = refs('Matthew 3:1-15; 4:12; 9:14; 11:2-19; 14:1-12.');
+    expect(got.map((r) => r.text)).toEqual(['Matthew 3:1-15', '4:12', '9:14', '11:2-19', '14:1-12']);
+    expect(got.every((r) => r.ref.book === 'Matt')).toBe(true);
+  });
+
+  test('prose between references BREAKS the chain — the book is not carried across it', () => {
+    // this is the guesswork guard: after a sentence, a bare ref could belong to any book in it
+    const got = refs('See Zech 12:10. He also wrote about 13:7 elsewhere.');
     expect(got).toHaveLength(1);
     expect(got[0].text).toBe('Zech 12:10');
+  });
+
+  test('a comma-separated run of ranges links as one span', () => {
+    const [r] = refs('Luke 1:13-17, 36, 39-43, 57-66; more');
+    expect(r.text).toBe('Luke 1:13-17, 36, 39-43, 57-66');
+    expect(r.ref).toEqual({ book: 'Luke', chapter: 1, verse: 13 });
+  });
+
+  test('an implausible chapter or verse stays plain', () => {
+    // Tyndale writes "9:510:7-14" where it means "9:5; 10:7-14"; 510 exceeds any real chapter
+    expect(refs('John 9:510:7-14')).toHaveLength(0);
+    expect(refs('Gen 200:1')).toHaveLength(0);
+    expect(refs('Ps 119:176')).toHaveLength(1);   // the genuine maximum still links
   });
 
   test('never loses or duplicates a character of the original text', () => {

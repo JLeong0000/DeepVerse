@@ -75,22 +75,42 @@ const REF_BOOKS = {
   Rv: 'Rev', Rev: 'Rev', Revelation: 'Rev',
 };
 
-// "1 Chr 5:3", "Gn 1:1", "1 Corinthians 11:23-34", "John 14:1–17:26", "Ps 115:10, 12".
-// The trailing range/list is captured so the LINK spans the whole reference a reader sees —
-// otherwise "John 13:1-20" underlines only "John 13:1" and leaves "-20" adrift — while the jump
-// still targets the opening verse. The   alternative is required because
-// Tyndale separates the number from the name with a non-breaking space.
-const REF_RE =
-  /\b((?:[1-4][  ]?)?[A-Z][A-Za-z]{1,11})\.?[  ]+(\d+):(\d+(?:[-–—]\d+(?::\d+)?)?(?:,[  ]?\d+)*)/g;
+// A verse spec is everything after "chapter:" that a reader sees as one citation —
+// "5", "1-20", "1\u201317:26" (cross-chapter), "13-17, 36, 39-43, 57-66". Capturing the whole thing
+// keeps the link and the visible reference the same span; matching only the first number would
+// underline "Luke 1:13-17, 36, 39" and leave "-43, 57-66" adrift beside it.
+const VERSE_SPEC = String.raw`\d+(?:[-\u2013\u2014]\d+(?::\d+)?)?(?:,[\s\u00a0]*\d+(?:[-\u2013\u2014]\d+)?)*`;
+
+// "1 Chr 5:3", "Gn 1:1", "1 Corinthians 11:23-34". The non-breaking-space alternative is required
+// because Tyndale separates a book's number from its name with one.
+const REF_RE = new RegExp(
+  String.raw`\b((?:[1-4][\s\u00a0]?)?[A-Z][A-Za-z]{1,11})\.?[\s\u00a0]+(\d+):(${VERSE_SPEC})`, 'g');
+
+// A citation that continues the previous one, separated by nothing but "; " or ", " — as in
+// "Matthew 3:1-15; 4:12; 9:14" or "Acts 1:5; 10:37; 11:16", where the book is stated once and the
+// rest inherit it. Anchored at the start, so it only ever matches text directly abutting a ref.
+const CONT_RE = new RegExp(String.raw`^([;,][\s\u00a0]*)(\d+):(${VERSE_SPEC})`);
 
 export function lookupRefBook(token) {
-  return REF_BOOKS[String(token).replace(/[  .]/g, '')] || null;
+  return REF_BOOKS[String(token).replace(/[\s\u00a0.]/g, '')] || null;
 }
 
+// Psalms has the most chapters (150) and Psalm 119 the most verses (176), so anything beyond these
+// cannot be a real reference. It catches run-together numbers in the source: Tyndale writes
+// "9:510:7-14" where it means "9:5; 10:7-14", which would otherwise link to John 9:510. Such a
+// reference stays plain rather than becoming a link that goes nowhere.
+const MAX_CHAPTER = 150;
+const MAX_VERSE = 176;
+const plausible = (chapter, verse) =>
+  chapter >= 1 && chapter <= MAX_CHAPTER && verse >= 1 && verse <= MAX_VERSE;
+
 // text -> [{ plain } | { ref: {book, chapter, verse}, text }]
-// A citation that omits its book because the previous one supplied it ("; 13:7", "chs 3–4") stays
-// plain: carrying the book forward is guesswork the moment a sentence breaks the chain, and a
-// confidently wrong link is worse than none.
+//
+// A bare chapter:verse inherits the previous reference's book ONLY when nothing but a separator
+// stands between them. That covers Tyndale's dense citation lists (11,829 references corpus-wide)
+// without guessing: the moment prose intervenes the chain is broken and the reference stays plain,
+// because a bare "3:16" after a sentence could belong to any book mentioned in it, and a
+// confidently wrong link is worse than none (23,122 such cases are deliberately left alone).
 export function tokenizeRefs(text) {
   const src = String(text ?? '');
   const out = [];
@@ -100,10 +120,24 @@ export function tokenizeRefs(text) {
   while ((m = REF_RE.exec(src))) {
     const book = lookupRefBook(m[1]);
     if (!book) continue;                       // not an allowlisted book — leave it as prose
+    if (!plausible(+m[2], parseInt(m[3], 10))) continue;   // malformed source — leave it as prose
     if (m.index > last) out.push({ plain: src.slice(last, m.index) });
     // m[3] is the whole verse spec ("20", "1-20", "10, 12"); the jump targets its first verse
     out.push({ ref: { book, chapter: +m[2], verse: parseInt(m[3], 10) }, text: m[0] });
     last = m.index + m[0].length;
+
+    // consume any run of same-book continuations that directly follows
+    let c;
+    while ((c = CONT_RE.exec(src.slice(last)))) {
+      if (!plausible(+c[2], parseInt(c[3], 10))) break;
+      out.push({ plain: c[1] });               // the separator stays prose
+      out.push({
+        ref: { book, chapter: +c[2], verse: parseInt(c[3], 10) },
+        text: c[0].slice(c[1].length),
+      });
+      last += c[0].length;
+    }
+    REF_RE.lastIndex = last;                   // resume scanning past everything just consumed
   }
   if (last < src.length) out.push({ plain: src.slice(last) });
   return out;

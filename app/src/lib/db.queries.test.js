@@ -304,8 +304,9 @@ describe('tyndale cultural layer', () => {
   });
 
   test('getDictCountForVerse matches the row count', () => {
-    expect(db.getDictCountForVerse('Mark', 14, 36))
-      .toBe(db.getDictForVerse('Mark', 14, 36).length);
+    const count = db.getDictCountForVerse('Mark', 14, 36);
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBe(db.getDictForVerse('Mark', 14, 36).length);
   });
 
   test('getTyndalePassages: themes use the covering-range model', () => {
@@ -321,6 +322,7 @@ describe('tyndale cultural layer', () => {
     expect(profiles.length).toBeGreaterThan(0);
     expect(profiles.map(r => r.title)).toContain('Adam and Eve');
     const themes = db.getTyndalePassages('theme', 'Gen', 3, 1);
+    expect(themes.length).toBeGreaterThan(0);
     expect(themes.every(r => r.title !== 'Adam and Eve')).toBe(true);
   });
 

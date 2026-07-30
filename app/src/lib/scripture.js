@@ -81,24 +81,22 @@ const REF_BOOKS = {
 // underline "Luke 1:13-17, 36, 39" and leave "-43, 57-66" adrift beside it.
 const VERSE_SPEC = String.raw`\d+(?:[-\u2013\u2014]\d+(?::\d+)?)?(?:,[\s\u00a0]*\d+(?:[-\u2013\u2014]\d+)?)*`;
 
-// "1 Chr 5:3", "Gn 1:1", "1 Corinthians 11:23-34". The non-breaking-space alternative is required
-// because Tyndale separates a book's number from its name with one.
-const REF_RE = new RegExp(
-  String.raw`\b((?:[1-4][\s\u00a0]?)?[A-Z][A-Za-z]{1,11})\.?[\s\u00a0]+(\d+):(${VERSE_SPEC})`, 'g');
+// "1 Chr 5:3", "Gn 1:1", "1 Corinthians 11:23-34". The book is OPTIONAL so one scan also finds the
+// bare "3:16" citations; which book those belong to is decided per match below. The non-breaking
+// space alternative is required because Tyndale separates a book's number from its name with one.
+const SCAN_RE = new RegExp(
+  String.raw`(?:\b((?:[1-4][\s ]?)?[A-Z][A-Za-z]{1,11})\.?[\s ]+)?(?<![\d:])(\d+):(${VERSE_SPEC})`,
+  'g');
 
-// A citation that continues the previous one, separated by nothing but "; " or ", " — as in
-// "Matthew 3:1-15; 4:12; 9:14" or "Acts 1:5; 10:37; 11:16", where the book is stated once and the
-// rest inherit it. Anchored at the start, so it only ever matches text directly abutting a ref.
-const CONT_RE = new RegExp(String.raw`^([;,][\s\u00a0]*)(\d+):(${VERSE_SPEC})`);
+const SEPARATOR_ONLY = /^[;,\s ]*$/;
 
 export function lookupRefBook(token) {
-  return REF_BOOKS[String(token).replace(/[\s\u00a0.]/g, '')] || null;
+  return REF_BOOKS[String(token).replace(/[\s .]/g, '')] || null;
 }
 
 // Psalms has the most chapters (150) and Psalm 119 the most verses (176), so anything beyond these
 // cannot be a real reference. It catches run-together numbers in the source: Tyndale writes
-// "9:510:7-14" where it means "9:5; 10:7-14", which would otherwise link to John 9:510. Such a
-// reference stays plain rather than becoming a link that goes nowhere.
+// "9:510:7-14" where it means "9:5; 10:7-14", which would otherwise link to John 9:510.
 const MAX_CHAPTER = 150;
 const MAX_VERSE = 176;
 const plausible = (chapter, verse) =>
@@ -106,38 +104,52 @@ const plausible = (chapter, verse) =>
 
 // text -> [{ plain } | { ref: {book, chapter, verse}, text }]
 //
-// A bare chapter:verse inherits the previous reference's book ONLY when nothing but a separator
-// stands between them. That covers Tyndale's dense citation lists (11,829 references corpus-wide)
-// without guessing: the moment prose intervenes the chain is broken and the reference stays plain,
-// because a bare "3:16" after a sentence could belong to any book mentioned in it, and a
-// confidently wrong link is worse than none (23,122 such cases are deliberately left alone).
-export function tokenizeRefs(text) {
+// A citation that names its book is unambiguous. One that does not gets a book from two sources,
+// in order:
+//
+//   1. The reference before it, when nothing but a separator stands between them — Tyndale's dense
+//      lists name the book once ("Acts 1:5; 10:37; 11:16") and let the rest inherit it.
+//   2. `book`, the book the surrounding text is ABOUT — a study note on Matthew writing "3:17"
+//      means Matthew, the standard commentary convention. Guarded by `exists`, so a reference that
+//      is not in that book stays plain instead of pointing somewhere wrong: a Numbers note citing
+//      "141:9" is a Psalm, and Numbers has 36 chapters.
+//
+// Callers with no single subject (a dictionary article spans the whole Bible) pass neither, and
+// bare references there stay plain rather than being guessed at.
+export function tokenizeRefs(text, { book: defaultBook = null, exists = null } = {}) {
   const src = String(text ?? '');
   const out = [];
   let last = 0;
-  REF_RE.lastIndex = 0;
+  let contBook = null;          // the book a directly-following bare reference would inherit
+  SCAN_RE.lastIndex = 0;
   let m;
-  while ((m = REF_RE.exec(src))) {
-    const book = lookupRefBook(m[1]);
-    if (!book) continue;                       // not an allowlisted book — leave it as prose
-    if (!plausible(+m[2], parseInt(m[3], 10))) continue;   // malformed source — leave it as prose
-    if (m.index > last) out.push({ plain: src.slice(last, m.index) });
-    // m[3] is the whole verse spec ("20", "1-20", "10, 12"); the jump targets its first verse
-    out.push({ ref: { book, chapter: +m[2], verse: parseInt(m[3], 10) }, text: m[0] });
-    last = m.index + m[0].length;
+  while ((m = SCAN_RE.exec(src))) {
+    const [, token, chapterStr, spec] = m;
+    const chapter = +chapterStr;
+    const verse = parseInt(spec, 10);
+    // when the token is not a book we know, drop it from the match and reconsider the number alone:
+    // "In 2:15" opens a sentence, but its 2:15 is still a reference
+    const named = token ? lookupRefBook(token) : null;
+    const start = named ? m.index : m.index + m[0].length - (chapterStr.length + 1 + spec.length);
+    const matched = named ? m[0] : src.slice(start, m.index + m[0].length);
 
-    // consume any run of same-book continuations that directly follows
-    let c;
-    while ((c = CONT_RE.exec(src.slice(last)))) {
-      if (!plausible(+c[2], parseInt(c[3], 10))) break;
-      out.push({ plain: c[1] });               // the separator stays prose
-      out.push({
-        ref: { book, chapter: +c[2], verse: parseInt(c[3], 10) },
-        text: c[0].slice(c[1].length),
-      });
-      last += c[0].length;
+    let book = named;
+    if (!book) {
+      const gap = src.slice(last, start);
+      const inherited = contBook && SEPARATOR_ONLY.test(gap) ? contBook : null;
+      // a list can change book mid-run — "Isa 1:1; ...; 147:12" ends on a Psalm — so an inherited
+      // book that does not contain the verse is dropped in favour of the subject book
+      if (inherited && (!exists || exists(inherited, chapter, verse))) book = inherited;
+      else if (defaultBook && exists?.(defaultBook, chapter, verse)) book = defaultBook;
     }
-    REF_RE.lastIndex = last;                   // resume scanning past everything just consumed
+
+    if (!book || !plausible(chapter, verse)) { contBook = null; continue; }
+
+    if (start > last) out.push({ plain: src.slice(last, start) });
+    out.push({ ref: { book, chapter, verse }, text: matched });
+    last = start + matched.length;
+    contBook = book;
+    SCAN_RE.lastIndex = last;
   }
   if (last < src.length) out.push({ plain: src.slice(last) });
   return out;

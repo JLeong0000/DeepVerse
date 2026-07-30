@@ -43,6 +43,7 @@ export function _setDbForTest(instance) {
   db = instance;
   _wordFreq = null; // drop the memoized frequency map when the db is swapped
   _wordIndex = null;
+  _verseBounds = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -393,12 +394,30 @@ export function getDictCountForVerse(book, chapter, verse) {
 export function getTyndalePassages(kind, book, chapter, verse) {
   const key = chapter * 1000 + verse;
   return query(
-    `SELECT title, ref, body FROM tyndale_passages
+    `SELECT title, ref, body, book FROM tyndale_passages
       WHERE kind = ? AND book = ?
         AND (start_chapter*1000 + start_verse) <= ?
         AND (end_chapter*1000   + end_verse)   >= ?
       ORDER BY (start_chapter*1000 + start_verse), seq`,
     [kind, book, key, key]);
+}
+
+// Does a verse actually exist? Used to decide whether a book-less citation in Tyndale prose can be
+// resolved against the book its surrounding text is about — a Numbers note citing "141:9" is a
+// Psalm, and linking it to Numbers would point somewhere wrong. Built once as a book -> chapter ->
+// last-verse map (1,189 chapters) rather than a query per reference, since a long article can hold
+// well over a hundred.
+let _verseBounds = null;
+export function verseExists(book, chapter, verse) {
+  if (!_verseBounds) {
+    _verseBounds = new Map();
+    for (const r of query('SELECT book, chapter, MAX(verse) AS last FROM verses GROUP BY book, chapter')) {
+      if (!_verseBounds.has(r.book)) _verseBounds.set(r.book, new Map());
+      _verseBounds.get(r.book).set(r.chapter, r.last);
+    }
+  }
+  const last = _verseBounds.get(book)?.get(chapter);
+  return last != null && verse >= 1 && verse <= last;
 }
 
 // Book-level, not verse-level: intro ranges span whole books, so this is keyed on book alone.

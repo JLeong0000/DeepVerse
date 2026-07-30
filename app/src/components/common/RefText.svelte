@@ -3,12 +3,15 @@
   // the body text can never inject markup.
   import { tokenizeRefs } from '../../lib/scripture.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
+  import { verseExists } from '../../lib/db.js';
   import { bookName } from '../../lib/refs.js';
 
   // onnavigate lets an overlay close itself once a reference has been followed —
   // otherwise the modal stays over the verse it just sent you to.
-  let { text, onnavigate = null } = $props();
-  let segs = $derived(tokenizeRefs(text));
+  // `book` is what the surrounding text is ABOUT, so a book-less citation can be resolved against
+  // it. Callers with no single subject (a dictionary article) pass nothing and those stay plain.
+  let { text, book = null, onnavigate = null } = $props();
+  let segs = $derived(tokenizeRefs(text, { book, exists: verseExists }));
 
   // A reference to the verse already on screen is a link to nowhere — clicking it does nothing.
   // Render it as plain text so the underlines that remain all actually go somewhere.

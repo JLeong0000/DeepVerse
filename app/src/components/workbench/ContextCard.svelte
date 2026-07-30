@@ -156,12 +156,12 @@
 {/snippet}
 <!-- Prose that is too long for the card: show an opening and send the rest to the overlay.
      Themes and profiles ALWAYS exceed the clamp (avg ~2,000 chars), and 2,649 study notes do. -->
-{#snippet clamped(title, body)}
+{#snippet clamped(title, body, subject = null)}
   {@const long = body.length > DICT_CLAMP}
-  <p class="snbody"><RefText text={long ? articlePreview(body, DICT_CLAMP) : body} /></p>
+  <p class="snbody"><RefText text={long ? articlePreview(body, DICT_CLAMP) : body} book={subject} /></p>
   {#if long}
     <button class="seemore" onclick={() => (modal = {
-      article: { id: `passage:${title}`, title, body }, focusId: null,
+      article: { id: `passage:${title}`, title, body, book: subject }, focusId: null,
       supplements: [], source: STUDY_NOTES_SOURCE,
     })}>Read more</button>
   {/if}
@@ -217,7 +217,7 @@
       <p class="recaptext introfull">{articlePreview(bookIntro.intro, RECAP_CLAMP)}</p>
       <!-- the full intro runs to 16k characters, so it opens in the overlay like an article -->
       <button class="seemore" onclick={() => (modal = {
-        article: { id: `intro:${study.book}`, title: bookName(study.book), body: bookIntro.intro },
+        article: { id: `intro:${study.book}`, title: bookName(study.book), body: bookIntro.intro, book: study.book },
         focusId: null, source: STUDY_NOTES_SOURCE,
       })}>Read the full introduction</button>
     </div>
@@ -319,7 +319,7 @@
         {#each studyNotes as n}
           <div class="snote">
             <div class="snref">{n.ref}</div>
-            {@render clamped(`${bookName(study.book)} ${n.ref}`, n.body)}
+            {@render clamped(`${bookName(study.book)} ${n.ref}`, n.body, study.book)}
           </div>
         {/each}
       {/if}
@@ -332,7 +332,7 @@
       {#each themes as t}
         <div class="snote">
           <div class="snref">{t.title} · {t.ref}</div>
-          {@render clamped(t.title, t.body)}
+          {@render clamped(t.title, t.body, t.book)}
         </div>
       {/each}
     </div>
@@ -344,7 +344,7 @@
       {#each profiles as p}
         <div class="snote">
           <div class="snref">{p.title} · {p.ref}</div>
-          {@render clamped(p.title, p.body)}
+          {@render clamped(p.title, p.body, p.book)}
         </div>
       {/each}
     </div>

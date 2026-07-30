@@ -121,3 +121,49 @@ describe('tokenizeRefs', () => {
     expect(b).toHaveLength(1);   // would be 0 if lastIndex leaked across calls
   });
 });
+
+describe('a book-less citation resolved against the subject book', () => {
+  // stand-in for db.js verseExists: Numbers ends at ch36, Matthew at ch28, Psalms run to 150
+  const exists = (b, c) =>
+    (b === 'Num' && c <= 36) || (b === 'Matt' && c <= 28) || (b === 'Ps' && c <= 150) ||
+    (b === 'Eph' && c <= 6) || (b === 'Gen' && c <= 50);
+  const withBook = (s, book) => tokenizeRefs(s, { book, exists }).filter((x) => x.ref);
+
+  test('a note on Matthew reads a bare reference as Matthew', () => {
+    const [r] = withBook('Later in 5:9 he says', 'Matt');
+    expect(r.ref).toEqual({ book: 'Matt', chapter: 5, verse: 9 });
+  });
+
+  test('without a subject book the same text stays plain', () => {
+    // a dictionary article spans the whole Bible, so there is nothing to resolve against
+    expect(tokenizeRefs('Later in 5:9 he says').filter((x) => x.ref)).toHaveLength(0);
+  });
+
+  test('a reference the subject book cannot contain stays plain', () => {
+    // Numbers has 36 chapters, so "141:9" in a Numbers note is a Psalm, not Numbers
+    expect(withBook('a psalm (141:9) says', 'Num')).toHaveLength(0);
+  });
+
+  test('an explicit book always wins over the subject book', () => {
+    const [r] = withBook('see Ps 23:1 here', 'Matt');
+    expect(r.ref.book).toBe('Ps');
+  });
+
+  test('a sentence-opening word is not mistaken for a book, but its verse still resolves', () => {
+    // "In 2:15" — In is not a book; the reference belongs to the subject book
+    const [r] = withBook('In 2:15 Paul says', 'Eph');
+    expect(r.text).toBe('2:15');
+    expect(r.ref).toEqual({ book: 'Eph', chapter: 2, verse: 15 });
+  });
+
+  test('a list that changes book mid-run does not carry the wrong one forward', () => {
+    // "Isa 1:1; 147:12" ends on a Psalm; Isaiah has 66 chapters, so the inherited book is dropped
+    const got = withBook('Isa 1:1; 147:12', 'Ps');
+    expect(got.map((r) => r.ref.book)).toEqual(['Isa', 'Ps']);
+  });
+
+  test('continuations still inherit when the verse does exist in that book', () => {
+    const got = withBook('Matt 3:1; 4:12', 'Gen');
+    expect(got.map((r) => r.ref.book)).toEqual(['Matt', 'Matt']);
+  });
+});

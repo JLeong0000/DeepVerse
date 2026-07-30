@@ -57,6 +57,42 @@ export function cleanBody(bodyXml, keepTables = false) {
   return decodeEntities(b).replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, ' ').trim();
 }
 
+// Tyndale's <p class> tells us what each block is; flattening it all into one run makes a 20k-char
+// article unreadable. Keep the structure as newline-separated blocks, with subheads marked so the
+// app can render them as headings. Blocks that stay prose are joined with a single \n.
+const HEAD_MARK = '## ';
+const HEADING_CLASS = /^(h[2-5]|h2-list|h2-preview|(?:theme|profile)-refs-title)$/;
+
+// Blocks whose only job is to print the item's own title. Every one duplicates the <title> we
+// already render above the body — an article's <p class="h1"> matches its title in all 6,010 cases
+// (verified), and theme/profile/intro titles likewise — so they are dropped rather than repeated.
+const TITLE_CLASS = /^(h1|theme-title|profile-title|intro-title)$/;
+
+export function structureBody(bodyXml) {
+  const blocks = [];
+  for (const m of bodyXml.matchAll(/<p\b([^>]*)>(.*?)<\/p>/gs)) {
+    const cls = (m[1].match(/class="([^"]*)"/) || [])[1] || '';
+    if (TITLE_CLASS.test(cls)) continue;
+    const text = cleanBody(m[2]);
+    if (!text) continue;
+    blocks.push(HEADING_CLASS.test(cls) ? HEAD_MARK + text : text);
+  }
+  // an article with no <p> wrapper at all still needs its text
+  if (!blocks.length) {
+    const flat = cleanBody(bodyXml);
+    return flat || '';
+  }
+  return blocks.join('\n');
+}
+
+// Split a stored body back into typed blocks. Shared with the app via the same convention.
+export function parseBlocks(body) {
+  return String(body).split('\n').filter(Boolean).map((line) =>
+    line.startsWith(HEAD_MARK)
+      ? { kind: 'head', text: line.slice(HEAD_MARK.length) }
+      : { kind: line.startsWith('•') ? 'item' : 'para', text: line });
+}
+
 // "Gen.1.16" | "Gen.1.6-8" | "Gen.1.1-2.25" -> bounds + a display ref. Book normalized to OSIS.
 export function parseRefRange(refs) {
   const [left, right] = String(refs).trim().split('-');

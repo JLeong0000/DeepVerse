@@ -9,7 +9,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { OSIS_BOOKS } from './lib/books.mjs';
-import { iterItems, cleanBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, sortTitle, titleTerms }
+import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, sortTitle, titleTerms }
   from './lib/tyndale.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -69,7 +69,7 @@ for (const f of fs.readdirSync(`${DICT}/Articles`).sort()) {
     brefKept += refs.length;
     const terms = titleTerms(it.title);
     articles.push([it.name, it.title, sortTitle(it.title), 'article', null,
-      cleanBody(it.body), 0, refs.length, seq++]);
+      structureBody(it.body), 0, refs.length, seq++]);
     for (const r of refs)
       verseRows.push([it.name, r.book, r.chapter, r.verse, lexHit(terms, r.book, r.chapter, r.verse)]);
     // an article's embedded supplements name it as their host
@@ -106,7 +106,7 @@ for (const file of ['ThemeNotes.xml', 'Profiles.xml']) {
     const r = it.refs ? parseRefRange(it.refs) : null;
     if (!r) { console.warn(`parse-tyndale: unparseable refs for ${it.name}`); continue; }
     passages.push([kind, it.title, r.book, r.start_chapter, r.start_verse,
-      r.end_chapter, r.end_verse, r.ref, cleanBody(it.body), pseq++]);
+      r.end_chapter, r.end_verse, r.ref, structureBody(it.body), pseq++]);
   }
 }
 
@@ -118,7 +118,7 @@ for (const [file, field] of [['BookIntroSummaries.xml', 'summary'], ['BookIntros
     const r = it.refs ? parseRefRange(it.refs) : null;
     if (!r) { console.warn(`parse-tyndale: unparseable refs for ${it.name}`); continue; }
     const rec = intros.get(r.book) || { summary: '', intro: '' };
-    rec[field] = cleanBody(it.body);
+    rec[field] = structureBody(it.body);
     intros.set(r.book, rec);
   }
 }

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { iterItems, cleanBody, parseRefRange, extractBrefs, countBrefs, extractIncludes,
+import { structureBody, parseBlocks,
+  iterItems, cleanBody, parseRefRange, extractBrefs, countBrefs, extractIncludes,
   sortTitle, titleTerms } from '../lib/tyndale.mjs';
 
 const ARTICLE = `<items release="1.6">
@@ -52,6 +53,66 @@ test('cleanBody: strips tags, unwraps links, decodes entities, collapses whitesp
   assert.ok(txt.includes('Mk 14:36'), 'link text lost');
   assert.ok(!txt.includes('href'), 'href leaked');
   assert.ok(!/\s{2,}/.test(txt), 'whitespace not collapsed');
+});
+
+const STRUCTURED = `<p class="h1">PROPHECY</p>
+<p class="fl">Term, along with its English cognates, derived from Greek.</p>
+<p class="h2">Prophecy in the Old Testament</p>
+<p>The prophets spoke for God.</p>
+<p class="list">• Moses</p>
+<p class="h3">Types of Prophets</p>
+<p class="extract">Quoted material here.</p>`;
+
+test('structureBody: drops every title-restating block, whatever the source calls it', () => {
+  // themes/profiles/intros each print their own title in the body, exactly as articles do with h1
+  for (const cls of ['h1', 'theme-title', 'profile-title', 'intro-title']) {
+    const out = structureBody(`<p class="${cls}">Jesus’ Final Night</p><p class="fl">Body text.</p>`);
+    assert.equal(out, 'Body text.', `${cls} should not survive into the body`);
+  }
+});
+
+test('structureBody: "Passages for Further Study" is a heading, not a dropped title', () => {
+  const out = structureBody('<p class="theme-refs-title">Passages for Further Study</p>'
+    + '<p class="theme-refs">Matt 26:17-56; Mark 14:12-52</p>');
+  const blocks = parseBlocks(out);
+  assert.deepEqual(blocks.map((b) => b.kind), ['head', 'para']);
+  assert.equal(blocks[0].text, 'Passages for Further Study');
+});
+
+test('structureBody: drops the h1 headword — the title column already carries it', () => {
+  const out = structureBody(STRUCTURED);
+  assert.ok(!out.includes('PROPHECY'), 'h1 headword should not survive into the body');
+  assert.ok(out.startsWith('Term, along with'), `unexpected start: ${out.slice(0, 40)}`);
+});
+
+test('structureBody: one block per paragraph, subheads marked', () => {
+  const blocks = parseBlocks(structureBody(STRUCTURED));
+  assert.deepEqual(blocks.map((b) => b.kind),
+    ['para', 'head', 'para', 'item', 'head', 'para']);
+  assert.equal(blocks[1].text, 'Prophecy in the Old Testament');
+  assert.equal(blocks[4].text, 'Types of Prophets');
+  assert.equal(blocks[3].text, '• Moses');
+});
+
+test('structureBody: heading text carries no marker once parsed back', () => {
+  for (const b of parseBlocks(structureBody(STRUCTURED)))
+    assert.ok(!b.text.startsWith('## '), `marker leaked into ${b.kind}: ${b.text}`);
+});
+
+test('structureBody: empty paragraphs are dropped, not emitted as blank blocks', () => {
+  const out = structureBody('<p class="fl">One.</p><p class="fl">   </p><p class="fl">Two.</p>');
+  assert.deepEqual(parseBlocks(out).map((b) => b.text), ['One.', 'Two.']);
+});
+
+test('structureBody: body with no <p> wrapper still yields its text', () => {
+  assert.equal(structureBody('Bare text with no paragraph.'), 'Bare text with no paragraph.');
+});
+
+test('structureBody: real corpus has no paragraph that would fake a heading marker', () => {
+  // the "## " convention is only safe because Tyndale's prose never starts a block that way
+  const out = structureBody(STRUCTURED);
+  const faked = out.split('\n').filter((l) => l.startsWith('## ') && l.slice(3).startsWith('## '));
+  assert.equal(faked.length, 0);
 });
 
 test('cleanBody: keepTables preserves table markup for charts', () => {

@@ -71,6 +71,24 @@ test('structureBody: drops every title-restating block, whatever the source call
   }
 });
 
+test('structureBody: every content type\'s subhead class is recognised as a heading', () => {
+  // each Tyndale file names its subheads differently; missing one renders labels as body prose
+  for (const cls of ['h2', 'h3', 'intro-h1', 'intro-sidebar-h1', 'theme-refs-title', 'profile-refs-title']) {
+    const [b] = parseBlocks(structureBody(`<p class="${cls}">Purpose</p>`));
+    assert.equal(b.kind, 'head', `${cls} should be a heading`);
+    assert.equal(b.text, 'Purpose');
+  }
+});
+
+test('structureBody: an intro summary becomes label/value pairs, not one flat run', () => {
+  const xml = '<p class="intro-title">The Gospel of Matthew</p>'
+    + '<p class="intro-sidebar-h1">Purpose</p><p class="intro-sidebar-body-fl">To demonstrate\u2026</p>'
+    + '<p class="intro-sidebar-h1">Author</p><p class="intro-sidebar-body-fl">Matthew</p>';
+  const blocks = parseBlocks(structureBody(xml));
+  assert.deepEqual(blocks.map((b) => b.kind), ['head', 'para', 'head', 'para']);
+  assert.deepEqual(blocks.map((b) => b.text), ['Purpose', 'To demonstrate\u2026', 'Author', 'Matthew']);
+});
+
 test('structureBody: "Passages for Further Study" is a heading, not a dropped title', () => {
   const out = structureBody('<p class="theme-refs-title">Passages for Further Study</p>'
     + '<p class="theme-refs">Matt 26:17-56; Mark 14:12-52</p>');

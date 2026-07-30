@@ -440,6 +440,12 @@
     padding: 7px 11px 5px; cursor: pointer; font-family: inherit; color: var(--dim); }
   .sechd:hover:not(:disabled) { color: var(--ink); }
   .sechd:disabled { cursor: default; opacity: .55; }
+  /* the rule separates one section from the previous one, so the first section has nothing to
+     separate from — its border lands under the tab row and reads as a stray line */
+  .sechd:first-of-type { border-top: none; }
+  /* and an expanded section needs room before the next section's rule, or the divider crowds the
+     content above it and looks attached to it rather than introducing what follows */
+  .grp { padding-bottom: 12px; }
   .sechd .caret { display: inline-block; transition: transform .12s; font-size: 11px; }
   .sechd .caret.open { transform: rotate(90deg); }
   .seclbl { font-variant: small-caps; letter-spacing: .05em; font-size: 10.5px; }

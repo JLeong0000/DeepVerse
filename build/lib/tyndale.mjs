@@ -61,7 +61,11 @@ export function cleanBody(bodyXml, keepTables = false) {
 // article unreadable. Keep the structure as newline-separated blocks, with subheads marked so the
 // app can render them as headings. Blocks that stay prose are joined with a single \n.
 const HEAD_MARK = '## ';
-const HEADING_CLASS = /^(h[2-5]|h2-list|h2-preview|(?:theme|profile)-refs-title)$/;
+// Each content type names its subheads differently: articles use h2-h5, book intros use intro-h1,
+// the intro summaries use intro-sidebar-h1 for their Purpose/Author/Date/Setting labels, and themes
+// and profiles use *-refs-title for "Passages for Further Study".
+const HEADING_CLASS =
+  /^(h[2-5]|h2-list|h2-preview|intro-h1|intro-sidebar-h1|(?:theme|profile)-refs-title)$/;
 
 // Blocks whose only job is to print the item's own title. Every one duplicates the <title> we
 // already render above the body — an article's <p class="h1"> matches its title in all 6,010 cases

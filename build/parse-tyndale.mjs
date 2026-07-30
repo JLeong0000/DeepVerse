@@ -139,4 +139,4 @@ console.log('passages (theme+profile):', passages.length,
                    profile: passages.filter((p) => p[0] === 'profile').length }));
 console.log('book intros:', introRows.length);
 console.log('bref links:', brefTotal, 'seen,', brefKept, 'kept,',
-  brefTotal - brefKept, 'dropped (apocrypha + chapter-only)');
+  brefTotal - brefKept, 'dropped (apocrypha + chapter-only + deduplicated within articles)');

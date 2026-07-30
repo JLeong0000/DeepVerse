@@ -183,7 +183,7 @@
     <div class="l2">Whole chapter: {chapStats.total} cross-references across {chapStats.versesWithRefs} verses.</div>
   {/if}
 {:else}
-  {@render secHeader('intro', 'Book introduction')}
+  {@render secHeader('intro', 'Book introduction', 'noCount')}
   {#if sec.intro && bookIntro}
     <div class="grp">
       <p class="recaptext">{bookIntro.summary}</p>

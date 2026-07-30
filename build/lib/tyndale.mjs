@@ -148,7 +148,7 @@ const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'da
 const read = (name) => JSON.parse(zlib.gunzipSync(fs.readFileSync(`${SRC}/${name}.json.gz`)));
 
 // Loads the four Tyndale cultural-layer tables (dictionary + themes/profiles + book intros)
-// from the intermediates built once by extract-sources.mjs. host_id is populated from
+// from the intermediates built once by parse-tyndale.mjs. host_id is populated from
 // include_items markers in article bodies; 118 of 131 supplements have it, 13 keep it NULL.
 export function loadTyndale(db) {
   const dict = read('tyndale-dictionary');

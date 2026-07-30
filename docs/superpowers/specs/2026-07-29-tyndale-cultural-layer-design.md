@@ -369,7 +369,10 @@ document matches the code.
 3. **Every Context section is collapsible with a letter hotkey** (`q w e r t y u`), and the source
    credit sits on the accordion header rather than being repeated inside the expanded body.
 
-**Operational note, pre-existing and unrelated to this import:** `vite.config.js` runtime-caches
-`bible.db` **CacheFirst** with the service worker enabled in dev, so once cached the browser never
-revalidates it. After any rebuild the app keeps serving the previous database until that cache is
-cleared — a rebuild otherwise looks like it silently did nothing.
+**Service-worker caching — found here, fixed here.** `bible.db` is cached CacheFirst on a fixed
+URL and never revalidated. With `registerType: 'autoUpdate'` that meant an installed PWA would
+refresh its code and keep serving the first database it ever downloaded, so a data update was
+invisible to existing installs — a production bug, not just the dev annoyance it appeared to be.
+`scripts/copy-assets.mjs` now publishes a content hash and the app requests `/bible.db?v=<hash>`,
+baked in at build time by `vite.config.js` (a runtime lookup would have to choose between silently
+serving stale data on failure and breaking offline use). Fixed in `5235dd6`.

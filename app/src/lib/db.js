@@ -356,6 +356,52 @@ export function getChapterStudyNoteCount(book, chapter) {
     [book, chapter, chapter])[0].n;
 }
 
+// --- Tyndale cultural layer ---
+// Dictionary articles anchored to a verse by the ?bref= links in their bodies. Ordered by
+// relatedness, not by quality: an article whose title word appears in the verse text comes
+// first (lex_hit), then the article citing fewest verses overall (an article citing 3 verses
+// is about them; one citing 197 mentions each in passing). Nothing is filtered out — a weak
+// signal costs an article its position, never its place in the list.
+export function getDictForVerse(book, chapter, verse) {
+  return query(
+    `SELECT a.id, a.title, a.body, a.n_refs
+       FROM dict_verse v JOIN dict_articles a ON a.id = v.article_id
+      WHERE v.book = ? AND v.chapter = ? AND v.verse = ?
+      ORDER BY v.lex_hit DESC, a.n_refs ASC, a.sort_title`,
+    [book, chapter, verse]);
+}
+
+export function getDictCountForVerse(book, chapter, verse) {
+  return query('SELECT COUNT(*) AS n FROM dict_verse WHERE book=? AND chapter=? AND verse=?',
+    [book, chapter, verse])[0].n;
+}
+
+// Theme articles and profiles, covering-range like study notes: a passage anchored Gen.1.1-2.25
+// covers every verse in that span, not just its first.
+export function getTyndalePassages(kind, book, chapter, verse) {
+  const key = chapter * 1000 + verse;
+  return query(
+    `SELECT title, ref, body FROM tyndale_passages
+      WHERE kind = ? AND book = ?
+        AND (start_chapter*1000 + start_verse) <= ?
+        AND (end_chapter*1000   + end_verse)   >= ?
+      ORDER BY (start_chapter*1000 + start_verse), seq`,
+    [kind, book, key, key]);
+}
+
+// Book-level, not verse-level: intro ranges span whole books, so this is keyed on book alone.
+export function getBookIntro(book) {
+  return query('SELECT summary, intro FROM book_intros WHERE book=?', [book])[0] || null;
+}
+
+// Textboxes and charts embedded in an article, shown inside that article's detail. Charts carry
+// real table markup (is_html = 1); everything else is plain text.
+export function getArticleSupplements(hostId) {
+  return query(
+    `SELECT id, title, kind, body, is_html FROM dict_articles
+      WHERE host_id = ? ORDER BY seq`, [hostId]);
+}
+
 // --- 1.6 Stats + word-selector concordance ---
 export function countEnglishWord(version, word) {
   const re = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');

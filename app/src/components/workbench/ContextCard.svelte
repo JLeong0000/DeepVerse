@@ -71,6 +71,9 @@
     : getDictCountForVerse(study.book, study.chapter, study.verse));
 
   const DICT_CLAMP = 400;
+  // themes, profiles and study notes all ship in the study-notes package, not the dictionary
+  const STUDY_NOTES_SOURCE =
+    'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
   let dictArticles = $derived(study.verse == null ? []
     : getDictForVerse(study.book, study.chapter, study.verse));
   let dictSel = $state(null);      // selected article id
@@ -151,6 +154,19 @@
     <a href="https://biblesummary.info" target="_blank" rel="noopener">Bible Summary · biblesummary.info</a>
   {:else}{RECAP_SRC[recap?.source] || recap?.source}{/if}
 {/snippet}
+<!-- Prose that is too long for the card: show an opening and send the rest to the overlay.
+     Themes and profiles ALWAYS exceed the clamp (avg ~2,000 chars), and 2,649 study notes do. -->
+{#snippet clamped(title, body)}
+  {@const long = body.length > DICT_CLAMP}
+  <p class="snbody"><RefText text={long ? articlePreview(body, DICT_CLAMP) : body} /></p>
+  {#if long}
+    <button class="seemore" onclick={() => (modal = {
+      article: { id: `passage:${title}`, title, body }, focusId: null,
+      supplements: [], source: STUDY_NOTES_SOURCE,
+    })}>Read more</button>
+  {/if}
+{/snippet}
+
 {#snippet notesSrc()}Tyndale Open Study Notes · CC BY-SA 4.0{/snippet}
 {#snippet dictSrc()}Tyndale Open Bible Dictionary · CC BY-SA 4.0{/snippet}
 
@@ -202,7 +218,7 @@
       <!-- the full intro runs to 16k characters, so it opens in the overlay like an article -->
       <button class="seemore" onclick={() => (modal = {
         article: { id: `intro:${study.book}`, title: bookName(study.book), body: bookIntro.intro },
-        focusId: null, source: 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0',
+        focusId: null, source: STUDY_NOTES_SOURCE,
       })}>Read the full introduction</button>
     </div>
   {/if}
@@ -303,7 +319,7 @@
         {#each studyNotes as n}
           <div class="snote">
             <div class="snref">{n.ref}</div>
-            <p class="snbody"><RefText text={n.body} /></p>
+            {@render clamped(`${bookName(study.book)} ${n.ref}`, n.body)}
           </div>
         {/each}
       {/if}
@@ -316,7 +332,7 @@
       {#each themes as t}
         <div class="snote">
           <div class="snref">{t.title} · {t.ref}</div>
-          <p class="snbody"><RefText text={t.body} /></p>
+          {@render clamped(t.title, t.body)}
         </div>
       {/each}
     </div>
@@ -328,7 +344,7 @@
       {#each profiles as p}
         <div class="snote">
           <div class="snref">{p.title} · {p.ref}</div>
-          <p class="snbody"><RefText text={p.body} /></p>
+          {@render clamped(p.title, p.body)}
         </div>
       {/each}
     </div>

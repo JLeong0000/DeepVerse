@@ -5,14 +5,16 @@
   import { goToPassage } from '../../lib/study.svelte.js';
   import { bookName } from '../../lib/refs.js';
 
-  let { text } = $props();
+  // onnavigate lets an overlay close itself once a reference has been followed —
+  // otherwise the modal stays over the verse it just sent you to.
+  let { text, onnavigate = null } = $props();
   let segs = $derived(tokenizeRefs(text));
 </script>
 
 {#each segs as s}{#if s.ref}<button
     class="xr"
     title="Go to {bookName(s.ref.book)} {s.ref.chapter}:{s.ref.verse}"
-    onclick={() => goToPassage({ book: s.ref.book, chapter: s.ref.chapter, verse: s.ref.verse })}
+    onclick={() => { goToPassage({ book: s.ref.book, chapter: s.ref.chapter, verse: s.ref.verse }); onnavigate?.(); }}
   >{s.text}</button>{:else}{s.plain}{/if}{/each}
 
 <style>

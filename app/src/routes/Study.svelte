@@ -6,6 +6,7 @@
   import { getPref, setPref } from '../lib/store.js';
   import Reader from '../components/reader/Reader.svelte';
   import Workbench from '../components/workbench/Workbench.svelte';
+  import JumpToVerse from '../components/home/JumpToVerse.svelte';
 
   const DEFAULT_SPLIT = 0.5; // even split between the reader and the workbench
   let orientation = $state(getPref('splitOrientation', 'lr')); // 'lr' | 'tb'
@@ -62,6 +63,7 @@
       {orientation === 'lr' ? '⇔ side-by-side' : '⇕ stacked'}
     </button>
     <button class="ctl" onclick={swapSides} title="Swap panes">⇄ swap</button>
+    <div class="jumpwrap"><JumpToVerse /></div>
   </div>
 
   <div class="split" class:tb={orientation === 'tb'} class:swap={!readerFirst} class:dragging
@@ -84,6 +86,8 @@
   .ctl { border: 1px solid var(--rule); background: transparent; color: var(--dim); border-radius: 4px;
     padding: 2px 8px; cursor: pointer; font-family: inherit; font-size: 11px; font-variant: small-caps; letter-spacing: .04em; }
   .ctl:hover { color: var(--ink); border-color: var(--a); }
+  /* pushed to the far end of the bar; the bar is small-caps, the input is not */
+  .jumpwrap { margin-left: auto; font-variant: normal; letter-spacing: 0; }
 
   .split { flex: 1; min-height: 0; display: flex; }
   .split.tb { flex-direction: column; }

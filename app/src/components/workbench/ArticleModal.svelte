@@ -36,9 +36,9 @@
       {#if b.kind === 'head'}
         <h3 class="mhead">{b.text}</h3>
       {:else if b.kind === 'item'}
-        <p class="mitem"><RefText text={b.text} /></p>
+        <p class="mitem"><RefText text={b.text} onnavigate={() => onclose?.()} /></p>
       {:else}
-        <p class="mbody"><RefText text={b.text} /></p>
+        <p class="mbody"><RefText text={b.text} onnavigate={() => onclose?.()} /></p>
       {/if}
     {/each}
 
@@ -51,7 +51,7 @@
         {#if s.is_html}
           <div class="charttbl">{@html s.body}</div>
         {:else}
-          <p class="mbody"><RefText text={s.body} /></p>
+          <p class="mbody"><RefText text={s.body} onnavigate={() => onclose?.()} /></p>
         {/if}
       </div>
     {/each}

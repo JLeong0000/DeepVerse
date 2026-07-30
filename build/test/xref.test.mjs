@@ -76,7 +76,8 @@ test('extractXrefs: honours "See also" and carries an anchor', () => {
 
 test('extractXrefs: deduplicates an absent target named twice', () => {
   const a = { id: 'D', body: 'One. See Nowhere At All. Two. See Nowhere At All.' };
-  assert.equal(extractXrefs(a, IX).length, 1);
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: null, raw: 'Nowhere At All', anchor: null, seq: 0 }]);
 });
 
 test('extractXrefs: drops self-edges', () => {
@@ -89,5 +90,21 @@ test('extractXrefs: skips structural pointers like "See above"', () => {
 
 test('extractXrefs: deduplicates a target named twice by the same article', () => {
   const a = { id: 'D', body: 'One. See Antichrist. Two. See Antichrist.' };
-  assert.equal(extractXrefs(a, IX).length, 1);
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+});
+
+test('extractXrefs: matches a "See" clause preceded by a period inside a closing curly quote', () => {
+  // Tyndale often closes a sentence with the period INSIDE the quote mark, e.g.
+  // `...the English word "eon." See Age.` The clause is invisible unless the quote is
+  // allowed to sit between the terminator and "See".
+  const a = { id: 'D', body: 'Greek word for a long period of time or age, from which comes the English word “eon.” See Antichrist.' };
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+});
+
+test('extractXrefs: matches a "See" clause preceded by a semicolon', () => {
+  const a = { id: 'D', body: 'Several views exist; See Antichrist.' };
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
 });

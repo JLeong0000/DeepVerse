@@ -7,9 +7,11 @@
 
 const HEAD_MARK = '## ';
 
-// A "See" clause is a sentence beginning with a capital S — the source's own convention.
-// Lower-case "see also Nm 3:2-4" is a scripture citation and is deliberately not matched here.
-const CLAUSE = /(?:^|[.\n]\s*)See(?: also)? ([^.\n]+)\./g;
+// A cross-reference is a sentence beginning with a capital S. The preceding sentence may end in
+// any terminator, and Tyndale routinely puts that terminator INSIDE a closing quote
+// (`…the English word “eon.” See Age.`), so the quote must be allowed to follow it.
+// Lower-case "see also Nm 3:2-4" is a scripture citation and is deliberately not matched.
+const CLAUSE = /(?:^|[.;!?][”"’']?\s*|\n\s*)See(?: also)? ([^.\n]+)\./g;
 
 // Pointers into the article's own structure, not to another entry.
 const STRUCTURAL = /^\s*(?:the\s+)?(?:above|below|note|chart|introduction)\b/i;
@@ -77,7 +79,9 @@ export function extractXrefs(article, ix) {
       if (!target || STRUCTURAL.test(target)) continue;
       const hit = resolveTarget(target, ix);
       if (hit && hit.dst === article.id) continue;            // self-edge
-      const dedupe = hit ? hit.dst : `raw:${normKey(target)}`;
+      // Tagged so the resolved and unresolved namespaces can never collide, even though no
+      // article id currently contains a colon.
+      const dedupe = hit ? `id:${hit.dst}` : `raw:${normKey(target)}`;
       if (seen.has(dedupe)) continue;
       seen.add(dedupe);
       out.push({ src: article.id, dst: hit ? hit.dst : null, raw: target,

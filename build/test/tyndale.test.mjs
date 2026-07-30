@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { structureBody, parseBlocks,
+import { structureBody, parseBlocks, classifyBlock,
   iterItems, cleanBody, parseRefRange, extractBrefs, countBrefs, extractIncludes,
   sortTitle, titleTerms } from '../lib/tyndale.mjs';
 
@@ -69,6 +69,60 @@ test('structureBody: drops every title-restating block, whatever the source call
     const out = structureBody(`<p class="${cls}">Jesus’ Final Night</p><p class="fl">Body text.</p>`);
     assert.equal(out, 'Body text.', `${cls} should not survive into the body`);
   }
+});
+
+// The complete <p class> inventory of the Tyndale corpus, counted across all six source files
+// (Articles/*.xml, Textboxes, Charts, ThemeNotes, Profiles, BookIntros, BookIntroSummaries).
+// It lives here as a fixture because backup-data/ is gitignored — a test that read the corpus
+// could not run on a fresh clone. Regenerate with:
+//   grep -ho '<p class="[^"]*"' backup-data/tyndale/**/*.xml | sort | uniq -c
+const CORPUS_CLASSES = {
+  head: ['h2', 'h3', 'h4', 'h5', 'h2-list', 'h2-preview', 'intro-h1', 'intro-sidebar-h1',
+    'profile-h1', 'theme-h2', 'box-h2', 'box-h2-poetic', 'theme-refs-title', 'profile-refs-title'],
+  title: ['h1', 'theme-title', 'profile-title', 'intro-title'],
+  body: ['fl', 'sp', 'list', 'list-0', 'list-1', 'list-space', 'list-text', 'list-text-fl',
+    'extract', 'extract-fl', 'extract-fl-space', 'poetry-1', 'poetry-1-sp', 'poetry-2', 'poetry-3',
+    'preview-list', 'preview-list-1', 'preview-list-first', 'preview-text', 'box-extract',
+    'box-first', 'td', 'td-indent', 'intro-body', 'intro-body-fl', 'intro-body-fl-sp',
+    'intro-extract', 'intro-list', 'intro-list-sp', 'intro-overview', 'intro-poetry-1-sp',
+    'intro-poetry-2', 'intro-sidebar-body-fl', 'theme-body', 'theme-body-fl', 'theme-body-fl-sp',
+    'theme-body-sp', 'theme-list', 'theme-list-sp', 'theme-refs', 'profile-body',
+    'profile-body-fl', 'profile-body-fl-sp', 'profile-refs', 'toc'],
+};
+
+// This is the regression guard for a bug that recurred three times: a subhead class nobody had
+// listed fell through to body text, so a heading rendered as prose and no test noticed.
+test('classifyBlock: every class in the corpus is deliberately classified', () => {
+  for (const [kind, classes] of Object.entries(CORPUS_CLASSES))
+    for (const cls of classes)
+      assert.equal(classifyBlock(cls), kind, `${cls} should classify as ${kind}`);
+});
+
+test('classifyBlock: an unlisted class THROWS instead of defaulting to body', () => {
+  // the whole point — silently treating an unknown class as prose is how headings got lost
+  assert.throws(() => classifyBlock('theme-h3'), /unclassified Tyndale paragraph class/);
+  assert.throws(() => classifyBlock('intro-sidebar-h2'), /unclassified/);
+  assert.throws(() => classifyBlock('brand-new-class-from-a-future-release'), /unclassified/);
+});
+
+test('classifyBlock: a bare <p> with no class is prose, not an error', () => {
+  assert.equal(classifyBlock(''), 'body');
+  assert.equal(classifyBlock(undefined), 'body');
+});
+
+test('classifyBlock: no class is listed under two kinds', () => {
+  const seen = new Map();
+  for (const [kind, classes] of Object.entries(CORPUS_CLASSES))
+    for (const cls of classes) {
+      assert.ok(!seen.has(cls), `${cls} listed as both ${seen.get(cls)} and ${kind}`);
+      seen.set(cls, kind);
+    }
+  assert.equal(seen.size, 63); // 64 distinct forms in the corpus, minus the bare (no class) case
+});
+
+test('structureBody: a body containing an unlisted class fails the parse', () => {
+  assert.throws(() => structureBody('<p class="theme-h4">Sub</p><p class="fl">Text.</p>'),
+    /unclassified Tyndale paragraph class: "theme-h4"/);
 });
 
 test('structureBody: every content type\'s subhead class is recognised as a heading', () => {

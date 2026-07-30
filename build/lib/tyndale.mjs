@@ -61,25 +61,59 @@ export function cleanBody(bodyXml, keepTables = false) {
 // article unreadable. Keep the structure as newline-separated blocks, with subheads marked so the
 // app can render them as headings. Blocks that stay prose are joined with a single \n.
 const HEAD_MARK = '## ';
-// Each content type names its subheads differently: articles use h2-h5, book intros use intro-h1,
-// the intro summaries use intro-sidebar-h1 for their Purpose/Author/Date/Setting labels, and themes
-// and profiles use *-refs-title for "Passages for Further Study".
-const HEADING_CLASS =
-  /^(h[2-5]|h2-list|h2-preview|intro-h1|intro-sidebar-h1|(?:theme|profile)-refs-title)$/;
 
-// Blocks whose only job is to print the item's own title. Every one duplicates the <title> we
-// already render above the body — an article's <p class="h1"> matches its title in all 6,010 cases
-// (verified), and theme/profile/intro titles likewise — so they are dropped rather than repeated.
-const TITLE_CLASS = /^(h1|theme-title|profile-title|intro-title)$/;
+// EVERY <p class> that occurs anywhere in the Tyndale corpus, and what it is. Exhaustive on
+// purpose: an unlisted class throws rather than defaulting to body text.
+//
+// Defaulting is what this replaces, and it failed silently three times — each content type names
+// its subheads differently (articles h2-h5, book intros intro-h1, intro summaries intro-sidebar-h1,
+// profiles profile-h1, themes theme-h2, textboxes box-h2), so a missed one renders a heading as
+// ordinary prose and nothing complains. A throw turns the next such gap into a failed parse, which
+// is the only moment it can be noticed — when the source changes.
+//
+// 'title' blocks restate the item's own <title>, which is rendered separately, so they are dropped.
+const BLOCK_KIND = new Map([
+  // --- headings ---
+  ...['h2', 'h3', 'h4', 'h5', 'h2-list', 'h2-preview',
+    'intro-h1', 'intro-sidebar-h1', 'profile-h1', 'theme-h2', 'box-h2', 'box-h2-poetic',
+    'theme-refs-title', 'profile-refs-title'].map((c) => [c, 'head']),
+  // --- title restatements, dropped ---
+  ...['h1', 'theme-title', 'profile-title', 'intro-title'].map((c) => [c, 'title']),
+  // --- prose, lists, poetry, extracts, table cells ---
+  ...['fl', 'sp', 'list', 'list-0', 'list-1', 'list-space', 'list-text', 'list-text-fl',
+    'extract', 'extract-fl', 'extract-fl-space', 'poetry-1', 'poetry-1-sp', 'poetry-2', 'poetry-3',
+    'preview-list', 'preview-list-1', 'preview-list-first', 'preview-text',
+    'box-extract', 'box-first', 'td', 'td-indent',
+    'intro-body', 'intro-body-fl', 'intro-body-fl-sp', 'intro-extract', 'intro-list',
+    'intro-list-sp', 'intro-overview', 'intro-poetry-1-sp', 'intro-poetry-2',
+    'intro-sidebar-body-fl',
+    'theme-body', 'theme-body-fl', 'theme-body-fl-sp', 'theme-body-sp', 'theme-list',
+    'theme-list-sp', 'theme-refs',
+    'profile-body', 'profile-body-fl', 'profile-body-fl-sp', 'profile-refs',
+    // the per-letter contents lists; their items are filtered out by typename before reaching here
+    'toc'].map((c) => [c, 'body']),
+]);
+
+export function classifyBlock(cls) {
+  if (!cls) return 'body';                       // a bare <p> is prose
+  const kind = BLOCK_KIND.get(cls);
+  if (!kind) {
+    throw new Error(`unclassified Tyndale paragraph class: "${cls}". Add it to BLOCK_KIND in `
+      + 'build/lib/tyndale.mjs as head, title or body — defaulting silently renders headings as '
+      + 'body text.');
+  }
+  return kind;
+}
 
 export function structureBody(bodyXml) {
   const blocks = [];
   for (const m of bodyXml.matchAll(/<p\b([^>]*)>(.*?)<\/p>/gs)) {
     const cls = (m[1].match(/class="([^"]*)"/) || [])[1] || '';
-    if (TITLE_CLASS.test(cls)) continue;
+    const kind = classifyBlock(cls);
+    if (kind === 'title') continue;
     const text = cleanBody(m[2]);
     if (!text) continue;
-    blocks.push(HEADING_CLASS.test(cls) ? HEAD_MARK + text : text);
+    blocks.push(kind === 'head' ? HEAD_MARK + text : text);
   }
   // an article with no <p> wrapper at all still needs its text
   if (!blocks.length) {

@@ -543,7 +543,8 @@ git commit -m "feat(build): store the dictionary cross-reference graph as dict_x
 - Test: `app/src/lib/titles.test.js`
 
 **Interfaces:**
-- Produces: `displayTitle(title: string) -> string`, `INVERSIONS: string[]`.
+- Produces: `displayTitle(title: string) -> string`. Reformats 365 of the 6,010 article titles, and
+  also applies to cross-reference targets that are not articles at all.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -554,30 +555,57 @@ import { test, expect, describe } from 'vitest';
 import { displayTitle } from './titles.js';
 
 describe('displayTitle', () => {
-  test('de-inverts scripture books', () => {
+  test('rule A — a tail ending in a preposition', () => {
     expect(displayTitle('Revelation, Book of')).toBe('Book of Revelation');
     expect(displayTitle('Mark, Gospel of')).toBe('Gospel of Mark');
     expect(displayTitle('Colossians, Letter to the')).toBe('Letter to the Colossians');
-    expect(displayTitle('James, Letter of')).toBe('Letter of James');
     expect(displayTitle('Philemon, Letter to')).toBe('Letter to Philemon');
-    expect(displayTitle('John, Letters of')).toBe('Letters of John');
-    expect(displayTitle('Moses, Books of')).toBe('Books of Moses');
     expect(displayTitle('Covenant, Book of the')).toBe('Book of the Covenant');
+    expect(displayTitle('Baca*, Valley of')).toBe('Valley of Baca*');
+    expect(displayTitle('Oreb, Rock of')).toBe('Rock of Oreb');
+    expect(displayTitle('Moses, Law of')).toBe('Law of Moses');
+    expect(displayTitle('Gad, Tribe of')).toBe('Tribe of Gad');
+    // this one is a cross-reference target, not an article — it must still format
+    expect(displayTitle('Jesus Christ, Life and Teachings of'))
+      .toBe('Life and Teachings of Jesus Christ');
+  });
+
+  test('rules B1–B3 — "the", "the …", and "Mount"', () => {
+    expect(displayTitle('Devil, the')).toBe('the Devil');
+    expect(displayTitle('Lord’s Supper, the')).toBe('the Lord’s Supper');
+    expect(displayTitle('Commandments, the Ten')).toBe('the Ten Commandments');
+    expect(displayTitle('Adam*, the Second')).toBe('the Second Adam');
+    expect(displayTitle('Hermon, Mount')).toBe('Mount Hermon');
+  });
+
+  test('rule C — inversions with no structural marker, listed explicitly', () => {
+    expect(displayTitle('Prophets, False')).toBe('False Prophets');
+    expect(displayTitle('Calf, Golden')).toBe('Golden Calf');
+    expect(displayTitle('Paulus, Sergius')).toBe('Sergius Paulus');
+    expect(displayTitle('Sea, Red')).toBe('Red Sea');
+    expect(displayTitle('Priest, High')).toBe('High Priest');
+    expect(displayTitle('Pilate, Pontius')).toBe('Pontius Pilate');
+    expect(displayTitle('Magdalene, Mary')).toBe('Mary Magdalene');
+    expect(displayTitle('Scrolls*, Dead Sea')).toBe('Dead Sea Scrolls');
     expect(displayTitle('Chronicles, Books of First and Second'))
       .toBe('Books of First and Second Chronicles');
   });
 
-  // These are the regression guards. The corpus contains unmarked inversions that are
-  // indistinguishable from alternate spellings, so a general rule would mangle them.
-  test('leaves alternate spellings and headwords untouched', () => {
+  // THE regression guard. An inversion and an alternate spelling are structurally identical, so
+  // any future attempt to generalise these rules must break this test.
+  test('leaves alternate spellings and multi-headword titles untouched', () => {
     for (const t of ['Elect, Election', 'Zidon*, Zidonian*', 'Phares*, Pharez*',
       'Banker, Banking', 'Nazarite*, Nazirite', 'Mark of God*, Mark of the Beast',
-      'Babylon, Babylonia', 'Nebuchadnezzar, Nebuchadrezzar*', 'Prophet, Prophetess'])
+      'Babylon, Babylonia', 'Nebuchadnezzar, Nebuchadrezzar*', 'Prophet, Prophetess',
+      'Accho*, Acco', 'Balm, Balsam', 'Dara*, Darda', 'Emim*, Emites', 'Ard, Ardite',
+      'Vaizatha, Vajezatha*', 'Zecher*, Zeker*', 'Iye-Abarim, Iyim*'])
       expect(displayTitle(t)).toBe(t);
   });
 
-  test('leaves unmarked inversions untouched — they cannot be told from alternates', () => {
-    for (const t of ['Paulus, Sergius', 'Calf, Golden', 'Baca*, Valley of', 'Oreb, Rock of'])
+  test('leaves the nine hand-rejected titles untouched', () => {
+    for (const t of ['Philo*, Judaeus', 'Shadrach, Meshach, and Abednego',
+      'Eloi, Eloi, Lama Sabachthani?', 'Mene, Mene, Tekel, Parsin',
+      'Bible*, Quotations of the Old Testament in the New Testament'])
       expect(displayTitle(t)).toBe(t);
   });
 
@@ -586,11 +614,29 @@ describe('displayTitle', () => {
     expect(displayTitle('Adam (Person)')).toBe('Adam (Person)');
   });
 
-  test('matches the marker exactly, never as a prefix', () => {
-    // "Book of Life-Giving Waters" is not the marker "Book of"
-    expect(displayTitle('Something, Book of Life-Giving Waters'))
-      .toBe('Something, Book of Life-Giving Waters');
+  test('a preposition inside a word does not trigger rule A', () => {
+    // "Cain" ends in "in" but there is no word boundary before it
+    expect(displayTitle('Abel, Cain')).toBe('Abel, Cain');
   });
+});
+
+test('exactly 365 of the 6,010 article titles reformat', async () => {
+  // guards the whole corpus, so a rule change cannot quietly widen or narrow its blast radius
+  const initSqlJs = (await import('sql.js')).default;
+  const fs = await import('node:fs');
+  const SQL = await initSqlJs();
+  const path = fs.existsSync('public/bible.db') ? 'public/bible.db' : '../data/bible.db';
+  const d = new SQL.Database(new Uint8Array(fs.readFileSync(path)));
+  const stmt = d.prepare("SELECT title FROM dict_articles WHERE kind='article'");
+  let n = 0, total = 0;
+  while (stmt.step()) {
+    const { title } = stmt.getAsObject();
+    total++;
+    if (displayTitle(title) !== title) n++;
+  }
+  stmt.free();
+  expect(total).toBe(6010);
+  expect(n).toBe(365);
 });
 ```
 
@@ -607,26 +653,61 @@ Expected: FAIL — cannot resolve `./titles.js`.
 Create `app/src/lib/titles.js`:
 
 ```javascript
-// Tyndale files scripture books under an inverted headword — "Revelation, Book of" — which is
-// right for an A–Z index and wrong everywhere the title is used as a name.
+// Tyndale files entries under an inverted headword — "Revelation, Book of", "Baca*, Valley of",
+// "Prophets, False" — which is right for an A–Z index and wrong everywhere the title is used as a
+// name. This reads them back as names. 365 of the 6,010 titles are affected.
 //
-// De-inversion is only safe against an EXACT allowlist. The corpus also holds unmarked inversions
-// ("Paulus, Sergius" -> Sergius Paulus, "Calf, Golden" -> Golden Calf) that nothing in the data
-// distinguishes from alternate spellings ("Elect, Election", "Zidon*, Zidonian*"), so a general
-// rule would mangle hundreds of titles. Same discipline as scripture.js: an allowlist, never a
-// prefix. These ten phrases cover 62 articles.
-export const INVERSIONS = [
-  'Book of', 'Book of the', 'Books of', 'Books of First and Second',
-  'Gospel of', 'Letter of', 'Letter to', 'Letter to the', 'Letters of', 'Letters to the',
-];
-const SET = new Set(INVERSIONS);
+// The danger is that an inversion and an ALTERNATE SPELLING look identical: "Prophets, False" is
+// an inversion, "Elect, Election" is not, and nothing in the data separates them. So nothing here
+// is a general "swap around the comma" rule. Four narrow rules, each either structural and
+// unambiguous, or an explicit list.
+
+// Rule A — the tail ends in a preposition, so it cannot be an alternate spelling.
+// "Valley of", "Book of the", "Letter to the", "Life and Teachings of".
+const PREP_TAIL = /\b(?:of|to|for|in|with|from|concerning|against)(?:\s+the)?$/i;
+
+// Rules B1–B3 are likewise structural: no article is ever an alternate spelling of "the", of a
+// phrase starting "the ", or of "Mount".
+
+// Rule C — inversions with no structural marker at all. Every one is listed explicitly. The list
+// was built by taking every comma-title whose two halves share no word stem (alternate spellings
+// nearly always do — "Accho/Acco", "Banker/Banking") and reviewing the 77 survivors by hand.
+// Nine were rejected as NOT inversions and are deliberately absent:
+//   Philo*, Judaeus            — already natural order ("Philo Judaeus")
+//   Iye-Abarim, Iyim* · Vaizatha, Vajezatha* · Zecher*, Zeker*   — alternate names
+//   Eli, Eli, Lama Sabachthani?* · Eloi, Eloi, Lama Sabachthani? · Mene, Mene, Tekel, Parsin
+//   Shadrach, Meshach, and Abednego                              — quoted phrases and lists
+//   Bible*, Quotations of the Old Testament in the New Testament — flips into nonsense
+const NAMED = new Set([
+  'Akiba*, Rabbi', 'Alexandrinus*, Codex', 'Ark*, Noah’s', 'Ben Sirach*, Jesus',
+  'Birth*, New', 'Calendars, Ancient and Modern', 'Calf, Golden', 'Children*, Song of the Three',
+  'Chronicles, Books of First and Second', 'Communion*, Holy', 'Convocation*, Holy',
+  'Creation, New', 'Creature, New', 'Earth, New', 'Ephraemi Syri*, Codex', 'Epistles*, Apocryphal',
+  'Father, God As', 'Father, Human', 'Felix, Antonius', 'Festus, Porcius', 'Ghost*, Holy',
+  'Gifts, Spiritual', 'Gospels*, Apocryphal', 'Heavens, New', 'Highway*, King’s',
+  'Instruments, Musical', 'Jerusalem, New', 'Jewish Literature*, Extrabiblical',
+  'Josephus*, Flavius', 'Kings, Books of First and Second', 'Letter Writing*, Ancient',
+  'Maccabaeus, Judas', 'Maccabees, 1 and 2', 'Maccabees*, 3 and 4', 'Maccabeus, Judas',
+  'Magdalene, Mary', 'Magus*, Simon', 'Man*, Natural', 'Man, Old and New', 'Manius, Titus',
+  'Mark, John', 'Marriage*, Levirate', 'Moon, New', 'Oak, Diviners’', 'Oil, Anointing',
+  'Paulus, Sergius', 'Pilate, Pontius', 'Poetry, Biblical', 'Portico*, Solomon’s',
+  'Possession, Demon', 'Prayer*, Lord’s', 'Priest, High', 'Prophets, False', 'Punishment, Eternal',
+  'Samuel, Books of First and Second', 'Scrolls*, Dead Sea', 'Sea, Dead', 'Sea*, Molten',
+  'Sea, Red', 'Seat*, Moses’', 'Serpent, Bronze', 'Spirits, Unclean', 'Stones, Precious',
+  'Supper, Lord’s', 'Tacitus*, Cornelius', 'Tradition*, Oral', 'War*, Holy', 'Zealot, Simon the',
+]);
 
 export function displayTitle(title) {
   const t = String(title ?? '');
   const i = t.lastIndexOf(', ');
   if (i < 0) return t;
-  const tail = t.slice(i + 2);
-  return SET.has(tail) ? `${tail} ${t.slice(0, i)}` : t;
+  const head = t.slice(0, i), tail = t.slice(i + 2);
+  if (NAMED.has(t)) return `${tail} ${head}`;                    // C
+  if (/^the$/i.test(tail)) return `the ${head}`;                 // B1 — "Devil, the"
+  if (/^the\s/i.test(tail)) return `${tail} ${head}`;            // B2 — "Commandments, the Ten"
+  if (/^(?:Mount|Mt\.?)$/i.test(tail)) return `${tail} ${head}`; // B3 — "Hermon, Mount"
+  if (PREP_TAIL.test(tail)) return `${tail} ${head}`;            // A  — "Baca*, Valley of"
+  return t;
 }
 ```
 
@@ -636,13 +717,13 @@ export function displayTitle(title) {
 cd app && npx vitest run src/lib/titles.test.js
 ```
 
-Expected: PASS — 5 tests.
+Expected: PASS — 9 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add app/src/lib/titles.js app/src/lib/titles.test.js
-git commit -m "feat(app): read scripture book titles as names, via an exact allowlist"
+git commit -m "feat(app): read inverted Tyndale headwords back as names"
 ```
 
 ---
@@ -2150,7 +2231,8 @@ Create `app/src/components/library/ArticleSurface.svelte`:
       <!-- 144 of the 5,196 links name an article Tyndale never wrote. Listing them is more honest
            than hiding them, and stops the graph looking more complete than it is. -->
       <div class="absent">
-        Named by the source, but absent from the corpus: {xrefs.missing.join(', ')}.
+        Named by the source, but absent from the corpus:
+        {xrefs.missing.map(displayTitle).join(', ')}.
       </div>
     {/if}
   </div>
@@ -2540,8 +2622,9 @@ Create `app/src/components/library/PathMap.svelte`:
         const side = k % 2 ? -1 : 1, row = Math.floor(k / 2);
         const by = cy + side * (54 + row * 42);
         links.push({ x1: x, y1: cy, x2: x, y2: by, cls: b.phantom ? 'gone' : '' });
+        const full = displayTitle(b.title);
         nodes.push({ kind: 'branch', x, y: by, side, step: s.i, id: b.id,
-          phantom: !!b.phantom, label: short(displayTitle(b.title)), full: displayTitle(b.title) });
+          phantom: !!b.phantom, label: short(full), full });
       });
       const last = s.i === steps.length - 1;
       nodes.push({ kind: 'step', x, y: cy, i: s.i, last, isArticle: !!s.id,

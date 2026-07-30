@@ -159,32 +159,45 @@ answer would tax the primary objective. `/` focuses the field; ↑↓ and Enter 
 - **Dead ends say so.** Roughly a third of articles have no outbound links; an empty box reads as
   a bug, so it names the state and offers search, another route, or `✦ Wander in`.
 
-### Scripture book titles read as names
+### Inverted headwords read as names
 
-Tyndale files books under an inverted headword — `Revelation, Book of` — which is right for an A–Z
-index and wrong everywhere the title is used as a name.
+Tyndale files entries under an inverted headword — `Revelation, Book of`, `Baca*, Valley of`,
+`Prophets, False` — which is right for an A–Z index and wrong everywhere the title is used as a
+name. **365 of the 6,010 titles are reformatted.**
 
-**De-inversion runs off an exact allowlist of ten phrases, covering 62 articles:**
-`Book of`, `Book of the`, `Books of`, `Books of First and Second`, `Gospel of`, `Letter of`,
-`Letter to`, `Letter to the`, `Letters of`, `Letters to the`.
+**The hazard: an inversion and an alternate spelling are structurally identical.** `Prophets,
+False` is an inversion; `Elect, Election` is not. `Paulus, Sergius` is; `Banker, Banking` is not.
+Nothing in the data separates them, so there is **no general "swap around the comma" rule**. Four
+narrow rules instead, each either structural and unambiguous, or an explicit list:
 
-`Revelation, Book of` → **Book of Revelation**. `Chronicles, Books of First and Second` →
-**Books of First and Second Chronicles**.
+| rule | test | example | n |
+|---|---|---|---|
+| **A** | tail ends in a preposition (`of`, `of the`, `to`, `to the`, `for`, `in`, `with`, `from`, `concerning`, `against`) | `Baca*, Valley of` → *Valley of Baca\** | 246 |
+| **B1** | tail is exactly `the` | `Devil, the` → *the Devil* | 27 |
+| **B2** | tail starts `the ` | `Commandments, the Ten` → *the Ten Commandments* | 15 |
+| **B3** | tail is `Mount` | `Hermon, Mount` → *Mount Hermon* | 14 |
+| **C** | an explicit curated list | `Prophets, False` → *False Prophets* | 68 |
 
-**A general de-inversion rule is not safe and must not be attempted.** The corpus contains unmarked
-inversions (`Paulus, Sergius` → *Sergius Paulus*, `Calf, Golden` → *Golden Calf*, `Baca*, Valley
-of`) that are indistinguishable from alternate spellings (`Elect, Election`, `Zidon*, Zidonian*`,
-`Phares*, Pharez*`, `Banker, Banking`). Nothing in the data separates them. Same discipline as
-`scripture.js`: an exact allowlist, never a prefix.
+Rules A–B3 are safe because no alternate spelling ever ends in a preposition, equals `the`, begins
+`the `, or equals `Mount`.
+
+**Rule C was curated by hand.** Every comma-title whose two halves share no word stem was extracted
+(alternate spellings nearly always share one — `Accho/Acco`, `Banker/Banking`, `Assyria/Assyrians`),
+yielding 77 candidates, of which **nine were rejected** as not inversions and are deliberately
+absent from the list: `Philo*, Judaeus` (already natural order); `Iye-Abarim, Iyim*`,
+`Vaizatha, Vajezatha*`, `Zecher*, Zeker*` (alternate names); `Eli, Eli, Lama Sabachthani?*`,
+`Eloi, Eloi, Lama Sabachthani?`, `Mene, Mene, Tekel, Parsin`, `Shadrach, Meshach, and Abednego`
+(quoted phrases and lists); and `Bible*, Quotations of the Old Testament in the New Testament`
+(flips into nonsense).
+
+**This also applies to cross-reference targets that are not articles.** `Jesus Christ, Life and
+Teachings of` exists only as a `dict_xref.raw` value, and renders as *Life and Teachings of Jesus
+Christ* in the "absent from the corpus" line.
 
 **The A–Z dictionary index keeps the source form**, because inversion is exactly what makes an
 alphabetical browse work — `Book of Revelation` filed under R would be wrong. Every other surface
-(heading, breadcrumb, doors, path map, search results, hub chips) shows the name form. This split
-is deliberate and matches standard encyclopedia practice.
-
-*Available safe extension, not in scope:* a bare `, the` suffix (`Beatitudes*, the` → *the
-Beatitudes*, ~30 articles) is provably unambiguous — no article is named "the" as an alternate —
-and could be added to the allowlist later.
+(heading, breadcrumb, doors, path map, search results, hub chips, absent-target list) shows the
+name form. This split is deliberate and matches standard encyclopedia practice.
 
 ### The path map
 
@@ -333,9 +346,11 @@ resolving via tier 3; `See Animals (Cattle).` carrying the `Cattle` anchor; a da
 (`Jesus Christ, Life and Teachings of`) resolving to nothing rather than throwing; the corpus-wide
 rate asserted at ≥95%.
 
-**Title display** — all 62 allowlisted inversions de-invert correctly; **`Elect, Election`,
-`Zidon*, Zidonian*`, `Nazarite*, Nazirite`, `Mark of God*, Mark of the Beast` and `Babylon,
-Babylonia` are asserted unchanged.** This is the regression guard against a future general rule.
+**Title display** — each of the five rules asserted with real examples; **exactly 365 of the 6,010
+titles reformat**, asserted corpus-wide so a rule change cannot quietly widen its blast radius; and
+`Elect, Election`, `Zidon*, Zidonian*`, `Accho*, Acco`, `Banker, Banking`, `Nazarite*, Nazirite`,
+`Mark of God*, Mark of the Beast`, `Babylon, Babylonia` plus the nine hand-rejected titles are
+**asserted unchanged**. That is the regression guard against a future general rule.
 
 **Breadcrumb** — truncation at exactly 6 vs 7 crumbs; a crumb click in the truncated view landing on
 its real stack index; expander state resetting on navigation.

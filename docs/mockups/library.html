@@ -257,19 +257,33 @@
   const NOTE_SRC = 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
   const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-  // Tyndale files scripture books under an inverted headword — "Revelation, Book of" — which is
-  // right for an A–Z index and wrong everywhere the title is used as a name. De-inverting is only
-  // safe against an EXACT allowlist of these ten phrases (62 articles): the corpus also contains
-  // inversions with no marker ("Paulus, Sergius", "Calf, Golden") that are indistinguishable from
-  // alternate spellings ("Elect, Election", "Zidon*, Zidonian*"), so a general rule would mangle
-  // hundreds of titles. Same discipline as scripture.js: an exact allowlist, never a prefix.
-  const INVERSIONS = ['Book of the', 'Books of First and Second', 'Book of', 'Books of',
-    'Gospel of', 'Letter to the', 'Letters to the', 'Letter to', 'Letter of', 'Letters of'];
+  // Tyndale files entries under an inverted headword — "Revelation, Book of", "Baca*, Valley of",
+  // "Prophets, False" — right for an A–Z index, wrong wherever the title is used as a name.
+  // 365 of the 6,010 titles are affected.
+  //
+  // The danger: an inversion and an ALTERNATE SPELLING are structurally identical. "Prophets,
+  // False" is an inversion; "Elect, Election" is not. So there is no general "swap around the
+  // comma" rule here — four narrow ones, each either structural or an explicit list.
+  const PREP_TAIL = /\b(?:of|to|for|in|with|from|concerning|against)(?:\s+the)?$/i;
+  // Inversions with no structural marker, curated by hand from the 77 comma-titles whose halves
+  // share no word stem. Nine were rejected: "Philo*, Judaeus" (already natural order), three
+  // alternate-name pairs, four quoted phrases, and one that flips into nonsense.
+  const NAMED = new Set(['Prophets, False', 'Calf, Golden', 'Paulus, Sergius', 'Sea, Red',
+    'Sea, Dead', 'Priest, High', 'Pilate, Pontius', 'Magdalene, Mary', 'Scrolls*, Dead Sea',
+    'Ghost*, Holy', 'Gifts, Spiritual', 'Jerusalem, New', 'War*, Holy', 'Supper, Lord’s',
+    'Prayer*, Lord’s', 'Mark, John', 'Instruments, Musical', 'Stones, Precious',
+    'Chronicles, Books of First and Second', 'Kings, Books of First and Second',
+    'Samuel, Books of First and Second']);
   function displayTitle(t) {
-    const i = t.lastIndexOf(', ');
+    const i = String(t).lastIndexOf(', ');
     if (i < 0) return t;
     const head = t.slice(0, i), tail = t.slice(i + 2);
-    return INVERSIONS.includes(tail) ? `${tail} ${head}` : t;
+    if (NAMED.has(t)) return `${tail} ${head}`;
+    if (/^the$/i.test(tail)) return `the ${head}`;
+    if (/^the\s/i.test(tail)) return `${tail} ${head}`;
+    if (/^(?:Mount|Mt\.?)$/i.test(tail)) return `${tail} ${head}`;
+    if (PREP_TAIL.test(tail)) return `${tail} ${head}`;
+    return t;
   }
 
   // ---- real NIV previews for the scripture refs that appear in these bodies ----
@@ -827,7 +841,7 @@ That daily reality is what gives the metaphor its force when it is applied to ki
           + d.unloaded.map(t => esc(displayTitle(t))).join(', ')
           + ` — real corpus articles this mockup does not carry.</div>` : '')
       + (d.dead.length ? `<div class="named dead">Named by the source, but <b>absent from the `
-          + `corpus</b>: ` + d.dead.map(esc).join(', ') + `.</div>` : '')
+          + `corpus</b>: ` + d.dead.map(t => esc(displayTitle(t))).join(', ') + `.</div>` : '')
       + `</div>`
       + `<div class="src"><div class="sl">Source</div>${DICT_SRC}</div>`;
   }

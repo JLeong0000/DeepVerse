@@ -133,7 +133,8 @@
   .lb .xref { background:none; border:none; font-family:inherit; font-size:inherit; color:var(--a);
     cursor:pointer; padding:0; border-bottom:1px dotted var(--a); }
   .lb .xref:hover { border-bottom-style:solid; }
-  .lb .xref.dead { color:var(--ink); border-bottom:none; cursor:default; }
+  .lb .xref.unloaded { color:var(--ink); border-bottom:1px dotted var(--rule); cursor:help; }
+  .lb .xref.dead { color:var(--dim); border-bottom:none; cursor:help; font-style:italic; }
   .lb .sref { background:none; border:none; font-family:inherit; font-size:inherit; color:var(--b);
     cursor:pointer; padding:0; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; }
   .lb .sref:hover { text-decoration-style:solid; }
@@ -329,6 +330,12 @@ See Antichrist; Beast; Jerusalem, New.` },
 Israelite tradition viewed the Nazirite as consecrated for life. Samson was the ancient hero of the Nazirites. He was “consecrated to God” through the vow of his mother and remained under that vow to the “day of his death.” As long as Samson’s hair was not cut, he was able to receive the Spirit of the Lord and thereby perform amazing physical feats.
 Naziritism developed into a ritual for those who sought to consecrate themselves temporarily to God. During the period of consecration, the devotee abstained from drinking wine, allowed his hair to grow, and avoided all contact with dead bodies.` },
 
+    christ: { id:'christ', title:'Christ', refs:56, body:
+`Official title given to Jesus in the NT. It signifies his office as anointed Savior and alludes to his spiritual qualifications for the task of saving his people. The word derives from Greek Christos , which translates Hebrew Messiah.
+The Gospels portray Jesus as modestly accepting the title and role of the Messiah. His baptism should be understood as his anointing to the threefold office of prophet, priest, and king.
+An important feature in the earliest Christian preaching was the proclamation that Jesus is the Christ. This remains the earliest and most basic article of Christian confession.
+See also Jesus Christ, Life and Teachings of; Messiah.` },
+
     shepherd: { id:'shepherd', title:'Shepherd', refs:41, body:
 `One who tends a flock — an occupation so common in Israel that it became the standard image for leadership, both human and divine.
 The shepherd’s work was constant and unglamorous: finding pasture and water in dry country, counting the flock, carrying the weak, and defending against predators and thieves through the night.
@@ -336,13 +343,21 @@ That daily reality is what gives the metaphor its force when it is applied to ki
   };
 
   // "Mark of the Beast" is the SECOND headword of "Mark of God*, Mark of the Beast" — reached by the
-  // unique-title-segment tier, not by an exact title match. The nulls are named by the source but
-  // genuinely absent from the corpus (5% of all targets), so they must degrade to plain text.
+  // unique-title-segment tier, not by an exact title match.
+  //
+  // Three states, and the distinction is load-bearing:
+  //   an id  — loaded into this mockup, clickable
+  //   'x'    — a real corpus article that this mockup simply does not carry (only 10 are loaded)
+  //   null   — named by the source and GENUINELY ABSENT from the corpus. Only 112 distinct names
+  //            are in this state; `Jesus Christ, Life and Teachings of` is cited 19 times and does
+  //            not exist. Verified against bible.db, not assumed.
   const XREF = {
     'Antichrist':'antichrist', 'Armageddon':'armageddon', 'Beast':'beast', 'Babel':'babel',
     'Mark of the Beast':'markofgod', 'Revelation, Book of':'revbook', 'Babylon, Babylonia':'babylon',
-    'False Christs, False Messiahs':null, 'Prophets, False':null, 'Jerusalem, New':null,
-    'Shinar':null, 'Nimrod':null, 'Nebuchadnezzar, Nebuchadrezzar':null, 'Exile':null,
+    'False Christs, False Messiahs':'x', 'Prophets, False':'x', 'Jerusalem, New':'x',
+    'Shinar':'x', 'Nimrod':'x', 'Nebuchadnezzar, Nebuchadrezzar':'x', 'Exile':'x',
+    'Incarnation':'x', 'Second Coming of Christ':'x', 'Messiah':'x',
+    'Jesus Christ, Life and Teachings of':null,
   };
 
   // ---- real dictionary entries, letter B ----
@@ -454,7 +469,7 @@ That daily reality is what gives the metaphor its force when it is applied to ki
 
   // the "Wander in" pool: substantial articles only. 2,271 of the 6,010 are under 120 chars and
   // 576 are bare "See X." redirects — an unweighted random door would land on one a third of the time.
-  const POOL = ['babel','babylon','beast','antichrist','markofgod','armageddon','revbook','nazirite','shepherd'];
+  const POOL = ['babel','babylon','beast','antichrist','markofgod','armageddon','revbook','nazirite','shepherd','christ'];
 
   // ---- state ----
   let stack = [{ kind:'start' }];   // the breadcrumb IS the stack
@@ -500,10 +515,12 @@ That daily reality is what gives the metaphor its force when it is applied to ki
       const m = text.match(/^(.*?)(\bSee(?: also)? )([^.]+)\.\s*$/);
       let html;
       if (m) {
-        html = linkRefs(m[1]) + esc(m[2]) + m[3].split(';').map(t => t.trim()).map(t => XREF[t]
-          ? `<button class="xref" data-open="${XREF[t]}">${esc(t)}</button>`
-          : `<span class="xref dead" title="named by the source, but no such article exists">${esc(t)}</span>`
-        ).join('; ') + '.';
+        html = linkRefs(m[1]) + esc(m[2]) + m[3].split(';').map(t => t.trim()).map(t => {
+          const v = XREF[t];
+          if (v && v !== 'x') return `<button class="xref" data-open="${v}">${esc(displayTitle(t))}</button>`;
+          if (v === 'x') return `<span class="xref unloaded" title="a real corpus article — this mockup carries only 10">${esc(displayTitle(t))}</span>`;
+          return `<span class="xref dead" title="named by the source, but no such article exists in the corpus">${esc(displayTitle(t))}</span>`;
+        }).join('; ') + '.';
       } else html = linkRefs(text);
       const prev = (openRef && text.includes(openRef)) ? previewHtml() : '';
       return `<p class="${item ? 'aitem' : 'ablk'}">${html}</p>` + prev;
@@ -628,14 +645,15 @@ That daily reality is what gives the metaphor its force when it is applied to ki
 
   // collect an article's outbound cross-references into the exit row
   function doorsFor(body) {
-    const out = [], dead = [];
+    const out = [], dead = [], unloaded = [];
     for (const m of body.matchAll(/\bSee(?: also)? ([^.\n]+)\./g))
       for (const raw of m[1].split(';')) {
-        const t = raw.trim();
-        if (XREF[t]) { if (!out.some(x => x[0] === t)) out.push([t, XREF[t]]); }
+        const t = raw.trim(), v = XREF[t];
+        if (v && v !== 'x') { if (!out.some(x => x[0] === t)) out.push([t, v]); }
+        else if (v === 'x') { if (!unloaded.includes(t)) unloaded.push(t); }
         else if (!dead.includes(t)) dead.push(t);
       }
-    return { out, dead };
+    return { out, dead, unloaded };
   }
 
   // ---- frame ----
@@ -805,8 +823,11 @@ That daily reality is what gives the metaphor its force when it is applied to ki
               `<button class="door" data-open="${id}">${esc(displayTitle(t))}</button>`).join('') + `</div>`
           : `<div class="deadend">A dead end — this article names no other entry. Search, `
             + `pick another route, or ✦ Wander in.</div>`)
-      + (d.dead.length ? `<div class="named">Also named by the source, but absent from the corpus: `
-          + d.dead.map(esc).join(', ') + `.</div>` : '')
+      + (d.unloaded.length ? `<div class="named">Also leads to `
+          + d.unloaded.map(t => esc(displayTitle(t))).join(', ')
+          + ` — real corpus articles this mockup does not carry.</div>` : '')
+      + (d.dead.length ? `<div class="named dead">Named by the source, but <b>absent from the `
+          + `corpus</b>: ` + d.dead.map(esc).join(', ') + `.</div>` : '')
       + `</div>`
       + `<div class="src"><div class="sl">Source</div>${DICT_SRC}</div>`;
   }
@@ -921,9 +942,14 @@ That daily reality is what gives the metaphor its force when it is applied to ki
 
 <h3>Warts on display, all real</h3>
 <ul>
-  <li><b>5% of cross-reference targets don't exist.</b> Open <b>Antichrist</b>: <code>False Christs, False
-    Messiahs</code> and <code>Prophets, False</code> are named by Tyndale and absent from the corpus. They stay
-    plain text in the prose and are listed honestly under the doors instead of 404-ing.</li>
+  <li><b>3% of cross-reference targets don't exist.</b> 144 of the 5,196 links Tyndale writes name an article
+    that is not in the corpus — 112 distinct names, led by <code>Jesus Christ, Life and Teachings of</code> at 19
+    citations. Open <b>Christ</b> (via ✦ Wander in) to see one: it stays plain italic text in the prose and is
+    listed under the doors rather than 404-ing.
+    <br /><b>Corrected:</b> an earlier version of this mockup claimed <code>False Christs, False Messiahs</code>
+    and <code>Prophets, False</code> were absent. Both exist. That map was hand-built rather than queried; it is
+    now checked against <code>bible.db</code>, and targets this mockup simply doesn't load are shown as a third,
+    distinct state.</li>
   <li><b><code>Mark of the Beast</code> is not a title.</b> It is the second headword of <code>Mark of God*, Mark of
     the Beast</code>, and resolves only via the unique-title-segment tier.</li>
   <li><b><code>sort_title</code> is not unique</b> — 131 colliding groups. The Dictionary index shows

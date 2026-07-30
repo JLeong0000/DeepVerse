@@ -62,9 +62,12 @@ normalises (curly apostrophes, the `*` marker, `#N` sense pointers, `See also`),
 | | **measured total** | **5,036 / 5,299 (95.0%)** |
 
 A further **97 targets name a real article with an unmatched subhead** (`Plants (Vine)` where no
-`## Vine` block exists). The measured 95.0% **excludes** them. The build should link them to the
-host article with the anchor dropped — a correct, useful link — which lifts coverage above 95%;
-the figure is stated conservatively so a later measurement cannot appear to regress.
+`## Vine` block exists). The build links these to the host article with the anchor dropped — a
+correct, useful link — which takes the final figure to **5,133 of 5,299 (96.9%)**. The 95.0% above
+is the strict tier total; 96.9% is what ships.
+
+The remaining **166 target instances (112 distinct names) genuinely do not exist** and are stored
+with `dst` NULL rather than discarded — see the schema below.
 
 Tier 3 exists for one visible case: `See Mark of the Beast.` resolves only as the second headword
 of `Mark of God*, Mark of the Beast`. The remaining 5% are **genuine source defects** — `Jesus
@@ -74,7 +77,7 @@ Christ, Life and Teachings of` is cited 19 times and does not exist. They degrad
 
 | | |
 |---|---|
-| distinct edges | 5,052 |
+| distinct resolved edges | 5,052 |
 | articles with ≥1 edge | 4,046 (67%) |
 | **isolated articles** | **1,964 (33%)** |
 | connected components | 602 |
@@ -235,17 +238,24 @@ Four additions, all running on data already in the corpus:
 
 ### `dict_xref` — a new table, and why the build step is justified
 
-**5,052 rows, ~250 KB.**
+**5,196 rows** — 5,052 resolved edges plus **144 that name an article the corpus does not contain**
+(112 distinct names). ~260 KB.
 
 ```sql
 CREATE TABLE dict_xref (
   src TEXT NOT NULL,          -- dict_articles.id, the citing article
-  dst TEXT NOT NULL,          -- dict_articles.id, the cited article
+  dst TEXT,                   -- dict_articles.id, or NULL when no such article exists
+  raw TEXT NOT NULL,          -- the target exactly as the source wrote it
   anchor TEXT,                -- a "## Subhead" to scroll to, else NULL
   seq INTEGER NOT NULL);      -- order of appearance in the source body
 CREATE INDEX idx_dict_xref_src ON dict_xref(src);
 CREATE INDEX idx_dict_xref_dst ON dict_xref(dst);
 ```
+
+**`dst` is nullable and `raw` is mandatory, and that is load-bearing.** The design shows unresolvable
+cross-references honestly — dashed nodes in the path map, listed under the doors — which is
+impossible if the build discards them. A table of resolved edges only would silently make the graph
+look complete. `Jesus Christ, Life and Teachings of` is named 19 times and does not exist.
 
 This was flagged, retracted, then reinstated during design. The reasoning matters:
 
@@ -259,9 +269,13 @@ This was flagged, retracted, then reinstated during design. The reasoning matter
 
 So the table lands here. It **derives links Tyndale wrote explicitly** and invents nothing.
 
-**This triggers the `docs/DATA-PIPELINE.md` checklist**: extraction into a committed intermediate,
-`build-db.mjs` wiring, `install.sh` re-verification, a rebuild with `backup-data/` renamed away, and
-`npm run copy-assets` in `app/` afterwards to republish the content hash.
+**No new intermediate is needed.** The article bodies are already inside the committed
+`build/data/sources/tyndale-dictionary.json.gz`, so `dict_xref` is **computed at build time**
+exactly as `differences` is — never vendored. `extract-sources.mjs` is untouched and `backup-data/`
+is not consulted. Of the `docs/DATA-PIPELINE.md` checklist that leaves items 2 (wire the build),
+3 (setup / `copy-assets`) and 5 (verify a `backup-data`-less rebuild); items 1 and 4 do not apply
+because no new raw source enters the repo. `npm run copy-assets` must still run afterwards to
+republish the content hash.
 
 ### Browse queries (`app/src/lib/db.js`)
 
@@ -329,8 +343,9 @@ its real stack index; expander state resetting on navigation.
 **Path map** — branch click truncating to the correct step; solid/dashed spine classification;
 phantom nodes unclickable; drag suppressing the click that follows it.
 
-**Post-build invariants** — `dict_xref` row count; zero rows whose `src` or `dst` is missing from
-`dict_articles`; no self-edges.
+**Post-build invariants** — `dict_xref` totals (5,196 rows: 5,052 resolved, 144 unresolved, 92
+anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
+with an empty `raw`.
 
 **Regression** — `build/` and `app/` suites green; rebuild with `backup-data/` renamed away; check
 live in the browser in both themes.

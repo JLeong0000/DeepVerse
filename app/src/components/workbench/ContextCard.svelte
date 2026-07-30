@@ -121,7 +121,7 @@
 
 {#snippet secHeader(id, label, extra = '')}
   {@const n = counts[id]}
-  <button class="sechd" class:empty={n === 0} onclick={() => toggleSec(id)} disabled={n === 0}>
+  <button class="sechd" onclick={() => toggleSec(id)} disabled={n === 0}>
     <span class="caret" class:open={sec[id]}>›</span>
     <span class="seclbl">{label}</span>
     {#if n > 0 && extra !== 'noCount'}<span class="secn">· {n}</span>{/if}

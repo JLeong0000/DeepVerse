@@ -50,34 +50,34 @@ claiming a roster of individuals.
 
 ### 4. There is a real cross-reference graph
 
-Tyndale wrote 3,619 `See …` clauses naming 5,299 targets. Normalised the way `scripture.js`
+Tyndale wrote 3,654 `See …` clauses naming 5,336 targets. Normalised the way `scripture.js`
 normalises (curly apostrophes, the `*` marker, `#N` sense pointers, `See also`), **95.0% resolve**:
 
 | tier | rule | resolved |
 |---|---|---|
-| 1 | exact normalised `title` | 4,940 |
+| 1 | exact normalised `title` | 4,973 |
 | 2 | `sort_title` | 2 |
 | 3 | a comma-delimited title segment claimed by exactly one article | 2 |
-| 4 | `Article (Subhead)` → article + its `## Subhead` block | 92 |
-| | **measured total** | **5,036 / 5,299 (95.0%)** |
+| 4 | `Article (Subhead)` → article + its `## Subhead` block | 94 |
+| | **strict tier total** | **5,071 / 5,336 (95.0%)** |
 
-A further **97 targets name a real article with an unmatched subhead** (`Plants (Vine)` where no
+A further **98 targets name a real article with an unmatched subhead** (`Plants (Vine)` where no
 `## Vine` block exists). The build links these to the host article with the anchor dropped — a
-correct, useful link — which takes the final figure to **5,133 of 5,299 (96.9%)**. The 95.0% above
+correct, useful link — which takes the final figure to **5,169 of 5,336 (96.9%)**. The 95.0% above
 is the strict tier total; 96.9% is what ships.
 
-The remaining **166 target instances (112 distinct names) genuinely do not exist** and are stored
+The remaining **167 target instances (113 distinct names) genuinely do not exist** and are stored
 with `dst` NULL rather than discarded — see the schema below.
 
 Tier 3 exists for one visible case: `See Mark of the Beast.` resolves only as the second headword
-of `Mark of God*, Mark of the Beast`. The remaining 5% are **genuine source defects** — `Jesus
+of `Mark of God*, Mark of the Beast`. The remaining 3.1% are **genuine source defects** — `Jesus
 Christ, Life and Teachings of` is cited 19 times and does not exist. They degrade to plain text.
 
 ### 5. The graph is not shaped like a map
 
 | | |
 |---|---|
-| distinct resolved edges | 5,052 |
+| distinct resolved edges | 5,088 |
 | articles with ≥1 edge | 4,046 (67%) |
 | **isolated articles** | **1,964 (33%)** |
 | connected components | 602 |
@@ -251,8 +251,8 @@ Four additions, all running on data already in the corpus:
 
 ### `dict_xref` — a new table, and why the build step is justified
 
-**5,196 rows** — 5,052 resolved edges plus **144 that name an article the corpus does not contain**
-(112 distinct names). ~260 KB.
+**5,233 rows** — 5,088 resolved edges plus **145 that name an article the corpus does not contain**
+(113 distinct names). ~260 KB.
 
 ```sql
 CREATE TABLE dict_xref (
@@ -358,7 +358,7 @@ its real stack index; expander state resetting on navigation.
 **Path map** — branch click truncating to the correct step; solid/dashed spine classification;
 phantom nodes unclickable; drag suppressing the click that follows it.
 
-**Post-build invariants** — `dict_xref` totals (5,196 rows: 5,052 resolved, 144 unresolved, 92
+**Post-build invariants** — `dict_xref` totals (5,233 rows: 5,088 resolved, 145 unresolved, 94
 anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
 with an empty `raw`.
 

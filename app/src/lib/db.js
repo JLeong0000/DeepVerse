@@ -5,10 +5,22 @@ import { BOOKS, bookOrder } from './refs.js';
 
 let db = null;
 
+// bible.db is cached CacheFirst by the service worker and never revalidated, so it is requested
+// with a content-hash query (`?v=…`). New data means a new URL and therefore fresh bytes; unchanged
+// data keeps the hash and is served from cache instead of re-downloading 150 MB.
+//
+// The hash is baked in at build time by vite.config.js, deliberately NOT fetched at runtime: a
+// runtime lookup has to decide what to do when it fails, and every answer is bad — trusting a
+// remembered value silently serves stale data (observed: a hiccup during service-worker startup was
+// enough), while failing hard breaks offline use. Baking it in removes the failure mode, because
+// the constant travels with the bundle the service worker already revalidates.
+const DB_VERSION = typeof __BIBLE_DB_VERSION__ === 'string' ? __BIBLE_DB_VERSION__ : '';
+
 export async function loadDb(url = '/bible.db') {
   if (db) return;
   const SQL = await initSqlJs({ locateFile: () => '/sql-wasm.wasm' });
-  const buf = await (await fetch(url)).arrayBuffer();
+  const src = DB_VERSION ? `${url}?v=${encodeURIComponent(DB_VERSION)}` : url;
+  const buf = await (await fetch(src)).arrayBuffer();
   db = new SQL.Database(new Uint8Array(buf));
 }
 

@@ -2,6 +2,7 @@
 // The shipped DB is SLIMMED: the app queries only verses/words/lexicon/cross_refs/differences, so
 // the build-only `synonyms`, `word_domain`, and `word_sense` tables and the unused gloss_norm index
 // are dropped (saves ~15 MB). The full data/bible.db keeps them for the build/tests. Runs before dev/build (see package.json).
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,6 +36,18 @@ db.exec('VACUUM;');
 db.close();
 const after = fs.statSync(dbDest).size;
 console.log(`copy-assets: bible.db slimmed ${(before / 1e6).toFixed(1)} → ${(after / 1e6).toFixed(1)} MB`);
+
+// Publish a content hash of the shipped DB.
+//
+// The service worker caches bible.db CacheFirst on a fixed URL, which never revalidates — so an
+// installed PWA would refresh its code (registerType: 'autoUpdate') and keep serving STALE Bible
+// data forever after a rebuild. The app requests `/bible.db?v=<version>`, so new content means a
+// new URL and a cache miss, while unchanged content keeps the hash and avoids re-downloading
+// 150 MB. A content hash, not mtime: copying the file must not by itself trigger a re-download.
+const hash = crypto.createHash('sha256').update(fs.readFileSync(dbDest)).digest('hex').slice(0, 12);
+fs.writeFileSync(path.join(publicDir, 'bible-db.json'),
+  JSON.stringify({ version: hash, bytes: after }));
+console.log(`copy-assets: bible.db version ${hash}`);
 
 // onnxruntime-web wasm — vendored so Hebrew TTS works offline (no CDN fetch).
 const ortSrc = path.resolve(appRoot, 'node_modules/onnxruntime-web/dist');

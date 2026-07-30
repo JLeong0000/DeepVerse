@@ -28,7 +28,20 @@ const serveTtsMjsRaw = {
   },
 };
 
+// The content hash of the shipped bible.db, written by scripts/copy-assets.mjs (which runs in
+// predev/prebuild, so it is always current by the time this config loads). Baked into the bundle
+// rather than fetched at runtime — see the CacheFirst note on the bible.db rule below.
+function bibleDbVersion() {
+  try {
+    const p = fileURLToPath(new URL('./public/bible-db.json', import.meta.url));
+    return JSON.parse(readFileSync(p, 'utf8')).version || '';
+  } catch {
+    return ''; // no DB copied yet (fresh clone before install) — fall back to an unversioned URL
+  }
+}
+
 export default defineConfig({
+  define: { __BIBLE_DB_VERSION__: JSON.stringify(bibleDbVersion()) },
   plugins: [
     serveTtsMjsRaw,
     svelte(),
@@ -39,13 +52,20 @@ export default defineConfig({
       // on a white square) instead of a real "Install" that uses the maskable icon.
       devOptions: { enabled: true, type: 'module' },
       workbox: {
-        // precache the app shell + wasm; the 135 MB bible.db is too big to precache, so it is
+        // precache the app shell + wasm; the 150 MB bible.db is too big to precache, so it is
         // runtime-cached (CacheFirst) — after the first load the whole app works offline.
         globPatterns: ['**/*.{js,css,html,wasm}'],
         globIgnores: ['**/tts/**'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
+            // CacheFirst never revalidates, which is what makes 150 MB tolerable — but it also
+            // means a fixed URL would pin the FIRST database forever, so an installed PWA would
+            // auto-update its code and keep serving stale Bible data. db.js therefore requests
+            // `/bible.db?v=<content-hash>` (published by scripts/copy-assets.mjs): new data is a
+            // new URL and a cache miss, unchanged data keeps its hash and is not re-downloaded.
+            // The pattern matches on pathname, so the query is irrelevant to matching, and
+            // maxEntries: 1 evicts the superseded copy rather than keeping two 150 MB entries.
             urlPattern: ({ url }) => url.pathname.endsWith('/bible.db'),
             handler: 'CacheFirst',
             options: {

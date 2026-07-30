@@ -27,3 +27,45 @@ test('agapao has a Louw-Nida domain', () => {
   const r = db.prepare("SELECT ln FROM word_domain WHERE strongs='G0025' LIMIT 1").get();
   assert.match(r.ln, /^25\./);
 });
+
+test('dict_xref: 5233 rows — 5088 resolved, 145 naming an article that does not exist', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5233);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5088);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 145);
+  assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 113);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c, 0);
+  // every non-null endpoint must be a real article
+  const orphans = db.prepare(`SELECT COUNT(*) c FROM dict_xref x
+    LEFT JOIN dict_articles a ON a.id = x.src
+    LEFT JOIN dict_articles b ON b.id = x.dst
+    WHERE a.id IS NULL OR (x.dst IS NOT NULL AND b.id IS NULL)`).get().c;
+  assert.equal(orphans, 0);
+  db.close();
+});
+
+test('dict_xref: the most-cited missing target is named 19 times', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const r = db.prepare(`SELECT raw, COUNT(*) c FROM dict_xref WHERE dst IS NULL
+    GROUP BY raw ORDER BY c DESC LIMIT 1`).get();
+  assert.equal(r.raw, 'Jesus Christ, Life and Teachings of');
+  assert.equal(r.c, 19);
+  db.close();
+});
+
+test('dict_xref: Beast names its four targets, in source order', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const rows = db.prepare('SELECT dst FROM dict_xref WHERE src=? ORDER BY seq').all('Beast');
+  assert.deepEqual(rows.map((r) => r.dst),
+    ['Antichrist', 'Armageddon', 'MarkofGodMarkoftheBeast', 'RevelationBookof']);
+  db.close();
+});
+
+test('dict_xref: an anchored edge carries its subhead', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const r = db.prepare('SELECT dst, anchor FROM dict_xref WHERE src=? AND anchor IS NOT NULL').get('BullBullock');
+  assert.equal(r.dst, 'Animals');
+  assert.equal(r.anchor, 'Cattle');
+  db.close();
+});

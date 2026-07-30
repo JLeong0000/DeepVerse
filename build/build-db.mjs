@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { computeDifferences } from './lib/differences.mjs';
 import { loadRecaps } from './lib/recaps.mjs';
 import { loadStudyNotes } from './lib/studynotes.mjs';
-import { loadTyndale } from './lib/tyndale.mjs';
+import { loadTyndale, loadXrefs } from './lib/tyndale.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DB = `${ROOT}/data/bible.db`;
@@ -81,6 +81,12 @@ db.exec(`
     book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
     lex_hit INTEGER NOT NULL
   );
+  CREATE TABLE dict_xref (
+    src TEXT NOT NULL,          -- dict_articles.id, the citing article
+    dst TEXT,                   -- dict_articles.id, or NULL when no such article exists
+    raw TEXT NOT NULL,          -- the target exactly as the source wrote it
+    anchor TEXT,                -- a "## Subhead" to scroll to, else NULL
+    seq INTEGER NOT NULL);      -- order of appearance in the body
   CREATE TABLE tyndale_passages (
     kind TEXT NOT NULL, title TEXT NOT NULL, book TEXT NOT NULL,
     start_chapter INTEGER NOT NULL, start_verse INTEGER NOT NULL,
@@ -138,6 +144,8 @@ console.log('study_notes:', studyNotes.count);
 // 6) TYNDALE CULTURAL LAYER: dictionary + themes/profiles + book intros
 const tyndale = loadTyndale(db);
 console.log('tyndale:', JSON.stringify(tyndale));
+const xrefs = loadXrefs(db, tyndale.rows);
+console.log('dict_xref:', JSON.stringify(xrefs));
 
 db.exec(`
   CREATE INDEX idx_words_ref ON words(book,chapter,verse);
@@ -152,6 +160,8 @@ db.exec(`
   CREATE INDEX idx_study_notes ON study_notes(book, start_chapter, end_chapter);
   CREATE INDEX idx_dict_verse ON dict_verse(book, chapter, verse);
   CREATE INDEX idx_dict_sort ON dict_articles(sort_title);
+  CREATE INDEX idx_dict_xref_src ON dict_xref(src);
+  CREATE INDEX idx_dict_xref_dst ON dict_xref(dst);
   CREATE INDEX idx_tyndale_passages ON tyndale_passages(book, start_chapter, end_chapter);
 `);
 db.close();

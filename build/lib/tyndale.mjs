@@ -12,6 +12,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { toOsis, toOsisOrNull } from './books.mjs';
+import { buildIndex, extractXrefs } from './xref.mjs';
 
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', nbsp: ' ', apos: "'", '#39': "'" };
 function decodeEntities(s) {
@@ -242,5 +243,29 @@ export function loadTyndale(db) {
   db.exec('COMMIT');
 
   return { articles: dict.articles.length, verses: dict.verses.length,
-    passages: passages.length, intros: intros.length };
+    passages: passages.length, intros: intros.length, rows: dict.articles };
+}
+
+// Derives the cross-reference graph from article bodies already present in the committed
+// intermediate. Computed, never vendored — the same treatment `differences` gets. `articles` is
+// the raw row array from tyndale-dictionary.json.gz:
+//   [id, title, sort_title, kind, host_id, body, is_html, n_refs, seq]
+export function loadXrefs(db, articles) {
+  const arts = articles
+    .filter((r) => r[3] === 'article')
+    .map((r) => ({ id: r[0], title: r[1], sort_title: r[2], body: r[5] }));
+  const ix = buildIndex(arts);
+  const ins = db.prepare('INSERT INTO dict_xref VALUES (?,?,?,?,?)');
+  let rows = 0, anchored = 0, missing = 0;
+  db.exec('BEGIN');
+  for (const a of arts) {
+    for (const e of extractXrefs(a, ix)) {
+      ins.run(e.src, e.dst, e.raw, e.anchor, e.seq);
+      rows++;
+      if (e.anchor) anchored++;
+      if (!e.dst) missing++;
+    }
+  }
+  db.exec('COMMIT');
+  return { rows, resolved: rows - missing, missing, anchored };
 }

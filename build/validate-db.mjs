@@ -10,6 +10,20 @@ export function validate(db) {
     const have = db.prepare("SELECT COUNT(DISTINCT chapter) n FROM verses WHERE book=? AND version='NIV'").get(book).n;
     if (have !== chapters) problems.push(`verses: ${book} has ${have} chapters, expected ${chapters}`);
   }
+  const resolved = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c;
+  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5088`);
+  const selfEdges = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c;
+  if (selfEdges) problems.push(`dict_xref: ${selfEdges} self-edges`);
+  // dst may legitimately be NULL (the source names an article that does not exist); src may not,
+  // and a non-null dst must point at a real article.
+  const dangling = db.prepare(`SELECT COUNT(*) c FROM dict_xref x
+    LEFT JOIN dict_articles a ON a.id = x.src
+    LEFT JOIN dict_articles b ON b.id = x.dst
+    WHERE a.id IS NULL OR (x.dst IS NOT NULL AND b.id IS NULL)`).get().c;
+  if (dangling) problems.push(`dict_xref: ${dangling} edges reference a missing article`);
+  const noRaw = db.prepare("SELECT COUNT(*) c FROM dict_xref WHERE raw IS NULL OR raw = ''").get().c;
+  if (noRaw) problems.push(`dict_xref: ${noRaw} rows with no raw target text`);
+
   return problems;
 }
 

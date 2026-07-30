@@ -451,6 +451,16 @@ const xrefs = loadXrefs(db, tyndale.rows);
 console.log('dict_xref:', JSON.stringify(xrefs));
 ```
 
+`loadTyndale`'s return now carries `rows` (all 6,141 parsed articles) so `loadXrefs` can reuse them
+without re-reading the gzip. The pre-existing log line one line above would serialise them — about
+**8.8 MB** per build — so change it to log only the counts:
+
+```javascript
+// `rows` carries all 6,141 parsed articles for loadXrefs to reuse; logging it would dump ~9 MB
+const { rows: _rows, ...tyndaleCounts } = tyndale;
+console.log('tyndale:', JSON.stringify(tyndaleCounts));
+```
+
 Update the import on line 14 to bring in the new loader:
 
 ```javascript
@@ -529,11 +539,15 @@ Expected: all pass, including the three new schema assertions.
 
 ```bash
 git add build/lib/tyndale.mjs build/build-db.mjs build/validate-db.mjs \
-        build/test/schema.smoke.test.mjs app/public/bible-db.json
+        build/test/schema.smoke.test.mjs build/test/validate.test.mjs
 git commit -m "feat(build): store the dictionary cross-reference graph as dict_xref"
 ```
 
-> `app/public/bible.db` is gitignored (150 MB); only the published hash in `bible-db.json` is committed. If `git add` reports `bible-db.json` as unchanged, the rebuild was byte-identical — re-check Step 6.
+> Both `app/public/bible.db` (150 MB) and `app/public/bible-db.json` are gitignored — the rebuild
+> and `copy-assets` are reproducible from committed inputs, so neither artifact is tracked.
+> `build/test/validate.test.mjs` builds a synthetic in-memory DB; the new validator queries
+> `dict_xref` and `dict_articles` unconditionally, so that fixture needs both tables added or it
+> throws before reaching its assertion.
 
 ---
 

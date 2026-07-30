@@ -7,9 +7,10 @@
   import Reader from '../components/reader/Reader.svelte';
   import Workbench from '../components/workbench/Workbench.svelte';
 
+  const DEFAULT_SPLIT = 0.5; // even split between the reader and the workbench
   let orientation = $state(getPref('splitOrientation', 'lr')); // 'lr' | 'tb'
   let readerFirst = $state(getPref('splitReaderFirst', true));
-  let splitRatio = $state(getPref('splitRatio', 0.42)); // reader-pane fraction of the split
+  let splitRatio = $state(getPref('splitRatio', DEFAULT_SPLIT)); // reader-pane fraction of the split
   let splitEl = $state(null);
   let dragging = $state(false);
 
@@ -51,7 +52,7 @@
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   }
-  function resetSplit() { splitRatio = 0.42; setPref('splitRatio', 0.42); }
+  function resetSplit() { splitRatio = DEFAULT_SPLIT; setPref('splitRatio', DEFAULT_SPLIT); }
 </script>
 
 <div class="study">

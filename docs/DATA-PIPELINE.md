@@ -19,7 +19,7 @@ Everything below is about the shared corpus only.
 | Input | Path | Tracked? |
 |---|---|---|
 | Bible text (verses) | `data/bibles/{NIV,NKJV,NLT}/*.json` | ✅ committed |
-| Parsed source intermediates | `build/data/sources/*.json.gz` | ✅ committed (~16 MB) |
+| Parsed source intermediates | `build/data/sources/*.json.gz` | ✅ committed (~20 MB) |
 | Recaps, study notes | `build/data/*.json` | ✅ committed |
 | **Raw original corpora** | `backup-data/` | ❌ **gitignored — local backup only** |
 

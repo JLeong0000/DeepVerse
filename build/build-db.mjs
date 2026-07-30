@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { computeDifferences } from './lib/differences.mjs';
 import { loadRecaps } from './lib/recaps.mjs';
 import { loadStudyNotes } from './lib/studynotes.mjs';
+import { loadTyndale } from './lib/tyndale.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DB = `${ROOT}/data/bible.db`;
@@ -64,6 +65,31 @@ db.exec(`
     end_chapter INTEGER NOT NULL, end_verse INTEGER NOT NULL,
     ref TEXT NOT NULL, osis_ref TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL
   );
+  CREATE TABLE dict_articles (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    sort_title TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    host_id TEXT,
+    body TEXT NOT NULL,
+    is_html INTEGER NOT NULL,
+    n_refs INTEGER NOT NULL,
+    seq INTEGER NOT NULL
+  );
+  CREATE TABLE dict_verse (
+    article_id TEXT NOT NULL,
+    book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+    lex_hit INTEGER NOT NULL
+  );
+  CREATE TABLE tyndale_passages (
+    kind TEXT NOT NULL, title TEXT NOT NULL, book TEXT NOT NULL,
+    start_chapter INTEGER NOT NULL, start_verse INTEGER NOT NULL,
+    end_chapter INTEGER NOT NULL, end_verse INTEGER NOT NULL,
+    ref TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL
+  );
+  CREATE TABLE book_intros (
+    book TEXT PRIMARY KEY, summary TEXT NOT NULL, intro TEXT NOT NULL
+  );
 `);
 const tx = (fn) => { db.exec('BEGIN'); fn(); db.exec('COMMIT'); };
 
@@ -109,6 +135,10 @@ console.log('chapter_recap:', recaps.count, JSON.stringify(recaps.bySource));
 const studyNotes = loadStudyNotes(db);
 console.log('study_notes:', studyNotes.count);
 
+// 6) TYNDALE CULTURAL LAYER: dictionary + themes/profiles + book intros
+const tyndale = loadTyndale(db);
+console.log('tyndale:', JSON.stringify(tyndale));
+
 db.exec(`
   CREATE INDEX idx_words_ref ON words(book,chapter,verse);
   CREATE INDEX idx_words_strongs ON words(strongs);
@@ -120,6 +150,9 @@ db.exec(`
   CREATE INDEX idx_chapter_entity ON chapter_entity(book,chapter);
   CREATE INDEX idx_chapter_recap ON chapter_recap(book,chapter);
   CREATE INDEX idx_study_notes ON study_notes(book, start_chapter, end_chapter);
+  CREATE INDEX idx_dict_verse ON dict_verse(book, chapter, verse);
+  CREATE INDEX idx_dict_sort ON dict_articles(sort_title);
+  CREATE INDEX idx_tyndale_passages ON tyndale_passages(book, start_chapter, end_chapter);
 `);
 db.close();
 console.log('bible.db v2 built at', DB);

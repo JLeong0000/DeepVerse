@@ -275,3 +275,86 @@ describe('1.6 stats + concordance', () => {
     expect(c.chars).toBeGreaterThan(0);
   });
 });
+
+describe('tyndale cultural layer', () => {
+  test('getDictForVerse ranks the specific article first', () => {
+    const rows = db.getDictForVerse('Mark', 14, 36);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0].title).toBe('Abba');
+  });
+
+  test('getDictForVerse: the lexical signal surfaces Centurion at Acts 10:1', () => {
+    const titles = db.getDictForVerse('Acts', 10, 1).map(r => r.title);
+    expect(titles).toContain('Cornelius');
+    expect(titles).toContain('Centurion*');
+    // survey articles sink: whatever cites the most verses must not lead
+    expect(titles[0]).toBe('Cornelius');
+  });
+
+  test('getDictForVerse: genealogy verse ranks the name entries above the survey articles', () => {
+    const titles = db.getDictForVerse('1Chr', 1, 1).map(r => r.title);
+    const seth = titles.indexOf('Seth');
+    const chron = titles.findIndex(t => t.startsWith('Chronology of the Bible'));
+    expect(seth).toBeGreaterThanOrEqual(0);
+    expect(chron).toBeGreaterThan(seth);
+  });
+
+  test('getDictForVerse: unreferenced verse returns []', () => {
+    expect(db.getDictForVerse('Ps', 119, 100)).toEqual([]);
+  });
+
+  test('getDictCountForVerse matches the row count', () => {
+    const count = db.getDictCountForVerse('Mark', 14, 36);
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBe(db.getDictForVerse('Mark', 14, 36).length);
+  });
+
+  test('getTyndalePassages: themes use the covering-range model', () => {
+    // "The Creation" is anchored Gen.1.1-2.25, so it must cover a mid-range verse
+    const rows = db.getTyndalePassages('theme', 'Gen', 1, 10);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.map(r => r.title)).toContain('The Creation');
+    expect(rows[0].ref).toBeTruthy();
+  });
+
+  test('getTyndalePassages: profiles are keyed separately from themes', () => {
+    const profiles = db.getTyndalePassages('profile', 'Gen', 3, 1);
+    expect(profiles.length).toBeGreaterThan(0);
+    expect(profiles.map(r => r.title)).toContain('Adam and Eve');
+    const themes = db.getTyndalePassages('theme', 'Gen', 3, 1);
+    expect(themes.length).toBeGreaterThan(0);
+    expect(themes.every(r => r.title !== 'Adam and Eve')).toBe(true);
+  });
+
+  test('getTyndalePassages: verse outside every range returns []', () => {
+    expect(db.getTyndalePassages('profile', 'Obad', 1, 1)).toEqual([]);
+  });
+
+  test('getArticleSupplements returns the textboxes an article embeds', () => {
+    const supps = db.getArticleSupplements('Aaron');
+    expect(supps.length).toBeGreaterThan(0);
+    expect(supps.map(s => s.id)).toContain('AaronThePriest');
+    expect(supps[0].kind).toBe('textbox');
+  });
+
+  test('getArticleSupplements: article with no supplements returns []', () => {
+    expect(db.getArticleSupplements('Abba')).toEqual([]);
+  });
+
+  test('charts are stored as html, articles are not', () => {
+    // FeastsandFestivalsofIsrael (lowercase and/of) hosts the AnnualFeastsAndFestivalsOfIsrael chart.
+    const supps = db.getArticleSupplements('FeastsandFestivalsofIsrael');
+    expect(supps.length).toBeGreaterThan(0);
+    const charts = supps.filter(s => s.kind === 'chart');
+    expect(charts.length).toBeGreaterThan(0);
+    for (const c of charts) expect(c.is_html).toBe(1);
+  });
+
+  test('getBookIntro returns summary and intro for all 66 books', () => {
+    const gen = db.getBookIntro('Gen');
+    expect(gen.summary).toContain('Purpose');
+    expect(gen.intro.length).toBeGreaterThan(1000);
+    for (const b of ['Gen', '1Thess', '1John', 'Hag', 'Jonah', 'Prov', 'Rev'])
+      expect(db.getBookIntro(b), `${b} missing an intro`).toBeTruthy();
+  });
+});

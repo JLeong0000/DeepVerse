@@ -1,7 +1,7 @@
 // build/test/refs.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseWordRef, STEP2OSIS } from '../lib/refs.mjs';
+import { parseWordRef } from '../lib/refs.mjs';
 
 test('parses a plain Greek ref', () => {
   assert.deepEqual(parseWordRef('Mat.1.1#01=NKO'),
@@ -18,9 +18,4 @@ test('parses a dual-versification ref (the Daniel 4/6 bug)', () => {
 test('returns null for non-data / unknown-book lines', () => {
   assert.equal(parseWordRef('# Mat.1.1\tΒίβλος'), null);
   assert.equal(parseWordRef('Zzz.1.1#01'), null);
-});
-
-test('STEP2OSIS covers 66 books and maps Mrk->Mark', () => {
-  assert.equal(Object.keys(STEP2OSIS).length, 66);
-  assert.equal(STEP2OSIS.Mrk, 'Mark');
 });

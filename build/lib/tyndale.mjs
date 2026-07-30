@@ -7,6 +7,10 @@
 //     the Roman scheme (IThes, IJn) that StudyNotes.xml's `name` attribute uses. Both route
 //     through books.mjs, which throws on anything unrecognised rather than dropping it.
 //  2. Item attribute order differs between files, so the item regex must not assume one.
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { fileURLToPath } from 'node:url';
 import { toOsis, toOsisOrNull } from './books.mjs';
 
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', nbsp: ' ', apos: "'", '#39': "'" };
@@ -138,4 +142,31 @@ export function titleTerms(title) {
     for (const w of part.match(/[a-z']+/g) || [])
       if (w.length >= 4 && !STOP.has(w)) out.push(w);
   return out;
+}
+
+const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'sources');
+const read = (name) => JSON.parse(zlib.gunzipSync(fs.readFileSync(`${SRC}/${name}.json.gz`)));
+
+// Loads the four Tyndale cultural-layer tables (dictionary + themes/profiles + book intros)
+// from the intermediates built once by extract-sources.mjs. host_id stays NULL here; resolving
+// textbox/chart hosts is a Phase 2 concern, the column exists so the schema doesn't change later.
+export function loadTyndale(db) {
+  const dict = read('tyndale-dictionary');
+  const passages = read('tyndale-passages');
+  const intros = read('tyndale-bookintros');
+
+  const insA = db.prepare('INSERT INTO dict_articles VALUES (?,?,?,?,?,?,?,?,?)');
+  const insV = db.prepare('INSERT INTO dict_verse VALUES (?,?,?,?,?)');
+  const insP = db.prepare('INSERT INTO tyndale_passages VALUES (?,?,?,?,?,?,?,?,?,?)');
+  const insI = db.prepare('INSERT INTO book_intros VALUES (?,?,?)');
+
+  db.exec('BEGIN');
+  for (const r of dict.articles) insA.run(...r);
+  for (const r of dict.verses) insV.run(...r);
+  for (const r of passages) insP.run(...r);
+  for (const r of intros) insI.run(...r);
+  db.exec('COMMIT');
+
+  return { articles: dict.articles.length, verses: dict.verses.length,
+    passages: passages.length, intros: intros.length };
 }

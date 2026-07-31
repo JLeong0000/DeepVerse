@@ -6,18 +6,49 @@
   import RefText from '../common/RefText.svelte';
 
   const DICT_SOURCE = 'Tyndale Open Bible Dictionary · © 2023 Tyndale House Publishers · CC BY-SA 4.0';
-  let { article, supplements = [], source = null, onnavigate = null } = $props();
+  let { article, supplements = [], source = null, onnavigate = null,
+        xrefs = null, onxref = null, onref = null, openToken = null, preview = null } = $props();
 
   let blocks = $derived(parseArticleBlocks(article.body));
+
+  // Only inside a "See …" clause, never in loose prose: Calf, Clay, Hour, Evening and Command are
+  // all real article titles, so linkifying titles wherever they appear would make every paragraph
+  // a minefield. The source wrote "See X." deliberately — that is the only context safe to trust.
+  const CLAUSE = /^(.*?)(\bSee(?: also)? )([^.]+)\.\s*$/;
+  function splitClause(text) {
+    if (!xrefs) return null;
+    const m = text.match(CLAUSE);
+    if (!m) return null;
+    const targets = m[3].split(';').map((t) => {
+      const raw = t.trim();
+      // dict_xref.raw is the source's own wording, so this is an exact match, not a guess
+      const hit = xrefs.out.find((o) => o.raw === raw);
+      return { raw, id: hit?.id ?? null };
+    });
+    return { lead: m[1], see: m[2], targets };
+  }
 </script>
 
 {#each blocks as b}
   {#if b.kind === 'head'}
     <h3 class="mhead">{b.text}</h3>
   {:else if b.kind === 'item'}
-    <p class="mitem"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} /></p>
+    <p class="mitem"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={onref} /></p>
+    {#if preview && openToken && b.text.includes(openToken)}
+      {@render preview()}
+    {/if}
   {:else}
-    <p class="mbody"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} /></p>
+    {@const c = splitClause(b.text)}
+    {#if c}
+      <p class="mbody">
+        <RefText text={c.lead} book={article.book ?? null} onnavigate={onnavigate} onref={onref} />{c.see}{#each c.targets as t, k}{#if k > 0}; {/if}{#if t.id}<button class="xref" onclick={() => onxref?.(t.id)}>{t.raw}</button>{:else}<span class="xdead" title="named by the source, but no such article exists">{t.raw}</span>{/if}{/each}.
+      </p>
+    {:else}
+      <p class="mbody"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={onref} /></p>
+    {/if}
+    {#if preview && openToken && b.text.includes(openToken)}
+      {@render preview()}
+    {/if}
   {/if}
 {/each}
 
@@ -30,7 +61,7 @@
     {#if s.is_html}
       <div class="charttbl">{@html s.body}</div>
     {:else}
-      <p class="mbody"><RefText text={s.body} onnavigate={onnavigate} /></p>
+      <p class="mbody"><RefText text={s.body} onnavigate={onnavigate} onref={onref} /></p>
     {/if}
   </div>
 {/each}
@@ -59,4 +90,8 @@
   .src { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--rule);
     font-size: 11px; line-height: 1.5; color: var(--dim); }
   .srclbl { font-variant: small-caps; letter-spacing: .05em; margin-bottom: 2px; }
+  .xref { background: none; border: none; font-family: inherit; font-size: inherit; padding: 0;
+    color: var(--a); cursor: pointer; border-bottom: 1px dotted var(--a); }
+  .xref:hover { border-bottom-style: solid; }
+  .xdead { color: var(--dim); font-style: italic; cursor: help; }
 </style>

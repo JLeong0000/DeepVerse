@@ -10,7 +10,9 @@
   // otherwise the modal stays over the verse it just sent you to.
   // `book` is what the surrounding text is ABOUT, so a book-less citation can be resolved against
   // it. Callers with no single subject (a dictionary article) pass nothing and those stay plain.
-  let { text, book = null, onnavigate = null } = $props();
+  // onref, when supplied, REPLACES the jump: the caller shows a preview in place instead. Default
+  // stays the jump, so every existing call site is unchanged.
+  let { text, book = null, onnavigate = null, onref = null } = $props();
   let segs = $derived(tokenizeRefs(text, { book, exists: verseExists }));
 
   // A reference to the verse already on screen is a link to nowhere — clicking it does nothing.
@@ -22,7 +24,11 @@
 {#each segs as s}{#if s.ref && !isHere(s.ref)}<button
     class="xr"
     title="Go to {bookName(s.ref.book)} {s.ref.chapter}:{s.ref.verse}"
-    onclick={() => { goToPassage({ book: s.ref.book, chapter: s.ref.chapter, verse: s.ref.verse }); onnavigate?.(); }}
+    onclick={() => {
+      if (onref) { onref(s.ref, s.text); return; }
+      goToPassage({ book: s.ref.book, chapter: s.ref.chapter, verse: s.ref.verse });
+      onnavigate?.();
+    }}
   >{s.text}</button>{:else if s.ref}<span class="here" title="You are reading this verse">{s.text}</span>{:else}{s.plain}{/if}{/each}
 
 <style>

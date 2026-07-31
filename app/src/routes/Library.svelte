@@ -9,6 +9,7 @@
   import PassageIndex from '../components/library/PassageIndex.svelte';
   import BookIndex from '../components/library/BookIndex.svelte';
   import BookHub from '../components/library/BookHub.svelte';
+  import ArticleSurface from '../components/library/ArticleSurface.svelte';
 
   let term = $state('');
   let inputEl = $state(null);
@@ -76,6 +77,8 @@
       <BookIndex />
     {:else if current.kind === 'hub'}
       <BookHub book={current.book} />
+    {:else if current.kind === 'article'}
+      <ArticleSurface id={current.id} />
     {:else}
       <p class="stub">{current.kind}</p>
     {/if}

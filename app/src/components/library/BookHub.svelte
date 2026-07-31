@@ -38,7 +38,21 @@
 {#if hub.intro}
   <div class="sec">
     <div class="hl">The full introduction</div>
-    <p class="prose">{introOpen ? hub.intro : articlePreview(hub.intro, INTRO_CLAMP)}</p>
+    {#if introOpen}
+      <!-- expanded: the intro carries its own head/item/para structure (Setting, Summary, …),
+           same as a dictionary article body — render it the same way, not as raw source. -->
+      {#each parseArticleBlocks(hub.intro) as b}
+        {#if b.kind === 'head'}
+          <div class="ihead">{b.text}</div>
+        {:else if b.kind === 'item'}
+          <p class="iitem">{b.text}</p>
+        {:else}
+          <p class="prose">{b.text}</p>
+        {/if}
+      {/each}
+    {:else}
+      <p class="prose">{articlePreview(hub.intro, INTRO_CLAMP)}</p>
+    {/if}
     <button class="seemore" onclick={() => (introOpen = !introOpen)}>
       {introOpen ? 'Read less' : 'Read more'}
     </button>
@@ -90,7 +104,11 @@
   .fieldv { font-size: 13.5px; line-height: 1.6; max-width: 74ch; }
   .sec { margin-top: 24px; padding-top: 13px; border-top: 1px solid var(--rule); }
   .hl { font-variant: small-caps; letter-spacing: .06em; font-size: 11px; color: var(--dim); margin-bottom: 8px; }
-  .prose { font-size: 13.5px; line-height: 1.7; max-width: 74ch; margin: 0; white-space: pre-wrap; }
+  .prose { font-size: 13.5px; line-height: 1.7; max-width: 74ch; margin: 0 0 11px; white-space: pre-wrap; }
+  .ihead { margin: 14px 0 5px; font-size: 12px; font-weight: 600; color: var(--b);
+    font-variant: small-caps; letter-spacing: .06em; }
+  .ihead:first-child { margin-top: 0; }
+  .iitem { margin: 0 0 5px; padding-left: 12px; font-size: 13.5px; line-height: 1.6; color: var(--ink); }
   .seemore { background: none; border: none; padding: 2px 0 0; font-family: inherit; font-size: 11px;
     color: var(--a); cursor: pointer; display: block; }
   .seemore:hover { text-decoration: underline; }

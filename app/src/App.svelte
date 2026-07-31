@@ -42,6 +42,16 @@
   const keyOf = () => `${route.view}/${study.book}/${study.chapter}`; // a new history entry per view/chapter
   let navKey = keyOf();
 
+  // Parse a deep link synchronously, before the URL-sync effect below ever runs. That effect's
+  // first pass fires with route.view still at its module default ('home') if this hasn't run
+  // yet — and it would then replaceState a real deep link (#/library, #/study/Genesis/3, ...)
+  // over with '#/home' before onMount gets a chance to read the original hash. Confirmed by
+  // reproducing on a fresh tab: the effect fired first, saw route.view === 'home', and clobbered
+  // location.hash from the requested deep link to '#/home' — onMount's own applyHash() call then
+  // read that already-corrupted hash and settled on 'home' too. Every hash-parametrized view
+  // (study/compare/notes/settings/library) was equally exposed; it wasn't specific to library.
+  if (location.hash.length > 2) applyHash();
+
   // A new view/book/chapter pushes a history entry; a verse-only change replaces (no history spam).
   // applyHash() resyncs navKey, so a back/forward/manual hash change only replaces (never re-pushes).
   $effect(() => {
@@ -53,7 +63,6 @@
 
   onMount(async () => {
     dark = isDark();
-    if (location.hash.length > 2) applyHash();
     // hashchange fires on back/forward (hash URLs) and manual edits/bookmarks; our own pushState
     // does not fire it, so this only reacts to real navigation.
     window.addEventListener('hashchange', applyHash);

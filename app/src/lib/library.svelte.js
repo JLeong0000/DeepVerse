@@ -51,6 +51,15 @@ export function truncateTo(i) {
   lib.mapOpen = false;
 }
 
+// Pop the top of the stack — a search crumb dropping below the search threshold, or backing out
+// via Escape. Resets crumbsOpen/mapOpen like every other stack mutation, so a pop can't leave the
+// trail stuck expanded or the map stuck open.
+export function popNode() {
+  lib.stack.pop();
+  lib.crumbsOpen = false;
+  lib.mapOpen = false;
+}
+
 // A path-map branch: rewind to the step it hangs off, then continue from there. This keeps the
 // breadcrumb a truthful account of the route taken rather than a log of every click.
 export function jumpFrom(i, node) {
@@ -63,6 +72,7 @@ export function jumpFrom(i, node) {
 export function replaceTop(node) {
   lib.stack[lib.stack.length - 1] = node;
   lib.crumbsOpen = false;
+  lib.mapOpen = false;
 }
 
 export function resetLibrary() {

@@ -1,7 +1,7 @@
 <script>
   // The library frame: search field and breadcrumb above, one surface below. No sidebar —
   // start -> a route's index -> an article, with the breadcrumb as the way back.
-  import { lib, pushNode, replaceTop } from '../lib/library.svelte.js';
+  import { lib, pushNode, replaceTop, popNode } from '../lib/library.svelte.js';
   import { getRandomArticle } from '../lib/db.js';
   import Breadcrumb from '../components/library/Breadcrumb.svelte';
 
@@ -11,16 +11,19 @@
   let current = $derived(lib.stack.at(-1));
 
   // The search crumb is a projection of `term`, not a second source of truth — so whenever the
-  // stack moves off it from elsewhere (a crumb click truncates the trail, ✦ Wander in pushes an
-  // article), the field must not keep showing text that no longer has a crumb behind it.
+  // stack moves off it from *outside* the field (a crumb click truncates the trail, ✦ Wander in
+  // pushes an article), the field must not keep showing text that no longer has a crumb behind
+  // it. Gated on focus rather than firing unconditionally: the field itself also drives the stack
+  // below the threshold while the user is still backspacing through it, and clearing then would
+  // eat the character they're mid-edit on.
   $effect(() => {
-    if (current.kind !== 'search') term = '';
+    if (current.kind !== 'search' && document.activeElement !== inputEl) term = '';
   });
 
   function onInput() {
     const q = term.trim();
     if (q.length < 2) {
-      if (current.kind === 'search') lib.stack.pop();
+      if (current.kind === 'search') popNode();
       return;
     }
     if (current.kind === 'search') replaceTop({ kind: 'search', q });
@@ -38,7 +41,7 @@
       if (lib.mapOpen) { lib.mapOpen = false; return; }
       if (e.target === inputEl) {
         term = '';
-        if (current.kind === 'search') lib.stack.pop();
+        if (current.kind === 'search') popNode();
       }
     }
   }

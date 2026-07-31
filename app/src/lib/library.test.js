@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeEach } from 'vitest';
-import { lib, pushNode, truncateTo, jumpFrom, replaceTop, resetLibrary,
+import { lib, pushNode, truncateTo, jumpFrom, replaceTop, popNode, resetLibrary,
   nodeLabel, crumbSlots, articleDepth, MAX_CRUMBS } from './library.svelte.js';
 
 const art = (id) => ({ kind: 'article', id, title: id });
@@ -64,6 +64,34 @@ describe('the stack', () => {
   test('navigating also closes the path-map overlay', () => {
     lib.mapOpen = true;
     pushNode(art('Beast'));
+    expect(lib.mapOpen).toBe(false);
+  });
+
+  test('replaceTop also closes the path-map overlay', () => {
+    pushNode({ kind: 'search', q: 'reve' });
+    lib.mapOpen = true;
+    replaceTop({ kind: 'search', q: 'revel' });
+    expect(lib.mapOpen).toBe(false);
+  });
+
+  test('popNode removes the top step', () => {
+    pushNode({ kind: 'route', route: 'dict' });
+    pushNode({ kind: 'search', q: 'reve' });
+    popNode();
+    expect(lib.stack.map((n) => n.kind)).toEqual(['start', 'route']);
+  });
+
+  test('popNode re-collapses an expanded breadcrumb', () => {
+    pushNode({ kind: 'search', q: 'reve' });
+    lib.crumbsOpen = true;
+    popNode();
+    expect(lib.crumbsOpen).toBe(false);
+  });
+
+  test('popNode also closes the path-map overlay', () => {
+    pushNode({ kind: 'search', q: 'reve' });
+    lib.mapOpen = true;
+    popNode();
     expect(lib.mapOpen).toBe(false);
   });
 });

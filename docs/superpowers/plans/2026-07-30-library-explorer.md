@@ -4,7 +4,7 @@
 
 **Goal:** Build a browsable, search-first explorer at `#/library` over the Tyndale corpus already in `bible.db`, where the breadcrumb is the navigation stack and Tyndale's own cross-references are the way through.
 
-**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,233 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
+**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,237 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
 
 **Tech Stack:** Svelte 5 (runes), sql.js, Vite, Vitest (app), `node --test` (build), `node:sqlite` (build).
 
@@ -76,9 +76,13 @@ Pure functions that turn Tyndale's `See …` prose into resolved edges. No datab
 - Consumes: nothing (pure).
 - Produces:
   - `normKey(s: string) -> string`
-  - `buildIndex(articles: {id,title,sort_title,body}[]) -> Index`
+  - `buildIndex(rows: {id,title,sort_title,kind,host_id,body}[]) -> Index` — every dictionary row,
+    articles and supplements alike; articles are indexed first so a supplement can never take a key
+    an article wants.
   - `resolveTarget(rawTarget: string, index: Index) -> { dst: string, anchor: string|null } | null`
-  - `extractXrefs(article: {id,body}, index: Index) -> { src, dst: string|null, raw: string, anchor: string|null, seq: number }[]`
+    — a matched article resolves to itself; a matched supplement resolves to its host article with
+    its own title as the anchor, or, if it has no host, to itself with no anchor.
+  - `extractXrefs(row: {id,body}, index: Index) -> { src, dst: string|null, raw: string, anchor: string|null, seq: number }[]`
     — `dst` is `null` when the source names an article that does not exist; `raw` always holds the
     target as written.
 
@@ -92,20 +96,33 @@ import assert from 'node:assert/strict';
 import { normKey, buildIndex, resolveTarget, extractXrefs } from '../lib/xref.mjs';
 
 const ARTICLES = [
-  { id: 'Beast', title: 'Beast', sort_title: 'beast',
+  { id: 'Beast', title: 'Beast', sort_title: 'beast', kind: 'article', host_id: null,
     body: 'Figurative usage. See Antichrist; Mark of the Beast; Prophets, False.' },   // last one absent
-  { id: 'Antichrist', title: 'Antichrist', sort_title: 'antichrist', body: 'A denier.' },
+  { id: 'Antichrist', title: 'Antichrist', sort_title: 'antichrist', kind: 'article', host_id: null,
+    body: 'A denier.' },
   { id: 'MarkofGod', title: 'Mark of God*, Mark of the Beast', sort_title: 'mark of god, mark of the beast',
-    body: 'Ensignia.' },
-  { id: 'Animals', title: 'Animals', sort_title: 'animals',
+    kind: 'article', host_id: null, body: 'Ensignia.' },
+  { id: 'Animals', title: 'Animals', sort_title: 'animals', kind: 'article', host_id: null,
     body: 'Creatures.\n## Cattle\nOxen and cows.\n## Deer\nGazelles.' },
-  { id: 'Bull', title: 'Bull*, Bullock', sort_title: 'bull, bullock',
+  { id: 'Bull', title: 'Bull*, Bullock', sort_title: 'bull, bullock', kind: 'article', host_id: null,
     body: 'A male ox. See Animals (Cattle).' },
-  { id: 'Lord', title: 'Lord’s Supper, the', sort_title: "lord's supper, the", body: 'A meal.' },
-  { id: 'Cup', title: 'Cup', sort_title: 'cup', body: 'A vessel. See Lord’s Supper, the.' },
-  { id: 'Vine', title: 'Plants', sort_title: 'plants', body: 'Flora.\n## Bramble\nThorns.' },
-  { id: 'Grape', title: 'Grape', sort_title: 'grape', body: 'Fruit. See Plants (Vine).' },
-  { id: 'Self', title: 'Self', sort_title: 'self', body: 'Circular. See Self.' },
+  { id: 'Lord', title: 'Lord’s Supper, the', sort_title: "lord's supper, the", kind: 'article',
+    host_id: null, body: 'A meal.' },
+  { id: 'Cup', title: 'Cup', sort_title: 'cup', kind: 'article', host_id: null,
+    body: 'A vessel. See Lord’s Supper, the.' },
+  { id: 'Vine', title: 'Plants', sort_title: 'plants', kind: 'article', host_id: null,
+    body: 'Flora.\n## Bramble\nThorns.' },
+  { id: 'Grape', title: 'Grape', sort_title: 'grape', kind: 'article', host_id: null,
+    body: 'Fruit. See Plants (Vine).' },
+  { id: 'Self', title: 'Self', sort_title: 'self', kind: 'article', host_id: null,
+    body: 'Circular. See Self.' },
+  // Supplements. A hosted one is rendered inside its host; an orphan has nowhere else to live.
+  { id: 'CupBox', title: 'A Cup of Cold Water', sort_title: 'a cup of cold water',
+    kind: 'textbox', host_id: 'Cup', body: 'Hospitality.' },
+  { id: 'LooseBox', title: 'Nobody Hosts This', sort_title: 'nobody hosts this',
+    kind: 'textbox', host_id: null, body: 'Adrift. See Antichrist; Grape.' },
+  { id: 'BeastChart', title: 'Antichrist', sort_title: 'antichrist',
+    kind: 'chart', host_id: 'Beast', body: 'A chart sharing its title with an article.' },
 ];
 const IX = buildIndex(ARTICLES);
 
@@ -115,6 +132,13 @@ test('normKey: strips asterisks, sense pointers, trailing punctuation, curly apo
   assert.equal(normKey('Sin.'), 'sin');
   assert.equal(normKey('Lord’s  Supper'), "lord's supper");
   assert.equal(normKey('Testaments (above)'), 'testaments');
+});
+
+test('normKey: unwraps a fully quoted title but leaves quotes that are part of one', () => {
+  // Tyndale quotes a supplement's title when it cites one: `See “Abraham’s Bosom”.`
+  assert.equal(normKey('“Abraham’s Bosom”'), "abraham's bosom");
+  assert.equal(normKey('Calling Jesus “Beelzebul”'), 'calling jesus “beelzebul”');
+  assert.equal(normKey('Oak, Diviners’'), "oak, diviners'");
 });
 
 test('tier 1: exact normalised title', () => {
@@ -143,6 +167,20 @@ test('an inverted title with a comma still resolves exactly', () => {
   assert.deepEqual(resolveTarget('Lord’s Supper, the', IX), { dst: 'Lord', anchor: null });
 });
 
+test('a hosted supplement resolves to its host, anchored by its own title', () => {
+  assert.deepEqual(resolveTarget('A Cup of Cold Water', IX),
+    { dst: 'Cup', anchor: 'A Cup of Cold Water' });
+});
+
+test('an orphan supplement is its own destination and carries no anchor', () => {
+  assert.deepEqual(resolveTarget('Nobody Hosts This', IX), { dst: 'LooseBox', anchor: null });
+});
+
+test('an article outranks a supplement that normalises to the same title', () => {
+  // BeastChart is titled "Antichrist" too. The article is the entry a reader can open.
+  assert.deepEqual(resolveTarget('Antichrist', IX), { dst: 'Antichrist', anchor: null });
+});
+
 test('a target absent from the corpus resolves to null, never throws', () => {
   assert.equal(resolveTarget('Jesus Christ, Life and Teachings of', IX), null);
 });
@@ -165,11 +203,27 @@ test('extractXrefs: honours "See also" and carries an anchor', () => {
 
 test('extractXrefs: deduplicates an absent target named twice', () => {
   const a = { id: 'D', body: 'One. See Nowhere At All. Two. See Nowhere At All.' };
-  assert.equal(extractXrefs(a, IX).length, 1);
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: null, raw: 'Nowhere At All', anchor: null, seq: 0 }]);
 });
 
 test('extractXrefs: drops self-edges', () => {
   assert.deepEqual(extractXrefs(ARTICLES[9], IX), []);
+});
+
+test('extractXrefs: reads a supplement body as a source', () => {
+  assert.deepEqual(extractXrefs(ARTICLES[11], IX), [
+    { src: 'LooseBox', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 },
+    { src: 'LooseBox', dst: 'Grape', raw: 'Grape', anchor: null, seq: 1 },
+  ]);
+});
+
+test('extractXrefs: a host citing its own supplement is a self-edge, and is dropped', () => {
+  // The redirect sends the box back to the article doing the citing. This is the only shape the
+  // hosted case takes anywhere in the real corpus — Flood, the names its own textbox
+  // “Scientific Evidence for the Flood?” and nothing else cites a hosted supplement from outside.
+  const host = { id: 'Cup', kind: 'article', body: 'A vessel. See A Cup of Cold Water.' };
+  assert.deepEqual(extractXrefs(host, IX), []);
 });
 
 test('extractXrefs: skips structural pointers like "See above"', () => {
@@ -178,7 +232,23 @@ test('extractXrefs: skips structural pointers like "See above"', () => {
 
 test('extractXrefs: deduplicates a target named twice by the same article', () => {
   const a = { id: 'D', body: 'One. See Antichrist. Two. See Antichrist.' };
-  assert.equal(extractXrefs(a, IX).length, 1);
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+});
+
+test('extractXrefs: matches a "See" clause preceded by a period inside a closing curly quote', () => {
+  // Tyndale often closes a sentence with the period INSIDE the quote mark, e.g.
+  // `...the English word "eon." See Age.` The clause is invisible unless the quote is
+  // allowed to sit between the terminator and "See".
+  const a = { id: 'D', body: 'Greek word for a long period of time or age, from which comes the English word “eon.” See Antichrist.' };
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+});
+
+test('extractXrefs: matches a "See" clause preceded by a semicolon', () => {
+  const a = { id: 'D', body: 'Several views exist; See Antichrist.' };
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
 });
 ```
 
@@ -195,18 +265,22 @@ Expected: FAIL — `Cannot find module '../lib/xref.mjs'`.
 Create `build/lib/xref.mjs`:
 
 ```javascript
-// Resolves Tyndale's own "See …" cross-references into article-to-article edges.
+// Resolves Tyndale's own "See …" cross-references into edges between dictionary entries.
 //
 // The dictionary writes cross-references as prose sentences ("See Sin.", "See Antichrist;
-// Armageddon."). This module turns them into a graph. It resolves 96.9% of the 5,336 targets the
-// corpus names; the rest are genuine source defects ("Jesus Christ, Life and Teachings of" is
-// cited 19 times and does not exist) and must degrade to nothing rather than throw.
+// Armageddon."). This module turns them into a graph over all 6,141 dictionary rows — the 6,010
+// articles and the 131 supplements (textboxes and charts) they host, which both cite and are
+// cited. It resolves 97.0% of the 5,341 targets the corpus names; the rest are genuine source
+// defects ("Jesus Christ, Life and Teachings of" is cited 19 times and does not exist) and must
+// degrade to nothing rather than throw.
 
 const HEAD_MARK = '## ';
 
-// A "See" clause is a sentence beginning with a capital S — the source's own convention.
-// Lower-case "see also Nm 3:2-4" is a scripture citation and is deliberately not matched here.
-const CLAUSE = /(?:^|[.\n]\s*)See(?: also)? ([^.\n]+)\./g;
+// A cross-reference is a sentence beginning with a capital S. The preceding sentence may end in
+// any terminator, and Tyndale routinely puts that terminator INSIDE a closing quote
+// (`…the English word “eon.” See Age.`), so the quote must be allowed to follow it.
+// Lower-case "see also Nm 3:2-4" is a scripture citation and is deliberately not matched.
+const CLAUSE = /(?:^|[.;!?][”"’']?\s*|\n\s*)See(?: also)? ([^.\n]+)\./g;
 
 // Pointers into the article's own structure, not to another entry.
 const STRUCTURAL = /^\s*(?:the\s+)?(?:above|below|note|chart|introduction)\b/i;
@@ -216,68 +290,90 @@ export function normKey(s) {
     .replace(/[‘’]/g, "'")           // curly -> straight apostrophe
     .replace(/\*/g, '')                        // the source's cross-reference asterisk
     .replace(/[.\s]+$/, '')                    // trailing period / whitespace
+    .replace(/^“(.*)”$/, '$1')                 // Tyndale quotes a supplement it cites, whole
     .replace(/\s*#\d+\s*$/, '')                // " #2" is an intra-article sense pointer
     .replace(/\s*\((?:above|below)\)\s*$/, '')
     .replace(/\s+/g, ' ');
 }
 
-export function buildIndex(articles) {
-  const byTitle = new Map(), bySort = new Map(), subheads = new Map();
+const isArticle = (r) => r.kind === 'article';
+
+export function buildIndex(rows) {
+  const byTitle = new Map(), bySort = new Map(), subheads = new Map(), byId = new Map();
   const segOwners = new Map();
-  for (const a of articles) {
-    byTitle.set(normKey(a.title), a.id);
-    const sk = normKey(a.sort_title ?? a.title);
-    if (!bySort.has(sk)) bySort.set(sk, a.id);   // sort_title collides across 131 groups
+  // Articles first, so a supplement can never take a key an article wants: "Followers of the Way"
+  // is both a textbox and an article, and the article is the entry a reader can open on its own.
+  for (const r of [...rows.filter(isArticle), ...rows.filter((x) => !isArticle(x))]) {
+    byId.set(r.id, r);
+    const tk = normKey(r.title);
+    if (isArticle(r) || !byTitle.has(tk)) byTitle.set(tk, r.id);
+    const sk = normKey(r.sort_title ?? r.title);
+    if (!bySort.has(sk)) bySort.set(sk, r.id);   // sort_title collides across 131 groups
     // Comma segments let "See Mark of the Beast." reach "Mark of God*, Mark of the Beast".
     // Single words are far too ambiguous to index; a segment is only usable when exactly one
-    // article claims it, which is what keeps this from guessing.
-    for (const seg of normKey(a.title).split(/,\s*/)) {
+    // row claims it, which is what keeps this from guessing.
+    for (const seg of tk.split(/,\s*/)) {
       if (!seg || seg.split(' ').length < 2) continue;
       if (!segOwners.has(seg)) segOwners.set(seg, new Set());
-      segOwners.get(seg).add(a.id);
+      segOwners.get(seg).add(r.id);
     }
     const hs = new Map();
-    for (const line of String(a.body).split('\n'))
+    for (const line of String(r.body).split('\n'))
       if (line.startsWith(HEAD_MARK)) hs.set(normKey(line.slice(3)), line.slice(3).trim());
-    if (hs.size) subheads.set(a.id, hs);
+    if (hs.size) subheads.set(r.id, hs);
   }
   const bySeg = new Map();
   for (const [seg, ids] of segOwners) if (ids.size === 1) bySeg.set(seg, [...ids][0]);
-  return { byTitle, bySort, bySeg, subheads };
+  return { byTitle, bySort, bySeg, subheads, byId };
 }
 
 const direct = (key, ix) => ix.byTitle.get(key) ?? ix.bySort.get(key) ?? ix.bySeg.get(key) ?? null;
 
+// Where a matched row actually sends the reader. A supplement is not a page of its own: a hosted
+// one is rendered inside its host, so the link opens the host scrolled to the box — the same shape
+// a "(Subhead)" match produces. Only an orphan supplement, which no article includes, is its own
+// destination. `subKey` is the normalised subhead of a "Article (Subhead)" match, else null.
+function destination(id, ix, subKey) {
+  const row = ix.byId.get(id);
+  if (!isArticle(row))
+    return row.host_id ? { dst: row.host_id, anchor: row.title } : { dst: id, anchor: null };
+  // An unmatched subhead still yields a correct link — the anchor is simply dropped.
+  return { dst: id, anchor: subKey === null ? null : ix.subheads.get(id)?.get(subKey) ?? null };
+}
+
 export function resolveTarget(rawTarget, ix) {
   const key = normKey(String(rawTarget).replace(/^\s*also\s+/i, ''));
   const hit = direct(key, ix);
-  if (hit) return { dst: hit, anchor: null };
+  if (hit) return destination(hit, ix, null);
   // "Animals (Cattle)" points at a subhead inside another article.
   const m = key.match(/^(.*?)\s*\(([^()]*)\)?$/);
   if (!m) return null;
   const host = direct(normKey(m[1]), ix);
   if (!host) return null;
-  // An unmatched subhead still yields a correct link — the anchor is simply dropped.
-  return { dst: host, anchor: ix.subheads.get(host)?.get(normKey(m[2])) ?? null };
+  return destination(host, ix, normKey(m[2]));
 }
 
-// Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 145 of the
-// 5,233 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
+// Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 140 of the
+// 5,237 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
 // Teachings of" is cited 19 times. The UI shows these honestly rather than silently dropping them,
 // so the resolver must keep them.
-export function extractXrefs(article, ix) {
+export function extractXrefs(row, ix) {
   const out = [];
   const seen = new Set();
-  for (const m of String(article.body).matchAll(CLAUSE)) {
+  for (const m of String(row.body).matchAll(CLAUSE)) {
     for (const rawTarget of m[1].split(';')) {
       const target = rawTarget.replace(/^\s*also\s+/i, '').trim();
       if (!target || STRUCTURAL.test(target)) continue;
       const hit = resolveTarget(target, ix);
-      if (hit && hit.dst === article.id) continue;            // self-edge
-      const dedupe = hit ? hit.dst : `raw:${normKey(target)}`;
+      // Self-edge. Compared after the hosted-supplement redirect, so an article naming a textbox
+      // of its own — Flood, the cites “Scientific Evidence for the Flood?” — drops out here.
+      if (hit && hit.dst === row.id) continue;
+      // Tagged so the resolved and unresolved namespaces can never collide, even though no
+      // article id currently contains a colon.
+      const dedupe = hit ? `id:${hit.dst}` : `raw:${normKey(target)}`;
       if (seen.has(dedupe)) continue;
       seen.add(dedupe);
-      out.push({ src: article.id, dst: hit ? hit.dst : null, raw: target,
+      out.push({ src: row.id, dst: hit ? hit.dst : null, raw: target,
         anchor: hit ? hit.anchor : null, seq: out.length });
     }
   }
@@ -291,7 +387,7 @@ export function extractXrefs(article, ix) {
 cd build && node --test test/xref.test.mjs
 ```
 
-Expected: PASS — 13 tests.
+Expected: PASS — 22 tests.
 
 - [ ] **Step 5: Run the whole build suite for regressions**
 
@@ -299,7 +395,7 @@ Expected: PASS — 13 tests.
 cd build && npm test
 ```
 
-Expected: all pass, count increased by 13.
+Expected: all pass, count increased by 22.
 
 - [ ] **Step 6: Commit**
 
@@ -329,12 +425,12 @@ Wire the resolver into the build so the graph lands in `bible.db`, with post-bui
 Append to `build/test/schema.smoke.test.mjs`:
 
 ```javascript
-test('dict_xref: 5233 rows — 5088 resolved, 145 naming an article that does not exist', () => {
+test('dict_xref: 5237 rows — 5097 resolved, 140 naming an article that does not exist', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5233);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5088);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 145);
-  assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 113);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5237);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5097);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 140);
+  assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 110);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c, 0);
   // every non-null endpoint must be a real article
@@ -370,6 +466,39 @@ test('dict_xref: an anchored edge carries its subhead', () => {
   assert.equal(r.anchor, 'Cattle');
   db.close();
 });
+
+test('dict_xref: “Abraham’s Bosom” reaches the orphaned textbox nothing else points at', () => {
+  // Tyndale's `See “Abraham’s Bosom”.` is the only route to this textbox in the whole corpus:
+  // it has no host article to be rendered inside, so it is its own destination and takes no anchor.
+  const db = new DatabaseSync('../data/bible.db');
+  const rows = db.prepare('SELECT src, dst, anchor FROM dict_xref WHERE raw = ? ORDER BY src')
+    .all('“Abraham’s Bosom”');
+  assert.deepEqual(rows.map((r) => [r.src, r.dst, r.anchor]), [
+    ['Abraham', 'AbrahamsBosom', null],
+    ['Heaven', 'AbrahamsBosom', null],
+    ['Hell', 'AbrahamsBosom', null],
+  ]);
+  db.close();
+});
+
+test('dict_xref: a host naming its own textbox resolves back to itself and is dropped', () => {
+  // “Scientific Evidence for the Flood?” is hosted by Flood, the — and Flood, the is the only
+  // article that cites it. A hosted supplement redirects to its host, so this edge would point
+  // Flood, the at itself; the self-edge guard removes it. It is the corpus's whole hosted case.
+  const db = new DatabaseSync('../data/bible.db');
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE raw LIKE ?')
+    .get('%Scientific Evidence for the Flood%').c, 0);
+  db.close();
+});
+
+test('dict_xref: supplements appear at both ends of the graph', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const q = (side) => db.prepare(`SELECT COUNT(*) c FROM dict_xref x
+    JOIN dict_articles a ON a.id = x.${side} WHERE a.kind <> 'article'`).get().c;
+  assert.equal(q('src'), 5);    // supplement bodies write "See …" clauses of their own
+  assert.equal(q('dst'), 4);    // and three articles cite the two orphaned textboxes
+  db.close();
+});
 ```
 
 If `schema.smoke.test.mjs` does not already import `DatabaseSync` and `assert`, add at the top:
@@ -399,14 +528,14 @@ import { buildIndex, extractXrefs } from './xref.mjs';
 Then append this exported function at the end of the file:
 
 ```javascript
-// Derives the cross-reference graph from article bodies already present in the committed
-// intermediate. Computed, never vendored — the same treatment `differences` gets. `articles` is
+// Derives the cross-reference graph from the bodies already present in the committed intermediate.
+// Computed, never vendored — the same treatment `differences` gets. Supplements take part at both
+// ends: they write "See …" clauses of their own, and articles cite them by title. `articles` is
 // the raw row array from tyndale-dictionary.json.gz:
 //   [id, title, sort_title, kind, host_id, body, is_html, n_refs, seq]
 export function loadXrefs(db, articles) {
-  const arts = articles
-    .filter((r) => r[3] === 'article')
-    .map((r) => ({ id: r[0], title: r[1], sort_title: r[2], body: r[5] }));
+  const arts = articles.map((r) => ({ id: r[0], title: r[1], sort_title: r[2], kind: r[3],
+    host_id: r[4], body: r[5] }));
   const ix = buildIndex(arts);
   const ins = db.prepare('INSERT INTO dict_xref VALUES (?,?,?,?,?)');
   let rows = 0, anchored = 0, missing = 0;
@@ -480,7 +609,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 
 ```javascript
   const resolved = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c;
-  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5088`);
+  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5097`);
   const selfEdges = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c;
   if (selfEdges) problems.push(`dict_xref: ${selfEdges} self-edges`);
   // dst may legitimately be NULL (the source names an article that does not exist); src may not,
@@ -500,7 +629,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 cd build && npm run build
 ```
 
-Expected: among the output, `dict_xref: {"rows":5233,"resolved":5088,"missing":145,"anchored":94}` and `validation OK`.
+Expected: among the output, `dict_xref: {"rows":5237,"resolved":5097,"missing":140,"anchored":94}` and `validation OK`.
 
 - [ ] **Step 7: Verify a fresh clone can still build**
 
@@ -525,7 +654,7 @@ Expected: `copy-assets: bible.db version <hash>` with a **new** hash. Confirm `d
 sqlite3 app/public/bible.db "SELECT COUNT(*) FROM dict_xref;"
 ```
 
-Expected: `5233`.
+Expected: `5237`.
 
 - [ ] **Step 9: Run the build suite**
 
@@ -2280,7 +2409,7 @@ Create `app/src/components/library/ArticleSurface.svelte`:
       </div>
     {/if}
     {#if xrefs.missing.length}
-      <!-- 145 of the 5,233 links name an article Tyndale never wrote. Listing them is more honest
+      <!-- 140 of the 5,237 links name an article Tyndale never wrote. Listing them is more honest
            than hiding them, and stops the graph looking more complete than it is. -->
       <div class="absent">
         Named by the source, but absent from the corpus:

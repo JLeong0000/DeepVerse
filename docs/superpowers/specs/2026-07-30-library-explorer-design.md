@@ -50,43 +50,49 @@ claiming a roster of individuals.
 
 ### 4. There is a real cross-reference graph
 
-Tyndale wrote 3,654 `See …` clauses naming 5,336 targets. Normalised the way `scripture.js`
-normalises (curly apostrophes, the `*` marker, `#N` sense pointers, `See also`), **95.0% resolve**:
+Across all 6,141 dictionary rows — the 6,010 articles and the 131 supplements they host — Tyndale
+wrote 3,656 `See …` clauses naming 5,341 targets. Normalised the way `scripture.js` normalises
+(curly apostrophes, the `*` marker, `#N` sense pointers, `See also`, and the quotes Tyndale wraps a
+supplement's title in), **95.1% resolve**:
 
 | tier | rule | resolved |
 |---|---|---|
-| 1 | exact normalised `title` | 4,973 |
+| 1 | exact normalised `title` | 4,983 |
 | 2 | `sort_title` | 2 |
-| 3 | a comma-delimited title segment claimed by exactly one article | 2 |
+| 3 | a comma-delimited title segment claimed by exactly one row | 2 |
 | 4 | `Article (Subhead)` → article + its `## Subhead` block | 94 |
-| | **strict tier total** | **5,071 / 5,336 (95.0%)** |
+| | **strict tier total** | **5,081 / 5,341 (95.1%)** |
 
 A further **98 targets name a real article with an unmatched subhead** (`Plants (Vine)` where no
 `## Vine` block exists). The build links these to the host article with the anchor dropped — a
-correct, useful link — which takes the final figure to **5,169 of 5,336 (96.9%)**. The 95.0% above
-is the strict tier total; 96.9% is what ships.
+correct, useful link — which takes the final figure to **5,179 of 5,341 (97.0%)**. The 95.1% above
+is the strict tier total; 97.0% is what ships.
 
-The remaining **167 target instances (113 distinct names) genuinely do not exist** and are stored
+The remaining **162 target instances (110 distinct names) genuinely do not exist** and are stored
 with `dst` NULL rather than discarded — see the schema below.
 
 Tier 3 exists for one visible case: `See Mark of the Beast.` resolves only as the second headword
-of `Mark of God*, Mark of the Beast`. The remaining 3.1% are **genuine source defects** — `Jesus
+of `Mark of God*, Mark of the Beast`. The remaining 3.0% are **genuine source defects** — `Jesus
 Christ, Life and Teachings of` is cited 19 times and does not exist. They degrade to plain text.
+
+A supplement is never a destination in its own right unless it has to be: a matched textbox or
+chart resolves to the article that hosts it, anchored by its own title, because that is where it is
+rendered. Only the 13 supplements with no host resolve to themselves.
 
 ### 5. The graph is not shaped like a map
 
 | | |
 |---|---|
-| distinct resolved edges | 5,088 |
-| articles with ≥1 edge | 4,046 (67%) |
-| **isolated articles** | **1,964 (33%)** |
-| connected components | 602 |
-| largest component | 2,478 |
+| distinct resolved edges | 5,097 (5,088 of them article-to-article) |
+| articles with ≥1 edge | 4,073 (68%) |
+| **isolated articles** | **1,937 (32%)** |
+| connected components of ≥2 | 599 |
+| largest component | 2,509 |
 | **second largest** | **15** |
-| median degree | 1 (max 150, `Plants`) |
+| median degree | 1 (max 151, `Plants`) |
 
 A whole-corpus graph view was rejected on these numbers: a third of the corpus would render as
-floating dust, and the structure is one hairball plus 601 specks with no legible mid-scale shape.
+floating dust, and the structure is one hairball plus 598 specks with no legible mid-scale shape.
 Local neighbourhoods are the opposite — **1-hop median 2 nodes, p90 5** — which is what the path
 map draws.
 
@@ -251,8 +257,8 @@ Four additions, all running on data already in the corpus:
 
 ### `dict_xref` — a new table, and why the build step is justified
 
-**5,233 rows** — 5,088 resolved edges plus **145 that name an article the corpus does not contain**
-(113 distinct names). ~260 KB.
+**5,237 rows** — 5,097 resolved edges plus **140 that name an article the corpus does not contain**
+(110 distinct names). 244 KB.
 
 ```sql
 CREATE TABLE dict_xref (
@@ -307,7 +313,9 @@ only existing code restructured, and it is in direct service of the feature.
 ### Also fixed here
 
 **13 orphaned supplements** — 3 charts and 10 textboxes whose `host_id` never resolved — have no
-route to them anywhere in the app today. The Dictionary index lists them.
+route to them anywhere in the app today. The Dictionary index lists them, and `dict_xref` reaches
+two of them (`Abraham's Bosom`, `Antilegomena: The Books that Didn't Make It`) from the four
+articles that cite them by name.
 
 ## Routing and state
 
@@ -358,7 +366,7 @@ its real stack index; expander state resetting on navigation.
 **Path map** — branch click truncating to the correct step; solid/dashed spine classification;
 phantom nodes unclickable; drag suppressing the click that follows it.
 
-**Post-build invariants** — `dict_xref` totals (5,233 rows: 5,088 resolved, 145 unresolved, 94
+**Post-build invariants** — `dict_xref` totals (5,237 rows: 5,097 resolved, 140 unresolved, 94
 anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
 with an empty `raw`.
 
@@ -367,7 +375,7 @@ live in the browser in both themes.
 
 ## Non-goals
 
-- **A whole-corpus graph view** — see finding 5. 1,964 isolated nodes and a 2,478-node hairball.
+- **A whole-corpus graph view** — see finding 5. 1,937 isolated nodes and a 2,509-node hairball.
 - **Inbound "what links here" as a UI surface** — `dict_xref` makes it possible, but it is trivia,
   not a route. The path map already exposes what matters.
 - **General title de-inversion** — see above; unsafe.

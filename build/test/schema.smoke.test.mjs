@@ -28,12 +28,12 @@ test('agapao has a Louw-Nida domain', () => {
   assert.match(r.ln, /^25\./);
 });
 
-test('dict_xref: 5233 rows — 5088 resolved, 145 naming an article that does not exist', () => {
+test('dict_xref: 5237 rows — 5097 resolved, 140 naming an article that does not exist', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5233);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5088);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 145);
-  assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 113);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5237);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5097);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 140);
+  assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 110);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c, 0);
   // every non-null endpoint must be a real article
@@ -67,5 +67,38 @@ test('dict_xref: an anchored edge carries its subhead', () => {
   const r = db.prepare('SELECT dst, anchor FROM dict_xref WHERE src=? AND anchor IS NOT NULL').get('BullBullock');
   assert.equal(r.dst, 'Animals');
   assert.equal(r.anchor, 'Cattle');
+  db.close();
+});
+
+test('dict_xref: “Abraham’s Bosom” reaches the orphaned textbox nothing else points at', () => {
+  // Tyndale's `See “Abraham’s Bosom”.` is the only route to this textbox in the whole corpus:
+  // it has no host article to be rendered inside, so it is its own destination and takes no anchor.
+  const db = new DatabaseSync('../data/bible.db');
+  const rows = db.prepare('SELECT src, dst, anchor FROM dict_xref WHERE raw = ? ORDER BY src')
+    .all('“Abraham’s Bosom”');
+  assert.deepEqual(rows.map((r) => [r.src, r.dst, r.anchor]), [
+    ['Abraham', 'AbrahamsBosom', null],
+    ['Heaven', 'AbrahamsBosom', null],
+    ['Hell', 'AbrahamsBosom', null],
+  ]);
+  db.close();
+});
+
+test('dict_xref: a host naming its own textbox resolves back to itself and is dropped', () => {
+  // “Scientific Evidence for the Flood?” is hosted by Flood, the — and Flood, the is the only
+  // article that cites it. A hosted supplement redirects to its host, so this edge would point
+  // Flood, the at itself; the self-edge guard removes it. It is the corpus's whole hosted case.
+  const db = new DatabaseSync('../data/bible.db');
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE raw LIKE ?')
+    .get('%Scientific Evidence for the Flood%').c, 0);
+  db.close();
+});
+
+test('dict_xref: supplements appear at both ends of the graph', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const q = (side) => db.prepare(`SELECT COUNT(*) c FROM dict_xref x
+    JOIN dict_articles a ON a.id = x.${side} WHERE a.kind <> 'article'`).get().c;
+  assert.equal(q('src'), 5);    // supplement bodies write "See …" clauses of their own
+  assert.equal(q('dst'), 4);    // and three articles cite the two orphaned textboxes
   db.close();
 });

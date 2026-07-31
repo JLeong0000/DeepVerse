@@ -246,14 +246,14 @@ export function loadTyndale(db) {
     passages: passages.length, intros: intros.length, rows: dict.articles };
 }
 
-// Derives the cross-reference graph from article bodies already present in the committed
-// intermediate. Computed, never vendored — the same treatment `differences` gets. `articles` is
+// Derives the cross-reference graph from the bodies already present in the committed intermediate.
+// Computed, never vendored — the same treatment `differences` gets. Supplements take part at both
+// ends: they write "See …" clauses of their own, and articles cite them by title. `articles` is
 // the raw row array from tyndale-dictionary.json.gz:
 //   [id, title, sort_title, kind, host_id, body, is_html, n_refs, seq]
 export function loadXrefs(db, articles) {
-  const arts = articles
-    .filter((r) => r[3] === 'article')
-    .map((r) => ({ id: r[0], title: r[1], sort_title: r[2], body: r[5] }));
+  const arts = articles.map((r) => ({ id: r[0], title: r[1], sort_title: r[2], kind: r[3],
+    host_id: r[4], body: r[5] }));
   const ix = buildIndex(arts);
   const ins = db.prepare('INSERT INTO dict_xref VALUES (?,?,?,?,?)');
   let rows = 0, anchored = 0, missing = 0;

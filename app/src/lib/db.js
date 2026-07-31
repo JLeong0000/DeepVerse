@@ -457,29 +457,42 @@ export function verseWordCounts(version, book, chapter, verse) {
 
 // --- Library explorer (#/library) ---
 
-// The pool `✦ Wander in` draws from. 2,271 of the 6,010 articles are under 120 characters and 576
+// The pool `✦ Wander in` draws from. 2,271 of the 6,010 articles are under 120 characters and 577
 // are bare "See X." redirects, so an unweighted random door would land on a stub about a third of
 // the time and feel broken. 500 is our threshold, not a property of the data — it yields 1,839.
 export const SUBSTANTIAL_CHARS = 500;
 
+// SQLite's upper() is ASCII-only, so a sort_title starting with a non-Latin character (one article,
+// a curly quote: "I Am" Sayings) passes through untouched and would form its own one-off bucket —
+// invisible to a hardcoded A–Z rail. Fold anything outside A–Z into '#' so every article has a home.
+const DICT_LETTER = `CASE WHEN upper(substr(sort_title,1,1)) BETWEEN 'A' AND 'Z'
+  THEN upper(substr(sort_title,1,1)) ELSE '#' END`;
+
 export function getDictLetters() {
-  return query(`SELECT upper(substr(sort_title,1,1)) AS letter, COUNT(*) AS n
+  return query(`SELECT ${DICT_LETTER} AS letter, COUNT(*) AS n
     FROM dict_articles WHERE kind='article' GROUP BY letter ORDER BY letter`);
 }
 
 // Displays `title` and only sorts by `sort_title`: sort_title strips the disambiguating
 // parenthetical, so 131 groups collide and would otherwise print the same word repeatedly.
-// `redirect` is set for the 576 bodies that are nothing but "See X." — they render as a compact
-// redirect line rather than a full entry. rtrim(…, '.') trims only the trailing period, not every
-// period in the target — a plain replace('.', '') would also eat an internal one (an abbreviation
-// or initialism in the target name), even though no current stub has one.
+// `redirect` is set for the 577 bodies that are nothing but a "See X[; Y; Z]." clause: starts with
+// "See ", ends in a period, has no embedded newline (a longer article, not a redirect stub), and
+// has exactly one period total — the terminal one — so a body with further prose after the See
+// clause (more than one sentence) is correctly excluded. A length cutoff was tried first and missed
+// "Minister, Ministry" by one character; this structural rule has zero false positives or negatives
+// against the corpus. `redirect` may itself list several `;`-separated targets (e.g. "Advent of
+// Christ*" redirects to three) — that string is for display only; a caller resolving those targets
+// must go through getXrefs, never split on ';', because a target's own title can contain a comma.
+// rtrim(…, '.') trims only the trailing period, not every period in the target — a plain
+// replace('.', '') would also eat an internal one (an abbreviation or initialism in the target name).
 export function getDictBrowse(letter) {
   return query(`SELECT id, title, sort_title,
       substr(replace(body, char(10), ' '), 1, 90) AS gloss,
-      CASE WHEN body LIKE 'See %' AND length(body) < 120
+      CASE WHEN body LIKE 'See %' AND body LIKE '%.' AND body NOT LIKE '%'||char(10)||'%'
+                AND length(body) - length(replace(body, '.', '')) = 1
            THEN rtrim(substr(body, 5), '.') END AS redirect
     FROM dict_articles
-    WHERE kind='article' AND upper(substr(sort_title,1,1)) = ?
+    WHERE kind='article' AND (${DICT_LETTER}) = ?
     ORDER BY sort_title, title`, [String(letter).toUpperCase()]);
 }
 
@@ -526,14 +539,16 @@ export function searchLibrary(term) {
   const q = String(term || '').trim().toLowerCase();
   const empty = { dict: [], themes: [], profiles: [], books: [] };
   if (q.length < 2) return empty;
-  const like = `%${q}%`;
+  // '%' and '_' are LIKE wildcards, not literal characters a searcher typed — escape them so
+  // e.g. "a_c" (0 literal matches) doesn't silently become "a<any char>c" (107 matches).
+  const like = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
   return {
     dict: query(`SELECT id, title FROM dict_articles
-      WHERE kind='article' AND lower(title) LIKE ? ORDER BY length(title), sort_title LIMIT 20`, [like]),
+      WHERE kind='article' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY length(title), sort_title LIMIT 20`, [like]),
     themes: query(`SELECT title, book, ref FROM tyndale_passages
-      WHERE kind='theme' AND lower(title) LIKE ? ORDER BY title LIMIT 10`, [like]),
+      WHERE kind='theme' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY title LIMIT 10`, [like]),
     profiles: query(`SELECT title, book, ref FROM tyndale_passages
-      WHERE kind='profile' AND lower(title) LIKE ? ORDER BY title LIMIT 10`, [like]),
+      WHERE kind='profile' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY title LIMIT 10`, [like]),
     books: BOOKS.filter(([, name]) => name.toLowerCase().includes(q)).map(([code]) => code),
   };
 }

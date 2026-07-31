@@ -1048,7 +1048,7 @@ Append to `app/src/lib/db.js`:
 ```javascript
 // --- Library explorer (#/library) ---
 
-// The pool `✦ Wander in` draws from. 2,271 of the 6,010 articles are under 120 characters and 576
+// The pool `✦ Wander in` draws from. 2,271 of the 6,010 articles are under 120 characters and 577
 // are bare "See X." redirects, so an unweighted random door would land on a stub about a third of
 // the time and feel broken. 500 is our threshold, not a property of the data — it yields 1,839.
 export const SUBSTANTIAL_CHARS = 500;
@@ -1060,7 +1060,7 @@ export function getDictLetters() {
 
 // Displays `title` and only sorts by `sort_title`: sort_title strips the disambiguating
 // parenthetical, so 131 groups collide and would otherwise print the same word repeatedly.
-// `redirect` is set for the 576 bodies that are nothing but "See X." — they render as a compact
+// `redirect` is set for the 577 bodies that are nothing but "See X." — they render as a compact
 // redirect line rather than a full entry.
 export function getDictBrowse(letter) {
   return query(`SELECT id, title, sort_title,
@@ -1813,7 +1813,7 @@ Create `app/src/components/library/StartSurface.svelte`:
 
 <p class="starthint">
   Search reaches all four at once. <b>✦ Wander in</b> opens a random article — weighted to
-  substantial ones, because 2,271 of the 6,010 entries are under 120 characters and 576 are bare
+  substantial ones, because 2,271 of the 6,010 entries are under 120 characters and 577 are bare
   “See X.” redirects.
 </p>
 
@@ -1973,7 +1973,7 @@ Create `app/src/components/library/DictionaryIndex.svelte`:
   <div class="cols3">
     {#each rows as r (r.id)}
       {#if r.redirect}
-        <!-- 576 bodies are nothing but "See X." — a redirect line, not an entry -->
+        <!-- 577 bodies are nothing but "See X." — a redirect line, not an entry -->
         <div class="entry redir">{r.title} <span class="arw">→</span> <span class="to">{r.redirect}</span></div>
       {:else}
         <div class="entry">

@@ -360,11 +360,15 @@ describe('tyndale cultural layer', () => {
 });
 
 describe('library explorer', () => {
-  test('getDictLetters covers A–Z with real counts', () => {
+  test('getDictLetters covers A–Z plus a # catch-all, with real counts', () => {
     const rows = db.getDictLetters();
     const b = rows.find((r) => r.letter === 'B');
     expect(b.n).toBe(447);
     expect(rows.find((r) => r.letter === 'A').n).toBe(666);
+    // "I Am" Sayings' sort_title starts with a curly quote — SQLite's upper() is ASCII-only, so
+    // without a catch-all it would form its own one-off, unreachable-from-the-A–Z-rail bucket.
+    expect(rows.find((r) => r.letter === '#').n).toBe(1);
+    expect(rows.reduce((sum, r) => sum + r.n, 0)).toBe(6010);
   });
 
   test('getDictBrowse returns full titles, ordered by sort_title', () => {
@@ -375,10 +379,20 @@ describe('library explorer', () => {
     expect(baals).toEqual(['Baal (Idol)', 'Baal (Person)', 'Baal* (Place)']);
   });
 
+  test('getDictBrowse("#") holds the non-Latin sort_title the A–Z rail cannot reach', () => {
+    expect(db.getDictBrowse('#').map((r) => r.id)).toContain('IAmSayings');
+  });
+
   test('getDictBrowse flags bare redirect stubs', () => {
     const bed = db.getDictBrowse('B').find((r) => r.title === 'Bed');
     expect(bed.redirect).toBe('Furniture');
     expect(db.getDictBrowse('B').find((r) => r.title === 'Beast').redirect).toBeNull();
+    // 121 characters — one over the length cutoff this replaced (`< 120`), which missed it. The
+    // structural rule (starts "See ", ends ".", exactly one period total, no embedded newline)
+    // catches it correctly; this must fail against the old length-based classifier.
+    const minister = db.getDictBrowse('M').find((r) => r.title === 'Minister, Ministry');
+    expect(minister.redirect).toBe(
+      'Bishop; Body of Christ; Church; Deacon, Deaconess; Elder; Ordain, Ordination; Presbyter; Priesthood; Spiritual Gifts');
   });
 
   test('getThemeIndex returns 298 in canonical book order', () => {
@@ -386,13 +400,20 @@ describe('library explorer', () => {
     expect(rows).toHaveLength(298);
     expect(rows[0].book).toBe('Gen');
     expect(rows.at(-1).book).toBe('Rev');
+    for (let i = 1; i < rows.length; i++)
+      expect(bookOrder(rows[i].book)).toBeGreaterThanOrEqual(bookOrder(rows[i - 1].book));
   });
 
   test('getProfileIndex returns 125 alphabetically, flagging dictionary twins', () => {
     const rows = db.getProfileIndex();
     expect(rows).toHaveLength(125);
-    expect(rows[0].title < rows[1].title).toBe(true);
+    const titles = rows.map((r) => r.title);
+    expect(titles).toEqual([...titles].sort());
     expect(rows.filter((r) => r.alsoArticle).length).toBe(84);
+    // regression guard: "Rahab" collides on sort_title with the mythical sea-monster article
+    // (RahabMonster); an unordered LIMIT 1 picked that instead of the person profiled here
+    // (RahabPerson) — the fix must keep winning even if the ORDER BY is later "simplified" away.
+    expect(rows.find((r) => r.title === 'Rahab').alsoArticle).toBe('RahabPerson');
   });
 
   test('getBookHub assembles intro, themes, profiles and top-citing articles', () => {
@@ -413,6 +434,12 @@ describe('library explorer', () => {
 
   test('searchLibrary ignores terms shorter than two characters', () => {
     expect(db.searchLibrary('a')).toEqual({ dict: [], themes: [], profiles: [], books: [] });
+  });
+
+  test('searchLibrary treats % and _ as literal characters, not LIKE wildcards', () => {
+    // unescaped, '_' matches any single character and would return 107 dict rows; no title
+    // literally contains "a_c".
+    expect(db.searchLibrary('a_c')).toEqual({ dict: [], themes: [], profiles: [], books: [] });
   });
 
   test('getXrefs returns both directions', () => {

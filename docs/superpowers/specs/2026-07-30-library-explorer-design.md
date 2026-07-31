@@ -38,7 +38,7 @@ claiming a roster of individuals.
 
 ### 2. The dictionary is 38% stubs
 
-2,271 of 6,010 articles have bodies under 120 characters; **576 are bare `See X.` redirects**
+2,271 of 6,010 articles have bodies under 120 characters; **577 are bare `See X.` redirects**
 (`Ulcer* → See Sore.`). A flat A–Z list is mostly redirect noise. The substantial corpus is
 **1,839 articles** at ≥500 characters.
 
@@ -133,7 +133,7 @@ Each index is shaped to its dataset. Four datasets, four shapes — not four cop
 
 | route | index | why |
 |---|---|---|
-| **Dictionary** 6,010 | A–Z letter grid, then a 3-column list of `title` + first-line gloss; the 576 pure redirects render as compact `Bed → Furniture` lines, not full rows | 38% stubs makes a flat list unreadable |
+| **Dictionary** 6,010 | A–Z letter grid, then a 3-column list of `title` + first-line gloss; the 577 pure redirects render as compact `Bed → Furniture` lines, not full rows | 38% stubs makes a flat list unreadable |
 | **Themes** 298 | canonical order, grouped under book headings, anchor ref beside each | no taxonomy exists in the source; `book` and canonical position do |
 | **Profiles** 125 | alphabetical, honestly labelled; the 84 with a same-title dictionary article show a second door | the data is not 125 people |
 | **Books** 66 | a canonical grid opening onto a **hub** per book | the one route where the data supports a destination |

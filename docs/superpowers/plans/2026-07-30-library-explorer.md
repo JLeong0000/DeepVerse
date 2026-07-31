@@ -4,7 +4,7 @@
 
 **Goal:** Build a browsable, search-first explorer at `#/library` over the Tyndale corpus already in `bible.db`, where the breadcrumb is the navigation stack and Tyndale's own cross-references are the way through.
 
-**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,237 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
+**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,236 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
 
 **Tech Stack:** Svelte 5 (runes), sql.js, Vite, Vitest (app), `node --test` (build), `node:sqlite` (build).
 
@@ -218,6 +218,15 @@ test('extractXrefs: reads a supplement body as a source', () => {
   ]);
 });
 
+test('extractXrefs: a hosted supplement never links to the article it sits inside', () => {
+  // The mirror of the self-edge case, and the reason it needs its own guard: `src` stays the box's
+  // own id, so src and dst genuinely differ and the no-self-edges invariant cannot see it. The
+  // real corpus has one — the textbox AbominationOfDesolation names Abomination, its host.
+  const box = { id: 'CupBox', kind: 'textbox', host_id: 'Cup', body: 'Boxed. See Cup; Grape.' };
+  assert.deepEqual(extractXrefs(box, IX),
+    [{ src: 'CupBox', dst: 'Grape', raw: 'Grape', anchor: null, seq: 0 }]);
+});
+
 test('extractXrefs: a host citing its own supplement is a self-edge, and is dropped', () => {
   // The redirect sends the box back to the article doing the citing. This is the only shape the
   // hosted case takes anywhere in the real corpus — Flood, the names its own textbox
@@ -290,7 +299,7 @@ export function normKey(s) {
     .replace(/[‘’]/g, "'")           // curly -> straight apostrophe
     .replace(/\*/g, '')                        // the source's cross-reference asterisk
     .replace(/[.\s]+$/, '')                    // trailing period / whitespace
-    .replace(/^“(.*)”$/, '$1')                 // Tyndale quotes a supplement it cites, whole
+    .replace(/^“([^“”]*)”$/, '$1')             // Tyndale quotes a supplement it cites, whole
     .replace(/\s*#\d+\s*$/, '')                // " #2" is an intra-article sense pointer
     .replace(/\s*\((?:above|below)\)\s*$/, '')
     .replace(/\s+/g, ' ');
@@ -354,7 +363,7 @@ export function resolveTarget(rawTarget, ix) {
 }
 
 // Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 140 of the
-// 5,237 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
+// 5,236 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
 // Teachings of" is cited 19 times. The UI shows these honestly rather than silently dropping them,
 // so the resolver must keep them.
 export function extractXrefs(row, ix) {
@@ -365,9 +374,12 @@ export function extractXrefs(row, ix) {
       const target = rawTarget.replace(/^\s*also\s+/i, '').trim();
       if (!target || STRUCTURAL.test(target)) continue;
       const hit = resolveTarget(target, ix);
-      // Self-edge. Compared after the hosted-supplement redirect, so an article naming a textbox
-      // of its own — Flood, the cites “Scientific Evidence for the Flood?” — drops out here.
-      if (hit && hit.dst === row.id) continue;
+      // A row never links to the page it is already on. Compared after the hosted-supplement
+      // redirect, so an article naming a textbox of its own drops out (Flood, the cites
+      // “Scientific Evidence for the Flood?”), and so does the mirror case: a hosted supplement
+      // naming its own host (the textbox AbominationOfDesolation cites Abomination). The second
+      // arm needs its own test because `src` stays the box's id, so src and dst really do differ.
+      if (hit && (hit.dst === row.id || hit.dst === row.host_id)) continue;
       // Tagged so the resolved and unresolved namespaces can never collide, even though no
       // article id currently contains a colon.
       const dedupe = hit ? `id:${hit.dst}` : `raw:${normKey(target)}`;
@@ -387,7 +399,7 @@ export function extractXrefs(row, ix) {
 cd build && node --test test/xref.test.mjs
 ```
 
-Expected: PASS — 22 tests.
+Expected: PASS — 23 tests.
 
 - [ ] **Step 5: Run the whole build suite for regressions**
 
@@ -395,7 +407,7 @@ Expected: PASS — 22 tests.
 cd build && npm test
 ```
 
-Expected: all pass, count increased by 22.
+Expected: all pass, count increased by 23.
 
 - [ ] **Step 6: Commit**
 
@@ -425,10 +437,10 @@ Wire the resolver into the build so the graph lands in `bible.db`, with post-bui
 Append to `build/test/schema.smoke.test.mjs`:
 
 ```javascript
-test('dict_xref: 5237 rows — 5097 resolved, 140 naming an article that does not exist', () => {
+test('dict_xref: 5236 rows — 5096 resolved, 140 naming an article that does not exist', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5237);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5097);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5236);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5096);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 140);
   assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 110);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
@@ -495,8 +507,8 @@ test('dict_xref: supplements appear at both ends of the graph', () => {
   const db = new DatabaseSync('../data/bible.db');
   const q = (side) => db.prepare(`SELECT COUNT(*) c FROM dict_xref x
     JOIN dict_articles a ON a.id = x.${side} WHERE a.kind <> 'article'`).get().c;
-  assert.equal(q('src'), 5);    // supplement bodies write "See …" clauses of their own
-  assert.equal(q('dst'), 4);    // and three articles cite the two orphaned textboxes
+  assert.equal(q('src'), 4);    // supplement bodies write "See …" clauses of their own
+  assert.equal(q('dst'), 4);    // and four articles cite the two orphaned textboxes
   db.close();
 });
 ```
@@ -565,11 +577,18 @@ In `build/lib/tyndale.mjs`, change `loadTyndale`'s return so the caller can reus
 In `build/build-db.mjs`, add the table alongside the other Tyndale tables (near the existing `CREATE TABLE dict_articles` block, inside the same `db.exec` template string):
 
 ```sql
+  -- Both endpoints are dict_articles rows, which includes supplements (textboxes and charts).
+  -- A supplement src is the box's own id, never its host's: the clause is written in the box's
+  -- text and seq numbers that text, so collapsing it into the host would interleave two bodies.
+  -- A supplement dst, by contrast, IS collapsed — a hosted box is rendered inside its host, so
+  -- the edge stores the host's id and puts the box's title in anchor. Only the 13 supplements
+  -- with no host appear as dst in their own right. A row never links to the page it is already
+  -- on, so there are no src=dst edges and no hosted box pointing at its own host.
   CREATE TABLE dict_xref (
-    src TEXT NOT NULL,          -- dict_articles.id, the citing article
+    src TEXT NOT NULL,          -- dict_articles.id, the citing article or supplement
     dst TEXT,                   -- dict_articles.id, or NULL when no such article exists
     raw TEXT NOT NULL,          -- the target exactly as the source wrote it
-    anchor TEXT,                -- a "## Subhead" to scroll to, else NULL
+    anchor TEXT,                -- a "## Subhead" to scroll to, or a hosted supplement's title
     seq INTEGER NOT NULL);      -- order of appearance in the body
 ```
 
@@ -609,7 +628,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 
 ```javascript
   const resolved = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c;
-  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5097`);
+  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5096`);
   const selfEdges = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c;
   if (selfEdges) problems.push(`dict_xref: ${selfEdges} self-edges`);
   // dst may legitimately be NULL (the source names an article that does not exist); src may not,
@@ -629,7 +648,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 cd build && npm run build
 ```
 
-Expected: among the output, `dict_xref: {"rows":5237,"resolved":5097,"missing":140,"anchored":94}` and `validation OK`.
+Expected: among the output, `dict_xref: {"rows":5236,"resolved":5096,"missing":140,"anchored":94}` and `validation OK`.
 
 - [ ] **Step 7: Verify a fresh clone can still build**
 
@@ -654,7 +673,7 @@ Expected: `copy-assets: bible.db version <hash>` with a **new** hash. Confirm `d
 sqlite3 app/public/bible.db "SELECT COUNT(*) FROM dict_xref;"
 ```
 
-Expected: `5237`.
+Expected: `5236`.
 
 - [ ] **Step 9: Run the build suite**
 
@@ -2409,7 +2428,7 @@ Create `app/src/components/library/ArticleSurface.svelte`:
       </div>
     {/if}
     {#if xrefs.missing.length}
-      <!-- 140 of the 5,237 links name an article Tyndale never wrote. Listing them is more honest
+      <!-- 140 of the 5,236 links name an article Tyndale never wrote. Listing them is more honest
            than hiding them, and stops the graph looking more complete than it is. -->
       <div class="absent">
         Named by the source, but absent from the corpus:

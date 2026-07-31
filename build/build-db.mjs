@@ -81,11 +81,18 @@ db.exec(`
     book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
     lex_hit INTEGER NOT NULL
   );
+  -- Both endpoints are dict_articles rows, which includes supplements (textboxes and charts).
+  -- A supplement src is the box's own id, never its host's: the clause is written in the box's
+  -- text and seq numbers that text, so collapsing it into the host would interleave two bodies.
+  -- A supplement dst, by contrast, IS collapsed — a hosted box is rendered inside its host, so
+  -- the edge stores the host's id and puts the box's title in anchor. Only the 13 supplements
+  -- with no host appear as dst in their own right. A row never links to the page it is already
+  -- on, so there are no src=dst edges and no hosted box pointing at its own host.
   CREATE TABLE dict_xref (
-    src TEXT NOT NULL,          -- dict_articles.id, the citing article
+    src TEXT NOT NULL,          -- dict_articles.id, the citing article or supplement
     dst TEXT,                   -- dict_articles.id, or NULL when no such article exists
     raw TEXT NOT NULL,          -- the target exactly as the source wrote it
-    anchor TEXT,                -- a "## Subhead" to scroll to, else NULL
+    anchor TEXT,                -- a "## Subhead" to scroll to, or a hosted supplement's title
     seq INTEGER NOT NULL);      -- order of appearance in the body
   CREATE TABLE tyndale_passages (
     kind TEXT NOT NULL, title TEXT NOT NULL, book TEXT NOT NULL,

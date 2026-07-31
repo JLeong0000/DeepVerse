@@ -23,7 +23,7 @@ export function normKey(s) {
     .replace(/[‘’]/g, "'")           // curly -> straight apostrophe
     .replace(/\*/g, '')                        // the source's cross-reference asterisk
     .replace(/[.\s]+$/, '')                    // trailing period / whitespace
-    .replace(/^“(.*)”$/, '$1')                 // Tyndale quotes a supplement it cites, whole
+    .replace(/^“([^“”]*)”$/, '$1')             // Tyndale quotes a supplement it cites, whole
     .replace(/\s*#\d+\s*$/, '')                // " #2" is an intra-article sense pointer
     .replace(/\s*\((?:above|below)\)\s*$/, '')
     .replace(/\s+/g, ' ');
@@ -87,7 +87,7 @@ export function resolveTarget(rawTarget, ix) {
 }
 
 // Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 140 of the
-// 5,237 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
+// 5,236 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
 // Teachings of" is cited 19 times. The UI shows these honestly rather than silently dropping them,
 // so the resolver must keep them.
 export function extractXrefs(row, ix) {
@@ -98,9 +98,12 @@ export function extractXrefs(row, ix) {
       const target = rawTarget.replace(/^\s*also\s+/i, '').trim();
       if (!target || STRUCTURAL.test(target)) continue;
       const hit = resolveTarget(target, ix);
-      // Self-edge. Compared after the hosted-supplement redirect, so an article naming a textbox
-      // of its own — Flood, the cites “Scientific Evidence for the Flood?” — drops out here.
-      if (hit && hit.dst === row.id) continue;
+      // A row never links to the page it is already on. Compared after the hosted-supplement
+      // redirect, so an article naming a textbox of its own drops out (Flood, the cites
+      // “Scientific Evidence for the Flood?”), and so does the mirror case: a hosted supplement
+      // naming its own host (the textbox AbominationOfDesolation cites Abomination). The second
+      // arm needs its own test because `src` stays the box's id, so src and dst really do differ.
+      if (hit && (hit.dst === row.id || hit.dst === row.host_id)) continue;
       // Tagged so the resolved and unresolved namespaces can never collide, even though no
       // article id currently contains a colon.
       const dedupe = hit ? `id:${hit.dst}` : `raw:${normKey(target)}`;

@@ -11,7 +11,7 @@ export function validate(db) {
     if (have !== chapters) problems.push(`verses: ${book} has ${have} chapters, expected ${chapters}`);
   }
   const resolved = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c;
-  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5097`);
+  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5096`);
   const selfEdges = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c;
   if (selfEdges) problems.push(`dict_xref: ${selfEdges} self-edges`);
   // dst may legitimately be NULL (the source names an article that does not exist); src may not,

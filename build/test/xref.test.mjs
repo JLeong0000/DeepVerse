@@ -125,6 +125,15 @@ test('extractXrefs: reads a supplement body as a source', () => {
   ]);
 });
 
+test('extractXrefs: a hosted supplement never links to the article it sits inside', () => {
+  // The mirror of the self-edge case, and the reason it needs its own guard: `src` stays the box's
+  // own id, so src and dst genuinely differ and the no-self-edges invariant cannot see it. The
+  // real corpus has one — the textbox AbominationOfDesolation names Abomination, its host.
+  const box = { id: 'CupBox', kind: 'textbox', host_id: 'Cup', body: 'Boxed. See Cup; Grape.' };
+  assert.deepEqual(extractXrefs(box, IX),
+    [{ src: 'CupBox', dst: 'Grape', raw: 'Grape', anchor: null, seq: 0 }]);
+});
+
 test('extractXrefs: a host citing its own supplement is a self-edge, and is dropped', () => {
   // The redirect sends the box back to the article doing the citing. This is the only shape the
   // hosted case takes anywhere in the real corpus — Flood, the names its own textbox

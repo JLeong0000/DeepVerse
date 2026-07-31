@@ -83,7 +83,7 @@ rendered. Only the 13 supplements with no host resolve to themselves.
 
 | | |
 |---|---|
-| distinct resolved edges | 5,097 (5,088 of them article-to-article) |
+| distinct resolved edges | 5,096 (5,088 of them article-to-article) |
 | articles with ≥1 edge | 4,073 (68%) |
 | **isolated articles** | **1,937 (32%)** |
 | connected components of ≥2 | 599 |
@@ -257,7 +257,7 @@ Four additions, all running on data already in the corpus:
 
 ### `dict_xref` — a new table, and why the build step is justified
 
-**5,237 rows** — 5,097 resolved edges plus **140 that name an article the corpus does not contain**
+**5,236 rows** — 5,096 resolved edges plus **140 that name an article the corpus does not contain**
 (110 distinct names). 244 KB.
 
 ```sql
@@ -265,7 +265,7 @@ CREATE TABLE dict_xref (
   src TEXT NOT NULL,          -- dict_articles.id, the citing article
   dst TEXT,                   -- dict_articles.id, or NULL when no such article exists
   raw TEXT NOT NULL,          -- the target exactly as the source wrote it
-  anchor TEXT,                -- a "## Subhead" to scroll to, else NULL
+  anchor TEXT,                -- a "## Subhead" to scroll to, or a hosted supplement's title
   seq INTEGER NOT NULL);      -- order of appearance in the source body
 CREATE INDEX idx_dict_xref_src ON dict_xref(src);
 CREATE INDEX idx_dict_xref_dst ON dict_xref(dst);
@@ -366,7 +366,7 @@ its real stack index; expander state resetting on navigation.
 **Path map** — branch click truncating to the correct step; solid/dashed spine classification;
 phantom nodes unclickable; drag suppressing the click that follows it.
 
-**Post-build invariants** — `dict_xref` totals (5,237 rows: 5,097 resolved, 140 unresolved, 94
+**Post-build invariants** — `dict_xref` totals (5,236 rows: 5,096 resolved, 140 unresolved, 94
 anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
 with an empty `raw`.
 

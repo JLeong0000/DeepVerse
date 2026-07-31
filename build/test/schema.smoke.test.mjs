@@ -28,10 +28,10 @@ test('agapao has a Louw-Nida domain', () => {
   assert.match(r.ln, /^25\./);
 });
 
-test('dict_xref: 5237 rows — 5097 resolved, 140 naming an article that does not exist', () => {
+test('dict_xref: 5236 rows — 5096 resolved, 140 naming an article that does not exist', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5237);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5097);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5236);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5096);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 140);
   assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 110);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
@@ -98,7 +98,7 @@ test('dict_xref: supplements appear at both ends of the graph', () => {
   const db = new DatabaseSync('../data/bible.db');
   const q = (side) => db.prepare(`SELECT COUNT(*) c FROM dict_xref x
     JOIN dict_articles a ON a.id = x.${side} WHERE a.kind <> 'article'`).get().c;
-  assert.equal(q('src'), 5);    // supplement bodies write "See …" clauses of their own
-  assert.equal(q('dst'), 4);    // and three articles cite the two orphaned textboxes
+  assert.equal(q('src'), 4);    // supplement bodies write "See …" clauses of their own
+  assert.equal(q('dst'), 4);    // and four articles cite the two orphaned textboxes
   db.close();
 });

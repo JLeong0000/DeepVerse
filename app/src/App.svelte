@@ -9,6 +9,7 @@
   import Comparison from './routes/Comparison.svelte';
   import NotesPage from './routes/NotesPage.svelte';
   import SettingsPage from './routes/SettingsPage.svelte';
+  import Library from './routes/Library.svelte';
   import Loading from './components/common/Loading.svelte';
   import { fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -28,7 +29,7 @@
   }
   function applyHash() {
     const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-    const view = ['home', 'study', 'compare', 'notes', 'settings'].includes(parts[0]) ? parts[0] : 'home';
+    const view = ['home', 'study', 'compare', 'notes', 'settings', 'library'].includes(parts[0]) ? parts[0] : 'home';
     route.view = view;
     if ((view === 'study' || view === 'compare') && parts[1] && parts[2]) {
       study.book = parts[1];
@@ -74,6 +75,7 @@
     <nav>
       <button class="navlink" class:active={route.view === 'home'} onclick={() => go('home')}>Home</button>
       <button class="navlink" class:active={route.view === 'study'} onclick={() => go('study')}>Study</button>
+      <button class="navlink" class:active={route.view === 'library'} onclick={() => go('library')}>Library</button>
       <button class="navlink" class:active={route.view === 'compare'} onclick={() => go('compare')}>Compare</button>
       <button class="navlink" class:active={route.view === 'notes'} onclick={() => go('notes')}>Memo</button>
     </nav>
@@ -95,6 +97,8 @@
         <NotesPage />
       {:else if route.view === 'settings'}
         <SettingsPage />
+      {:else if route.view === 'library'}
+        <Library />
       {:else}
         <Home />
       {/if}

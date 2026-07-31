@@ -4,6 +4,7 @@
   import { lib, pushNode, replaceTop, popNode } from '../lib/library.svelte.js';
   import { getRandomArticle } from '../lib/db.js';
   import Breadcrumb from '../components/library/Breadcrumb.svelte';
+  import StartSurface from '../components/library/StartSurface.svelte';
 
   let term = $state('');
   let inputEl = $state(null);
@@ -61,7 +62,11 @@
 <div class="surface">
   <div class="inner">
     <!-- surfaces land here in Tasks 8–13 -->
-    <p class="stub">{current.kind}</p>
+    {#if current.kind === 'start'}
+      <StartSurface />
+    {:else}
+      <p class="stub">{current.kind}</p>
+    {/if}
   </div>
 </div>
 

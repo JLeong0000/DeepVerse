@@ -11,6 +11,7 @@
 
 import { displayTitle } from './titles.js';
 import { bookName } from './refs.js';
+import { getPref, setPref } from './store.js';
 
 // Breadcrumb slots before the middle is truncated. Ours, not the data's — a tunable.
 export const MAX_CRUMBS = 6;
@@ -37,11 +38,22 @@ export function articleDepth(stack) {
   return stack.filter((n) => n.kind === 'article').length;
 }
 
+const RECENT_KEY = 'libraryRecent';
+const RECENT_CAP = 20;
+
+// The trail dies with the session; this is what gets you back to something from yesterday.
+export function recordRecent(id, title) {
+  const list = getPref(RECENT_KEY, []).filter((r) => r.id !== id);
+  list.unshift({ id, title });
+  setPref(RECENT_KEY, list.slice(0, RECENT_CAP));
+}
+export function recentArticles() { return getPref(RECENT_KEY, []); }
+
 export function pushNode(node) {
   lib.stack.push(node);
   lib.crumbsOpen = false;          // a new step re-collapses the trail
   lib.mapOpen = false;
-  if (node.kind === 'article') lib.visited += 1;
+  if (node.kind === 'article') { lib.visited += 1; recordRecent(node.id, node.title); }
   lib.deepest = Math.max(lib.deepest, articleDepth(lib.stack));
 }
 

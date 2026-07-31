@@ -7,6 +7,8 @@
   import StartSurface from '../components/library/StartSurface.svelte';
   import DictionaryIndex from '../components/library/DictionaryIndex.svelte';
   import PassageIndex from '../components/library/PassageIndex.svelte';
+  import BookIndex from '../components/library/BookIndex.svelte';
+  import BookHub from '../components/library/BookHub.svelte';
 
   let term = $state('');
   let inputEl = $state(null);
@@ -70,6 +72,10 @@
       <DictionaryIndex letter={current.letter ?? null} />
     {:else if current.kind === 'route' && (current.route === 'themes' || current.route === 'profiles')}
       <PassageIndex kind={current.route} />
+    {:else if current.kind === 'route' && current.route === 'books'}
+      <BookIndex />
+    {:else if current.kind === 'hub'}
+      <BookHub book={current.book} />
     {:else}
       <p class="stub">{current.kind}</p>
     {/if}

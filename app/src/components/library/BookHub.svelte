@@ -1,0 +1,109 @@
+<script>
+  import { getBookHub } from '../../lib/db.js';
+  import { pushNode } from '../../lib/library.svelte.js';
+  import { goToPassage } from '../../lib/study.svelte.js';
+  import { go } from '../../lib/router.svelte.js';
+  import { bookName } from '../../lib/refs.js';
+  import { parseArticleBlocks, articlePreview } from '../../lib/display.js';
+  import { displayTitle } from '../../lib/titles.js';
+
+  const NOTE_SRC = 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
+  const INTRO_CLAMP = 280;
+
+  let { book } = $props();
+  let hub = $derived(getBookHub(book));
+  let introOpen = $state(false);
+  $effect(() => { book; introOpen = false; });
+
+  function openInStudy() {
+    goToPassage({ book, chapter: 1, verse: null });
+    go('study');
+  }
+</script>
+
+<h3 class="stitle">{bookName(book)}</h3>
+<div class="smeta">
+  Book introduction · <button class="jump" onclick={openInStudy}>Open in Study →</button>
+</div>
+
+<!-- the summary arrives as Purpose/Author/Date/Setting heading blocks -->
+{#each parseArticleBlocks(hub.summary) as b}
+  {#if b.kind === 'head'}
+    <div class="fieldk">{b.text}</div>
+  {:else}
+    <div class="fieldv">{b.text}</div>
+  {/if}
+{/each}
+
+{#if hub.intro}
+  <div class="sec">
+    <div class="hl">The full introduction</div>
+    <p class="prose">{introOpen ? hub.intro : articlePreview(hub.intro, INTRO_CLAMP)}</p>
+    <button class="seemore" onclick={() => (introOpen = !introOpen)}>
+      {introOpen ? 'Read less' : 'Read more'}
+    </button>
+  </div>
+{/if}
+
+<div class="sec">
+  <div class="hl">Themes anchored here · {hub.themes.length}</div>
+  {#if hub.themes.length}
+    <div class="chips">
+      {#each hub.themes as t (t.title)}<span class="chip">{t.title}<span class="r">{t.ref}</span></span>{/each}
+    </div>
+  {:else}<p class="none">None.</p>{/if}
+</div>
+
+<div class="sec">
+  <div class="hl">Profiles anchored here · {hub.profiles.length}</div>
+  {#if hub.profiles.length}
+    <div class="chips">
+      {#each hub.profiles as p (p.title)}<span class="chip">{p.title}<span class="r">{p.ref}</span></span>{/each}
+    </div>
+  {:else}<p class="none">None.</p>{/if}
+</div>
+
+<div class="sec">
+  <div class="hl">Dictionary articles citing this book most · {hub.articles.length}</div>
+  <div class="chips">
+    {#each hub.articles as a (a.id)}
+      <button class="chip act" onclick={() => pushNode({ kind: 'article', id: a.id, title: a.title })}>
+        {displayTitle(a.title)}<span class="n">{a.n}</span>
+      </button>
+    {/each}
+  </div>
+  <p class="note">
+    Ranked by how many verses of {bookName(book)} each article cites — straight from
+    <code>dict_verse</code>, not a hand-made list.
+  </p>
+</div>
+
+<div class="src"><div class="srclbl">Source</div>{NOTE_SRC}</div>
+
+<style>
+  .stitle { font-size: 22px; margin: 0 0 4px; }
+  .smeta { font-size: 11.5px; color: var(--dim); margin-bottom: 20px; }
+  .jump { background: none; border: none; padding: 0; font-family: inherit; font-size: 11.5px;
+    color: var(--a); cursor: pointer; }
+  .jump:hover { text-decoration: underline; }
+  .fieldk { font-size: 11px; color: var(--b); font-variant: small-caps; letter-spacing: .06em; margin-top: 9px; }
+  .fieldv { font-size: 13.5px; line-height: 1.6; max-width: 74ch; }
+  .sec { margin-top: 24px; padding-top: 13px; border-top: 1px solid var(--rule); }
+  .hl { font-variant: small-caps; letter-spacing: .06em; font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+  .prose { font-size: 13.5px; line-height: 1.7; max-width: 74ch; margin: 0; white-space: pre-wrap; }
+  .seemore { background: none; border: none; padding: 2px 0 0; font-family: inherit; font-size: 11px;
+    color: var(--a); cursor: pointer; display: block; }
+  .seemore:hover { text-decoration: underline; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { background: transparent; border: 1px solid var(--rule); border-radius: 5px; padding: 4px 9px;
+    font-family: inherit; font-size: 12px; color: var(--ink); text-align: left; }
+  .chip.act { cursor: pointer; }
+  .chip.act:hover { border-color: var(--a); }
+  .chip .r { color: var(--b); font-size: 10px; margin-left: 5px; }
+  .chip .n { color: var(--dim); font-size: 10px; margin-left: 5px; }
+  .none { font-size: 12px; color: var(--dim); font-style: italic; margin: 0; }
+  .note { font-size: 11px; color: var(--dim); line-height: 1.55; margin-top: 8px; font-style: italic; max-width: 74ch; }
+  .src { margin-top: 24px; padding-top: 11px; border-top: 1px solid var(--rule); font-size: 11px;
+    line-height: 1.5; color: var(--dim); }
+  .srclbl { font-variant: small-caps; letter-spacing: .05em; }
+</style>

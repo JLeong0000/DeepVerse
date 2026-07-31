@@ -5,6 +5,7 @@
   import { getRandomArticle } from '../lib/db.js';
   import Breadcrumb from '../components/library/Breadcrumb.svelte';
   import StartSurface from '../components/library/StartSurface.svelte';
+  import DictionaryIndex from '../components/library/DictionaryIndex.svelte';
 
   let term = $state('');
   let inputEl = $state(null);
@@ -64,6 +65,8 @@
     <!-- surfaces land here in Tasks 8–13 -->
     {#if current.kind === 'start'}
       <StartSurface />
+    {:else if current.kind === 'route' && current.route === 'dict'}
+      <DictionaryIndex letter={current.letter ?? null} />
     {:else}
       <p class="stub">{current.kind}</p>
     {/if}

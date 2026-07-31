@@ -9,14 +9,33 @@
   import { bookName } from '../../lib/refs.js';
   import ArticleView from '../workbench/ArticleView.svelte';
 
-  let { id } = $props();
+  let { id, anchor = null } = $props();
 
   let article = $derived(getArticle(id));
   let supplements = $derived(getArticleSupplements(id));
   let xrefs = $derived(getXrefs(id));
 
-  let open = $state(null);   // { ref, token }
+  let open = $state(null);   // { ref, index } — index is the block the preview was opened from
   $effect(() => { id; open = null; });   // a new article clears any open preview
+
+  const KIND_LABEL = { chart: 'Chart', textbox: 'Textbox' };
+
+  // A door's `anchor` (e.g. "Animals (Cattle)") names a "## Cattle" subhead inside the target, not
+  // just the target itself — so landing on the article without scrolling to it delivers only half
+  // of what the door advertised. bodyEl/titleEl are queried after render, same pattern as
+  // ArticleModal's focusId: anchor -> the matching [data-head], else the top of the new article
+  // (never the old scroll position — .surface doesn't remount between article nodes).
+  let titleEl = $state(null);
+  let bodyEl = $state(null);
+  $effect(() => {
+    id;   // re-run on every article change even when there is no anchor
+    const target = anchor && bodyEl?.querySelector(`[data-head="${CSS.escape(anchor)}"]`);
+    (target ?? titleEl)?.scrollIntoView({ block: 'start', behavior: anchor ? 'smooth' : 'auto' });
+  });
+
+  function openDoor(o) {
+    pushNode({ kind: 'article', id: o.id, title: o.title, anchor: o.anchor ?? null });
+  }
 </script>
 
 {#snippet previewSnippet()}
@@ -29,17 +48,19 @@
 {/snippet}
 
 {#if article}
-  <h3 class="stitle">{displayTitle(article.title)}</h3>
-  <div class="smeta">Dictionary article · cites {article.n_refs} verses</div>
+  <h3 class="stitle" bind:this={titleEl}>{displayTitle(article.title)}</h3>
+  <div class="smeta">
+    {article.kind === 'article' ? `Dictionary article · cites ${article.n_refs} verses` : KIND_LABEL[article.kind]}
+  </div>
 
-  <div class="body">
+  <div class="body" bind:this={bodyEl}>
     <ArticleView {article} {supplements} {xrefs}
-      onref={(ref, token) => (open = open?.token === token ? null : { ref, token })}
-      openToken={open?.token ?? null}
+      onref={(ref, i) => (open = open?.index === i ? null : { ref, index: i })}
+      openIndex={open?.index ?? null}
       preview={open ? previewSnippet : null}
       onxref={(xid) => {
         const hit = xrefs.out.find((o) => o.id === xid);
-        pushNode({ kind: 'article', id: xid, title: hit?.title ?? xid });
+        pushNode({ kind: 'article', id: xid, title: hit?.title ?? xid, anchor: hit?.anchor ?? null });
       }} />
   </div>
 
@@ -48,8 +69,8 @@
     {#if xrefs.out.length}
       <div class="doors">
         {#each xrefs.out as o (o.id)}
-          <button class="door" onclick={() => pushNode({ kind: 'article', id: o.id, title: o.title })}>
-            {displayTitle(o.title)}{#if o.anchor}<span class="anch">§ {o.anchor}</span>{/if}
+          <button class="door" onclick={() => openDoor(o)}>
+            {displayTitle(o.title)}{' '}{#if o.anchor}<span class="anch">§ {o.anchor}</span>{/if}
           </button>
         {/each}
       </div>
@@ -64,7 +85,7 @@
            than hiding them, and stops the graph looking more complete than it is. -->
       <div class="absent">
         Named by the source, but absent from the corpus:
-        {xrefs.missing.map(displayTitle).join(', ')}.
+        {xrefs.missing.map(displayTitle).join(' · ')}.
       </div>
     {/if}
   </div>

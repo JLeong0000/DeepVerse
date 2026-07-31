@@ -554,7 +554,7 @@ export function searchLibrary(term) {
 }
 
 export function getArticle(id) {
-  return query(`SELECT id, title, body, n_refs FROM dict_articles WHERE id=?`, [id])[0] || null;
+  return query(`SELECT id, title, body, n_refs, kind, is_html FROM dict_articles WHERE id=?`, [id])[0] || null;
 }
 
 // A theme or profile, so the Themes and Profiles routes are readable and not just browsable.

@@ -6,7 +6,7 @@
 //   { kind: 'route',   route: 'dict'|'themes'|'profiles'|'books', letter?: 'B' }
 //   { kind: 'search',  q: 'revelation' }
 //   { kind: 'hub',     book: 'Rev' }
-//   { kind: 'article', id: 'Beast', title: 'Beast' }
+//   { kind: 'article', id: 'Beast', title: 'Beast', anchor?: 'Cattle' }
 //   { kind: 'passage', pkind: 'theme'|'profile', title: 'Holy War', book: 'Deut' }
 
 import { displayTitle } from './titles.js';

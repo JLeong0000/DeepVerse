@@ -7,7 +7,7 @@
 
   const DICT_SOURCE = 'Tyndale Open Bible Dictionary · © 2023 Tyndale House Publishers · CC BY-SA 4.0';
   let { article, supplements = [], source = null, onnavigate = null,
-        xrefs = null, onxref = null, onref = null, openToken = null, preview = null } = $props();
+        xrefs = null, onxref = null, onref = null, openIndex = null, preview = null } = $props();
 
   let blocks = $derived(parseArticleBlocks(article.body));
 
@@ -27,30 +27,45 @@
     });
     return { lead: m[1], see: m[2], targets };
   }
+
+  // The preview's identity is the block it was opened from, not the citation text: two different
+  // blocks routinely cite the identical span ("Dt 14:7" appears 4× across "Animals"), and a
+  // substring match on block text would pop the preview under every one of them. Wrapping onref
+  // per block index is what lets the host tell them apart.
+  function refOnref(i) {
+    return onref ? (ref) => onref(ref, i) : null;
+  }
 </script>
 
-{#each blocks as b}
-  {#if b.kind === 'head'}
-    <h3 class="mhead">{b.text}</h3>
-  {:else if b.kind === 'item'}
-    <p class="mitem"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={onref} /></p>
-    {#if preview && openToken && b.text.includes(openToken)}
-      {@render preview()}
-    {/if}
-  {:else}
-    {@const c = splitClause(b.text)}
-    {#if c}
-      <p class="mbody">
-        <RefText text={c.lead} book={article.book ?? null} onnavigate={onnavigate} onref={onref} />{c.see}{#each c.targets as t, k}{#if k > 0}; {/if}{#if t.id}<button class="xref" onclick={() => onxref?.(t.id)}>{t.raw}</button>{:else}<span class="xdead" title="named by the source, but no such article exists">{t.raw}</span>{/if}{/each}.
-      </p>
+{#if article.is_html}
+  <!-- charts are the only Tyndale content that cannot flatten to text — same reasoning as the
+       chart supplements below: build-time-generated markup (tags whitelisted, every attribute
+       stripped), never raw vendor input, so {@html} has no untrusted source. -->
+  <div class="charttbl">{@html article.body}</div>
+{:else}
+  {#each blocks as b, i}
+    {#if b.kind === 'head'}
+      <h3 class="mhead" data-head={b.text}>{b.text}</h3>
+    {:else if b.kind === 'item'}
+      <p class="mitem"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} /></p>
+      {#if preview && openIndex === i}
+        {@render preview()}
+      {/if}
     {:else}
-      <p class="mbody"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={onref} /></p>
+      {@const c = splitClause(b.text)}
+      {#if c}
+        <p class="mbody">
+          <RefText text={c.lead} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{c.see}{#each c.targets as t, k}{#if k > 0}{'; '}{/if}{#if t.id}<button class="xref" onclick={() => onxref?.(t.id)}>{t.raw}</button>{:else}<span class="xdead" title="named by the source, but no link was recorded for this target">{t.raw}</span>{/if}{/each}.
+        </p>
+      {:else}
+        <p class="mbody"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} /></p>
+      {/if}
+      {#if preview && openIndex === i}
+        {@render preview()}
+      {/if}
     {/if}
-    {#if preview && openToken && b.text.includes(openToken)}
-      {@render preview()}
-    {/if}
-  {/if}
-{/each}
+  {/each}
+{/if}
 
 {#each supplements as s (s.id)}
   <div class="supp" data-sid={s.id}>
@@ -61,7 +76,9 @@
     {#if s.is_html}
       <div class="charttbl">{@html s.body}</div>
     {:else}
-      <p class="mbody"><RefText text={s.body} onnavigate={onnavigate} onref={onref} /></p>
+      <!-- no onref here: a supplement never renders a preview (that surface was never asked for),
+           so forwarding onref would suppress the jump and produce a dead click -->
+      <p class="mbody"><RefText text={s.body} onnavigate={onnavigate} /></p>
     {/if}
   </div>
 {/each}

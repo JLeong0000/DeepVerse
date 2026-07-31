@@ -78,7 +78,7 @@
     {:else if current.kind === 'hub'}
       <BookHub book={current.book} />
     {:else if current.kind === 'article'}
-      <ArticleSurface id={current.id} />
+      <ArticleSurface id={current.id} anchor={current.anchor ?? null} />
     {:else}
       <p class="stub">{current.kind}</p>
     {/if}

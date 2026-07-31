@@ -454,3 +454,128 @@ export function verseWordCounts(version, book, chapter, verse) {
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   return { words, chars: text.length };
 }
+
+// --- Library explorer (#/library) ---
+
+// The pool `✦ Wander in` draws from. 2,271 of the 6,010 articles are under 120 characters and 576
+// are bare "See X." redirects, so an unweighted random door would land on a stub about a third of
+// the time and feel broken. 500 is our threshold, not a property of the data — it yields 1,839.
+export const SUBSTANTIAL_CHARS = 500;
+
+export function getDictLetters() {
+  return query(`SELECT upper(substr(sort_title,1,1)) AS letter, COUNT(*) AS n
+    FROM dict_articles WHERE kind='article' GROUP BY letter ORDER BY letter`);
+}
+
+// Displays `title` and only sorts by `sort_title`: sort_title strips the disambiguating
+// parenthetical, so 131 groups collide and would otherwise print the same word repeatedly.
+// `redirect` is set for the 576 bodies that are nothing but "See X." — they render as a compact
+// redirect line rather than a full entry. rtrim(…, '.') trims only the trailing period, not every
+// period in the target — a plain replace('.', '') would also eat an internal one (an abbreviation
+// or initialism in the target name), even though no current stub has one.
+export function getDictBrowse(letter) {
+  return query(`SELECT id, title, sort_title,
+      substr(replace(body, char(10), ' '), 1, 90) AS gloss,
+      CASE WHEN body LIKE 'See %' AND length(body) < 120
+           THEN rtrim(substr(body, 5), '.') END AS redirect
+    FROM dict_articles
+    WHERE kind='article' AND upper(substr(sort_title,1,1)) = ?
+    ORDER BY sort_title, title`, [String(letter).toUpperCase()]);
+}
+
+export function getThemeIndex() {
+  const rows = query(`SELECT title, book, ref, seq, start_chapter, start_verse
+    FROM tyndale_passages WHERE kind='theme'`);
+  return rows.sort((a, b) => bookOrder(a.book) - bookOrder(b.book)
+    || (a.start_chapter * 1000 + a.start_verse) - (b.start_chapter * 1000 + b.start_verse)
+    || a.seq - b.seq);
+}
+
+// 84 of the 125 have a same-title dictionary article — a second door to the same subject. sort_title
+// collides for 131 groups (Person/Place/etc. homonyms); an unordered LIMIT 1 picked the wrong twin
+// for "Rahab" (the sea monster instead of the person profiled here), so ties prefer the "(Person)"
+// entry — the only disambiguator that recurs across these groups — before falling back to seq.
+export function getProfileIndex() {
+  return query(`SELECT p.title, p.book, p.ref,
+      (SELECT a.id FROM dict_articles a
+        WHERE a.kind='article' AND a.sort_title = lower(p.title)
+        ORDER BY a.title LIKE '%(Person)%' DESC, a.seq LIMIT 1) AS alsoArticle
+    FROM tyndale_passages p WHERE p.kind='profile' ORDER BY p.title`);
+}
+
+export function getBookHub(book) {
+  const intro = query('SELECT summary, intro FROM book_intros WHERE book=?', [book])[0] || null;
+  const passages = query(`SELECT kind, title, ref FROM tyndale_passages
+    WHERE book=? ORDER BY start_chapter, start_verse, seq`, [book]);
+  // Ranked by how many verses of this book each article cites — straight from dict_verse.
+  const articles = query(`SELECT a.id, a.title, COUNT(*) AS n
+    FROM dict_verse v JOIN dict_articles a ON a.id = v.article_id
+    WHERE v.book = ? GROUP BY a.id ORDER BY n DESC, a.sort_title LIMIT 12`, [book]);
+  return {
+    summary: intro?.summary ?? '',
+    intro: intro?.intro ?? '',
+    themes: passages.filter((p) => p.kind === 'theme'),
+    profiles: passages.filter((p) => p.kind === 'profile'),
+    articles,
+  };
+}
+
+// One query across all four datasets: making the user first guess which route holds the answer
+// would tax the primary objective. Titles only — full-text search over 8.4 MB is not viable here.
+export function searchLibrary(term) {
+  const q = String(term || '').trim().toLowerCase();
+  const empty = { dict: [], themes: [], profiles: [], books: [] };
+  if (q.length < 2) return empty;
+  const like = `%${q}%`;
+  return {
+    dict: query(`SELECT id, title FROM dict_articles
+      WHERE kind='article' AND lower(title) LIKE ? ORDER BY length(title), sort_title LIMIT 20`, [like]),
+    themes: query(`SELECT title, book, ref FROM tyndale_passages
+      WHERE kind='theme' AND lower(title) LIKE ? ORDER BY title LIMIT 10`, [like]),
+    profiles: query(`SELECT title, book, ref FROM tyndale_passages
+      WHERE kind='profile' AND lower(title) LIKE ? ORDER BY title LIMIT 10`, [like]),
+    books: BOOKS.filter(([, name]) => name.toLowerCase().includes(q)).map(([code]) => code),
+  };
+}
+
+export function getArticle(id) {
+  return query(`SELECT id, title, body, n_refs FROM dict_articles WHERE id=?`, [id])[0] || null;
+}
+
+// A theme or profile, so the Themes and Profiles routes are readable and not just browsable.
+// tyndale_passages has no id column, but titles are unique within a kind (298 themes, 125
+// profiles, all distinct), so (kind, title) is a safe key.
+export function getPassage(kind, title) {
+  return query(`SELECT kind, title, book, ref, body FROM tyndale_passages
+    WHERE kind = ? AND title = ?`, [kind, title])[0] || null;
+}
+
+// Both directions, plus the targets the source names that do not exist. Outbound feeds the doors
+// row; inbound is what the path map can reveal and nothing else in the UI can; `missing` is shown
+// honestly rather than dropped, because hiding it would overstate how complete the graph is.
+export function getXrefs(id) {
+  return {
+    // `raw` is the target exactly as the source wrote it. The in-prose linkifier needs it to match
+    // the "See …" clause text: the clause says "Mark of the Beast", the article's title is
+    // "Mark of God*, Mark of the Beast". Matching on title alone would silently miss those.
+    out: query(`SELECT a.id, a.title, x.raw, x.anchor FROM dict_xref x
+      JOIN dict_articles a ON a.id = x.dst
+      WHERE x.src = ? AND x.dst IS NOT NULL ORDER BY x.seq`, [id]),
+    in: query(`SELECT a.id, a.title FROM dict_xref x
+      JOIN dict_articles a ON a.id = x.src WHERE x.dst = ? ORDER BY a.sort_title`, [id]),
+    missing: query(`SELECT raw FROM dict_xref
+      WHERE src = ? AND dst IS NULL ORDER BY seq`, [id]).map((r) => r.raw),
+  };
+}
+
+export function getRandomArticle() {
+  return query(`SELECT id, title FROM dict_articles
+    WHERE kind='article' AND length(body) >= ? AND body NOT LIKE 'See %'
+    ORDER BY random() LIMIT 1`, [SUBSTANTIAL_CHARS])[0] || null;
+}
+
+// 3 charts and 10 textboxes never resolved a host, so nothing else in the app can reach them.
+export function getOrphanSupplements() {
+  return query(`SELECT id, title, kind FROM dict_articles
+    WHERE kind <> 'article' AND host_id IS NULL ORDER BY kind, title`);
+}

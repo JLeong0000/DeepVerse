@@ -358,3 +358,120 @@ describe('tyndale cultural layer', () => {
       expect(db.getBookIntro(b), `${b} missing an intro`).toBeTruthy();
   });
 });
+
+describe('library explorer', () => {
+  test('getDictLetters covers A–Z with real counts', () => {
+    const rows = db.getDictLetters();
+    const b = rows.find((r) => r.letter === 'B');
+    expect(b.n).toBe(447);
+    expect(rows.find((r) => r.letter === 'A').n).toBe(666);
+  });
+
+  test('getDictBrowse returns full titles, ordered by sort_title', () => {
+    const rows = db.getDictBrowse('B');
+    expect(rows.length).toBe(447);
+    // sort_title strips the parenthetical, so these three collide; the title must disambiguate
+    const baals = rows.filter((r) => r.sort_title === 'baal').map((r) => r.title);
+    expect(baals).toEqual(['Baal (Idol)', 'Baal (Person)', 'Baal* (Place)']);
+  });
+
+  test('getDictBrowse flags bare redirect stubs', () => {
+    const bed = db.getDictBrowse('B').find((r) => r.title === 'Bed');
+    expect(bed.redirect).toBe('Furniture');
+    expect(db.getDictBrowse('B').find((r) => r.title === 'Beast').redirect).toBeNull();
+  });
+
+  test('getThemeIndex returns 298 in canonical book order', () => {
+    const rows = db.getThemeIndex();
+    expect(rows).toHaveLength(298);
+    expect(rows[0].book).toBe('Gen');
+    expect(rows.at(-1).book).toBe('Rev');
+  });
+
+  test('getProfileIndex returns 125 alphabetically, flagging dictionary twins', () => {
+    const rows = db.getProfileIndex();
+    expect(rows).toHaveLength(125);
+    expect(rows[0].title < rows[1].title).toBe(true);
+    expect(rows.filter((r) => r.alsoArticle).length).toBe(84);
+  });
+
+  test('getBookHub assembles intro, themes, profiles and top-citing articles', () => {
+    const hub = db.getBookHub('Rev');
+    expect(hub.summary).toContain('Purpose');
+    expect(hub.themes.length).toBe(8);
+    expect(hub.profiles.map((p) => p.title)).toEqual(['Roman Emperors']);
+    expect(hub.articles[0].title).toBe('Revelation, Book of');
+    expect(hub.articles[0].n).toBe(81);
+  });
+
+  test('searchLibrary spans all four datasets', () => {
+    const r = db.searchLibrary('revelation');
+    expect(r.dict.some((x) => x.title === 'Revelation, Book of')).toBe(true);
+    expect(r.themes.some((x) => x.title === 'The Theater and Revelation')).toBe(true);
+    expect(r.books).toContain('Rev');
+  });
+
+  test('searchLibrary ignores terms shorter than two characters', () => {
+    expect(db.searchLibrary('a')).toEqual({ dict: [], themes: [], profiles: [], books: [] });
+  });
+
+  test('getXrefs returns both directions', () => {
+    const x = db.getXrefs('Beast');
+    expect(x.out.map((o) => o.title)).toEqual(
+      ['Antichrist', 'Armageddon', 'Mark of God*, Mark of the Beast', 'Revelation, Book of']);
+    expect(x.in.length).toBeGreaterThan(0);
+  });
+
+  test('getXrefs carries a subhead anchor', () => {
+    const x = db.getXrefs('BullBullock');
+    expect(x.out.find((o) => o.id === 'Animals').anchor).toBe('Cattle');
+  });
+
+  test('getPassage returns a theme body, keyed by kind and title', () => {
+    const t = db.getPassage('theme', 'Holy War');
+    expect(t.book).toBe('Deut');
+    expect(t.ref).toBe('7:1-6');
+    expect(t.body.length).toBeGreaterThan(200);
+    expect(db.getPassage('profile', 'Holy War')).toBeNull();   // kind is part of the key
+  });
+
+  test('getPassage returns a profile body', () => {
+    const p = db.getPassage('profile', 'The Philistines');
+    expect(p.book).toBe('Judg');
+    expect(p.body.length).toBeGreaterThan(200);
+  });
+
+  test('every theme and profile in the index is retrievable', () => {
+    for (const t of db.getThemeIndex()) expect(db.getPassage('theme', t.title)).not.toBeNull();
+    for (const p of db.getProfileIndex()) expect(db.getPassage('profile', p.title)).not.toBeNull();
+  });
+
+  test('getXrefs.out carries the source wording for each target', () => {
+    const beast = db.getXrefs('Beast').out;
+    expect(beast.find((o) => o.id === 'MarkofGodMarkoftheBeast').raw).toBe('Mark of the Beast');
+  });
+
+  test('getXrefs reports targets the source names but the corpus lacks', () => {
+    // "Advent of Christ" is nothing but a See clause, one of whose three targets does not exist
+    const x = db.getXrefs('AdventofChrist');
+    expect(x.missing).toContain('Jesus Christ, Life and Teachings of');
+    expect(x.out.length).toBe(2);
+  });
+
+  test('getXrefs.missing is empty for an article whose targets all resolve', () => {
+    expect(db.getXrefs('Beast').missing).toEqual([]);
+  });
+
+  test('getRandomArticle only returns substantial articles', () => {
+    for (let i = 0; i < 30; i++) {
+      const a = db.getRandomArticle();
+      const full = db.getArticle(a.id);
+      expect(full.body.length).toBeGreaterThanOrEqual(500);
+      expect(full.body.startsWith('See ')).toBe(false);
+    }
+  });
+
+  test('getOrphanSupplements finds the 13 with no host', () => {
+    expect(db.getOrphanSupplements()).toHaveLength(13);
+  });
+});

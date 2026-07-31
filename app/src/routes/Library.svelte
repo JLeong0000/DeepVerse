@@ -6,6 +6,7 @@
   import Breadcrumb from '../components/library/Breadcrumb.svelte';
   import StartSurface from '../components/library/StartSurface.svelte';
   import DictionaryIndex from '../components/library/DictionaryIndex.svelte';
+  import PassageIndex from '../components/library/PassageIndex.svelte';
 
   let term = $state('');
   let inputEl = $state(null);
@@ -67,6 +68,8 @@
       <StartSurface />
     {:else if current.kind === 'route' && current.route === 'dict'}
       <DictionaryIndex letter={current.letter ?? null} />
+    {:else if current.kind === 'route' && (current.route === 'themes' || current.route === 'profiles')}
+      <PassageIndex kind={current.route} />
     {:else}
       <p class="stub">{current.kind}</p>
     {/if}

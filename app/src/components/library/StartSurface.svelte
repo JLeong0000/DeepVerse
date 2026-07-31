@@ -28,6 +28,10 @@
   // stack moves off and back onto a 'start' node — see Library.svelte's {#if})
   const tick = Math.floor(Math.random() * 12);
   const eg = (k) => EGS[k][tick % EGS[k].length];
+
+  // Read once per mount, same as `tick` above — a fresh instance is what picks up a newly
+  // recorded article (see the remount note above), not a reactive re-read within one instance.
+  const recent = recentArticles();
 </script>
 
 <h3 class="stitle">The Library</h3>
@@ -56,11 +60,11 @@
   “See X.” redirects.
 </p>
 
-{#if recentArticles().length}
+{#if recent.length}
   <div class="recent">
     <div class="rl">Recently viewed</div>
     <div class="rchips">
-      {#each recentArticles().slice(0, 12) as r (r.id)}
+      {#each recent.slice(0, 12) as r (r.id)}
         <button class="rchip" onclick={() => pushNode({ kind: 'article', id: r.id, title: r.title })}>
           {displayTitle(r.title)}
         </button>

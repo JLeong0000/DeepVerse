@@ -13,8 +13,10 @@
   Toggle light/dark top-right.
 </p>
 <p class="subtitle" style="font-style:italic">
-  Every title, body, cross-reference, theme, profile, count and citation figure is real, queried from
-  <code>data/bible.db</code>. Nothing is invented — including the warts listed at the bottom.
+  Every title, count and citation figure on this page is real, queried from <code>data/bible.db</code> —
+  including the warts listed at the bottom. The ten demo article bodies below are abridged for display,
+  though, so their <code>See …</code> clauses are illustrative, not a faithful extract; the real
+  cross-reference graph lives in the <code>dict_xref</code> table.
 </p>
 
 <style>
@@ -296,20 +298,23 @@
   };
 
   // ---- real article bodies ----
+  // Titles and `refs` counts are queried from bible.db (dict_articles.n_refs). The bodies
+  // themselves are abridged for display, so their closing `See …` clauses are illustrative
+  // rather than a faithful extract — the real cross-reference graph lives in `dict_xref`.
   const A = {
-    babel: { id:'babel', title:'Babel', refs:9, body:
+    babel: { id:'babel', title:'Babel', refs:4, body:
 `Ancient city in the plain of Shinar where, according to Genesis 11, the descendants of Noah attempted to build a tower reaching to the heavens, and where God confused their language and scattered them over the earth. The Hebrew name is the same word rendered “Babylon” everywhere else in the OT.
 The narrative explains the diversity of human language as a judgment on collective pride. The builders said, “let us make a name for ourselves” — the opposite of the promise God would later make to Abraham, that he would make Abraham’s name great.
 See Babylon, Babylonia; Shinar; Nimrod.` },
 
-    beast: { id:'beast', title:'Beast', refs:34, body:
+    beast: { id:'beast', title:'Beast', refs:26, body:
 `Animal in both the OT and NT, having in some cases a figurative significance. The word has a variety of meanings in the OT. Some of the diversity is due to inconsistent translations of several Hebrew words that can signify “living creature” as well as “beast,” but which have sometimes been translated only as “beast.” In the OT, therefore, beast can refer to the following:
 - 1. In general, any animal (e.g., Gn 1:24; Ps 36:6), but often distinguished from fish, birds, and insects.
 - 2. A domesticated animal (e.g., Ex 19:13; 22:10; Nm 3:13).
 - 3. A wild and sometimes carnivorous animal (e.g., Gn 37:20; Ex 23:11; Dt 28:26).
 - 4. The figurative usage of the word “beast” is most apparent in the books of Daniel and Revelation. In Daniel (especially Dn 7) the beast is a symbol of a world ruler who persecutes and oppresses the people of God. In Revelation the apostle John took over that concept with its vivid imagery to speak of the final persecution of God’s people at the end of history. John’s beast in its apostasy closely resembles the “antichrist” of his earlier epistles (1 Jn 2:18, 22; 4:3) and Paul’s “man of lawlessness” (2 Thes 2:3). Many Bible commentators regard the three as designating the same individual. See Antichrist; Armageddon; Mark of the Beast; Revelation, Book of.` },
 
-    babylon: { id:'babylon', title:'Babylon, Babylonia', refs:118, body:
+    babylon: { id:'babylon', title:'Babylon, Babylonia', refs:7, body:
 `City on the Euphrates and the empire it governed, the dominant power of the ancient Near East in the seventh and sixth centuries BC, and the agent of Judah’s exile.
 ## The City
 Babylon lay on both banks of the Euphrates about 50 miles south of modern Baghdad. Nebuchadnezzar II rebuilt it on a monumental scale, and the classical writers counted its walls among the wonders of the world.
@@ -317,21 +322,21 @@ Babylon lay on both banks of the Euphrates about 50 miles south of modern Baghda
 The prophets treat Babylon both as a historical empire and as a symbol of organised human arrogance, a usage the book of Revelation takes up directly.
 See Babel; Nebuchadnezzar, Nebuchadrezzar; Exile; Revelation, Book of.` },
 
-    antichrist: { id:'antichrist', title:'Antichrist', refs:12, body:
+    antichrist: { id:'antichrist', title:'Antichrist', refs:3, body:
 `According to 1 John, anyone who denies that Jesus is the Christ, that he is the unique Son of God, or that he has come in the flesh. The biblical term, however, principally refers to a particular person in whom that denial reaches its consummate expression and who will play a key role in the final stage of history.
 The word “antichrist” occurs only four times, all in John’s epistles (1 Jn 2:18, 22; 4:3; 2 Jn 1:7). First John 2:18 refers also to “many antichrists.” John assumed that his Christian readers knew about the Antichrist and had been taught to expect his coming. The presence of many antichrists, in fact, indicated that the end times had arrived. But John warned that a final Antichrist who, like the others, would deny that Jesus is the Christ, would yet make an appearance.
 See also False Christs, False Messiahs; Mark of the Beast; Prophets, False; Beast; Revelation, Book of.` },
 
-    markofgod: { id:'markofgod', title:'Mark of God*, Mark of the Beast', refs:16, body:
+    markofgod: { id:'markofgod', title:'Mark of God*, Mark of the Beast', refs:17, body:
 `Ensignia placed on people either by God or by the Antichrist. Though the phrase is limited to the book of Revelation, a mark was used in Ezekiel 9:4-6. In his vision Ezekiel saw the inhabitants of Jerusalem slain for their wickedness, except those upon whose foreheads God had put a mark. The mark was one of identification for the purpose of protection.
 In Revelation 13 the specific phrase “the mark of the beast” is used. The context is John’s vision of the two beasts. The one from the sea (Rv 13:1) symbolizes the Antichrist with political power over the inhabitants of the earth.
 See Antichrist; Beast; Revelation, Book of.` },
 
-    armageddon: { id:'armageddon', title:'Armageddon', refs:6, body:
+    armageddon: { id:'armageddon', title:'Armageddon', refs:9, body:
 `Place where the final battle between the forces of good and evil is to be fought. The name occurs only once in Scripture, in Revelation 16:16.
 See Beast; Revelation, Book of.` },
 
-    revbook: { id:'revbook', title:'Revelation, Book of', refs:225, body:
+    revbook: { id:'revbook', title:'Revelation, Book of', refs:107, body:
 `Last book of the NT, and the only one that is wholly apocalyptic in form. Its author identifies himself simply as John, a servant of Jesus Christ, writing to seven churches in the Roman province of Asia.
 ## Author
 The traditional view identifies the author with John the apostle. The book itself claims only the name John, without the apostolic title.
@@ -339,18 +344,18 @@ The traditional view identifies the author with John the apostle. The book itsel
 To strengthen churches facing persecution by disclosing the ultimate victory of God over every power arrayed against him.
 See Antichrist; Beast; Jerusalem, New.` },
 
-    nazirite: { id:'nazirite', title:'Nazarite*, Nazirite', refs:19, body:
+    nazirite: { id:'nazirite', title:'Nazarite*, Nazirite', refs:11, body:
 `Person who was either chosen or consecrated for life or for a set period of time to complete a vow to God. The Nazirite devoted himself to self-imposed discipline in order to perform some special service.
 Israelite tradition viewed the Nazirite as consecrated for life. Samson was the ancient hero of the Nazirites. He was “consecrated to God” through the vow of his mother and remained under that vow to the “day of his death.” As long as Samson’s hair was not cut, he was able to receive the Spirit of the Lord and thereby perform amazing physical feats.
 Naziritism developed into a ritual for those who sought to consecrate themselves temporarily to God. During the period of consecration, the devotee abstained from drinking wine, allowed his hair to grow, and avoided all contact with dead bodies.` },
 
-    christ: { id:'christ', title:'Christ', refs:56, body:
+    christ: { id:'christ', title:'Christ', refs:35, body:
 `Official title given to Jesus in the NT. It signifies his office as anointed Savior and alludes to his spiritual qualifications for the task of saving his people. The word derives from Greek Christos , which translates Hebrew Messiah.
 The Gospels portray Jesus as modestly accepting the title and role of the Messiah. His baptism should be understood as his anointing to the threefold office of prophet, priest, and king.
 An important feature in the earliest Christian preaching was the proclamation that Jesus is the Christ. This remains the earliest and most basic article of Christian confession.
 See also Jesus Christ, Life and Teachings of; Messiah.` },
 
-    shepherd: { id:'shepherd', title:'Shepherd', refs:41, body:
+    shepherd: { id:'shepherd', title:'Shepherd', refs:31, body:
 `One who tends a flock — an occupation so common in Israel that it became the standard image for leadership, both human and divine.
 The shepherd’s work was constant and unglamorous: finding pasture and water in dry country, counting the flock, carrying the weak, and defending against predators and thieves through the night.
 That daily reality is what gives the metaphor its force when it is applied to kings, to prophets, and to God himself.` },
@@ -362,7 +367,7 @@ That daily reality is what gives the metaphor its force when it is applied to ki
   // Three states, and the distinction is load-bearing:
   //   an id  — loaded into this mockup, clickable
   //   'x'    — a real corpus article that this mockup simply does not carry (only 10 are loaded)
-  //   null   — named by the source and GENUINELY ABSENT from the corpus. Only 112 distinct names
+  //   null   — named by the source and GENUINELY ABSENT from the corpus. Only 110 distinct names
   //            are in this state; `Jesus Christ, Life and Teachings of` is cited 19 times and does
   //            not exist. Verified against bible.db, not assumed.
   const XREF = {
@@ -412,15 +417,15 @@ That daily reality is what gives the metaphor its force when it is applied to ki
     ['Aaron','Exod 4:14-16',1],['Abiathar','1Sam 22:20-23',1],['Abishai','2Sam 16:9-12',1],
     ['Abner','2Sam 2:8-31',1],['Abraham','Gen 11:26–25:11',1],['Absalom','2Sam 13:1–19:10',1],
     ['Adam and Eve','Gen 2:7–4:2',0],['Ahab','1Kgs 16:28–17:1',1],['Ahaz','2Kgs 15:38–16:20',1],
-    ['The Amalekites','1Sam 14:48',0],['Annas and Caiaphas','John 11:49-53',0],['Antiochus IV','Dan 11:21-39',0],
-    ['Apollos','Acts 18:24–19:1',1],['Arameans','1Kgs 20:1-34',0],['Asa','2Chr 14:1–16:14',1],
+    ['The Amalekites','1Sam 14:48',0],['Annas and Caiaphas','John 11:49-53',0],['Antiochus IV','Dan 11:21-39',1],
+    ['Apollos','Acts 18:24–19:1',1],['Arameans','1Kgs 20:1-34',1],['Asa','2Chr 14:1–16:14',1],
     ['Assyria','2Kgs 15:19–19:37',0],['Babylon','2Kgs 24:1–25:30',0],['Corinth','1Cor 1:1–16:24',1],
-    ['Cyrus II','Ezra 1:1-8',0],['Egypt','Exod 1:8-22',0],['Hellenistic Kingdoms','Dan 11:4-45',0],
+    ['Cyrus II','Ezra 1:1-8',0],['Egypt','Gen 39:1–47:31',0],['Hellenistic Kingdoms','Dan 11:4-45',0],
     ['Ishmael','Gen 16:11-16',1],['Jeremiah','Jer 1:1–52:34',1],['John the Baptist','John 1:6-37',1],
     ['Jonathan','1Sam 13:2–14:49',1],['Maccabees','Dan 11:32-35',0],['Martha, Mary, and Lazarus','Luke 10:38-42',0],
-    ['The Medes and Persians','Dan 5:28',0],['Nebuchadnezzar II','2Kgs 24:1-17',0],
-    ['The Philistines','Judg 13:1–16:31',0],['Priscilla and Aquila','Acts 18:1-3',1],['Rebekah','Gen 24:15-67',0],
-    ['The Son of Man','Dan 7:13-14',0],['Xerxes I','Esth 1:1-9',0],
+    ['The Medes and Persians','Ezra 1:1-8',0],['Nebuchadnezzar II','Dan 1:1–5:21',0],
+    ['The Philistines','Judg 13:1–16:31',0],['Priscilla and Aquila','Acts 18:1-3',1],['Rebekah','Gen 22:23',0],
+    ['The Son of Man','Dan 7:13-14',0],['Xerxes I','Esth 1:1–10:3',0],
   ];
 
   const BOOKS = ['Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
@@ -463,8 +468,8 @@ That daily reality is what gives the metaphor its force when it is applied to ki
 
   // rotating real examples for the route cards
   const EGS = {
-    dict:[['Nazarite*, Nazirite','cites 19 verses','nazirite'],['Babylon, Babylonia','cites 118 verses','babylon'],
-      ['Shepherd','cites 41 verses','shepherd'],['Beast','cites 34 verses','beast']],
+    dict:[['Nazarite*, Nazirite','cites 11 verses','nazirite'],['Babylon, Babylonia','cites 7 verses','babylon'],
+      ['Shepherd','cites 31 verses','shepherd'],['Beast','cites 26 verses','beast']],
     themes:[['All Is “Vapor”','Ecclesiastes 1:2–9:12'],['Holy War','Deuteronomy 7:1-6'],
       ['Atonement','Leviticus 16:1-34'],['Bribes','Proverbs 17:8'],['Empowering Leadership','Acts 6:1-7'],
       ['God’s Change of Mind','1 Samuel 15:10-35']],
@@ -553,7 +558,7 @@ That daily reality is what gives the metaphor its force when it is applied to ki
   }
 
   // ---- the cross-reference edge list ----
-  // In the real app this is `dict_xref` (5,052 rows), precomputed at build time: resolving 6,010
+  // In the real app this is `dict_xref` (5,236 rows), precomputed at build time: resolving 6,010
   // bodies at query time would mean pulling 8.4 MB of prose through sql.js. Derived here from the
   // same "See …" clauses so the mockup's graph is the real one for these articles.
   const EDGES = (() => {
@@ -954,14 +959,14 @@ That daily reality is what gives the metaphor its force when it is applied to ki
     <code>Prophets, False</code> is one, <code>Elect, Election</code> is not, and nothing in the data separates
     them.</li>
   <li><b>Cross-references are linkified only inside a <code>See …</code> clause.</b> <code>Calf</code>,
-    <code>Clay</code>, <code>Hour</code>, <code>Evening</code> and <code>Command</code> are all real article titles;
-    linkifying titles wherever they occur in prose would make every paragraph a minefield.</li>
+    <code>Clay</code>, <code>Hour</code>, <code>Evening</code> and <code>Command, Commandment</code> are all real
+    article titles; linkifying titles wherever they occur in prose would make every paragraph a minefield.</li>
 </ul>
 
 <h3>Warts on display, all real</h3>
 <ul>
-  <li><b>3% of cross-reference targets don't exist.</b> 144 of the 5,196 links Tyndale writes name an article
-    that is not in the corpus — 112 distinct names, led by <code>Jesus Christ, Life and Teachings of</code> at 19
+  <li><b>3% of cross-reference targets don't exist.</b> 140 of the 5,236 links Tyndale writes name an article
+    that is not in the corpus — 110 distinct names, led by <code>Jesus Christ, Life and Teachings of</code> at 19
     citations. Open <b>Christ</b> (via ✦ Wander in) to see one: it stays plain italic text in the prose and is
     listed under the doors rather than 404-ing.
     <br /><b>Corrected:</b> an earlier version of this mockup claimed <code>False Christs, False Messiahs</code>

@@ -64,4 +64,31 @@ describe('ArticleView', () => {
     getByRole('button', { name: 'John 3:16' }).click();
     expect(jumped).toBe(true);
   });
+
+  // ArticleSurface wires both onref (main-body preview) and onnavigate (supplement jump) on the
+  // same ArticleView instance. A main-body ref must only ever go through onref — RefText's early
+  // return means onnavigate should never fire for it — and a supplement ref must only ever go
+  // through onnavigate, never onref (there is no onref to reach it after the round-1 fix). A click
+  // that silently overwrote study state while looking inert (a supplement ref with no onnavigate
+  // wired) is exactly the failure this pins.
+  it('routes a main-body ref through onref and a supplement ref through onnavigate, never crossed', () => {
+    const hostArticle = { id: 'Host', title: 'Host', n_refs: 1, body: 'Cites Gen 1:1 in the body.' };
+    const supplements = [{ id: 's1', title: 'A Textbox', kind: 'textbox', is_html: 0,
+      body: 'Cites Rom 5:1 in a box.' }];
+    const onrefCalls = [];
+    const onnavigateCalls = [];
+    const { getByRole } = render(ArticleView, {
+      article: hostArticle, supplements,
+      onref: (ref, i) => onrefCalls.push({ ref, i }),
+      onnavigate: () => onnavigateCalls.push(true),
+    });
+
+    getByRole('button', { name: 'Gen 1:1' }).click();
+    expect(onrefCalls).toHaveLength(1);
+    expect(onnavigateCalls).toHaveLength(0);
+
+    getByRole('button', { name: 'Rom 5:1' }).click();
+    expect(onnavigateCalls).toHaveLength(1);
+    expect(onrefCalls).toHaveLength(1); // unchanged — the supplement click never reached onref
+  });
 });

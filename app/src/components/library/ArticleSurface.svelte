@@ -53,11 +53,17 @@
     {article.kind === 'article' ? `Dictionary article · cites ${article.n_refs} verses` : KIND_LABEL[article.kind]}
   </div>
 
+  <!-- onnavigate only ever fires for a supplement ref: every main-body RefText also gets `onref`
+       below, whose early return in RefText.svelte never falls through to onnavigate. A supplement
+       has no preview surface, so its default jump must stay visible — silently overwriting study
+       state with no route change is a click that looks inert while it quietly repositions a
+       different view. -->
   <div class="body" bind:this={bodyEl}>
     <ArticleView {article} {supplements} {xrefs}
       onref={(ref, i) => (open = open?.index === i ? null : { ref, index: i })}
       openIndex={open?.index ?? null}
       preview={open ? previewSnippet : null}
+      onnavigate={() => go('study')}
       onxref={(xid) => {
         const hit = xrefs.out.find((o) => o.id === xid);
         pushNode({ kind: 'article', id: xid, title: hit?.title ?? xid, anchor: hit?.anchor ?? null });

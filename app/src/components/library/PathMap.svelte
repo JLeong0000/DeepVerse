@@ -37,7 +37,11 @@
       neighbours.set(s.id, new Set([...x.out, ...x.in].map((n) => n.id)));
       s.branches = all.slice(0, MAX_BRANCHES);
       s.hidden = all.length - s.branches.length;
-      for (const b of s.branches) claimed.add(b.id);
+      // Claim every candidate this step saw, not just the ones it had room to draw — otherwise an
+      // overflow candidate stays unclaimed and can resurface at a later step that also neighbours
+      // it, migrating away from "its earliest step" instead of staying hidden behind this step's
+      // own "+N more".
+      for (const n of all) claimed.add(n.id);
     }
     const W = Math.max(700, 120 + (steps.length - 1) * COL + 120);
     const px = (i) => 120 + i * COL;
@@ -66,28 +70,39 @@
     return { W, H, links, nodes, articles: steps.filter((s) => s.id).length };
   });
 
-  $effect(() => {
-    model;
+  function updatePannable() {
     if (!scrollEl) return;
     pannable = scrollEl.scrollWidth > scrollEl.clientWidth + 1
       || scrollEl.scrollHeight > scrollEl.clientHeight + 1;
+  }
+  $effect(() => {
+    model;
+    updatePannable();
   });
 
   function down(e) {
     if (!pannable) return;
     pan = { x: e.clientX, y: e.clientY, l: scrollEl.scrollLeft, t: scrollEl.scrollTop };
     dragged = false;
-    scrollEl.setPointerCapture?.(e.pointerId);
     e.preventDefault();   // otherwise the pointer starts a text selection over the labels
   }
   function move(e) {
     if (!pan) return;
     const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragged = true;
+    if (!dragged && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      dragged = true;
+      // Capture only once a real pan is underway, not on every pointerdown: capturing eagerly
+      // retargets the eventual click to .scroll in real browsers, so a plain, undragged click on
+      // a node would never reach that node's own click handler.
+      scrollEl.setPointerCapture?.(e.pointerId);
+    }
     scrollEl.scrollLeft = pan.l - dx;
     scrollEl.scrollTop = pan.t - dy;
   }
-  const up = () => { pan = null; };
+  function up(e) {
+    if (pan) scrollEl.releasePointerCapture?.(e.pointerId);
+    pan = null;
+  }
 
   // a pan that ends over a node must not also open it
   function guard(fn) {
@@ -101,7 +116,8 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape') lib.mapOpen = false; }} />
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') lib.mapOpen = false; }}
+  onresize={updatePannable} />
 
 <div class="backdrop" onclick={() => (lib.mapOpen = false)} role="presentation"></div>
 <div class="modal" role="dialog" aria-modal="true" aria-label="Your path">

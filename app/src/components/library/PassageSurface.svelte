@@ -30,7 +30,7 @@
   </div>
   <div class="body">
     <ArticleView article={{ title: passage.title, body: passage.body, book: passage.book }}
-      source={NOTE_SRC} />
+      source={NOTE_SRC} onnavigate={() => go('study')} />
   </div>
 {:else}
   <p class="missing">That {pkind} is not in the corpus.</p>

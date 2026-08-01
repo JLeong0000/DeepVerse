@@ -13,6 +13,7 @@
   import ArticleSurface from '../components/library/ArticleSurface.svelte';
   import PassageSurface from '../components/library/PassageSurface.svelte';
   import SearchSurface from '../components/library/SearchSurface.svelte';
+  import PathMap from '../components/library/PathMap.svelte';
 
   let term = $state('');
   let inputEl = $state(null);
@@ -115,6 +116,10 @@
     {/if}
   </div>
 </div>
+
+{#if lib.mapOpen}
+  <PathMap />
+{/if}
 
 <style>
   .frame { border-bottom: 1px solid var(--rule); background: var(--panel); padding: 10px 30px 12px; }

@@ -15,10 +15,12 @@ beforeAll(async () => {
 });
 
 describe('BookHub', () => {
-  // Every route into a hub today goes through the Books index, which destroys and recreates
-  // BookHub — so this re-collapse guard is never actually exercised by clicking through the app.
-  // It becomes load-bearing the moment a later task (search, path map) pushes a 'hub' node
-  // directly onto an already-mounted BookHub. Pin it here instead.
+  // Every route into a hub today goes through the Books index or search, both of which destroy and
+  // recreate BookHub (a 'route' or 'search' frame sits between one hub and the next) — so this
+  // re-collapse guard is never actually exercised by clicking through the app. The path map
+  // (Task 14) doesn't change that: its branches come from dict_xref, which only connects articles,
+  // so jumpFrom there can never push a 'hub' node onto an already-mounted BookHub either. Nothing
+  // shipped reaches this effect — it's a defensive guard. Pin it here instead.
   it('re-collapses the full introduction when the book prop changes on the same instance', async () => {
     const { getByText, rerender } = render(BookHub, { book: 'Rev' });
     await fireEvent.click(getByText('Read more'));

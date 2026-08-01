@@ -560,8 +560,12 @@ export function getArticle(id) {
 // A theme or profile, so the Themes and Profiles routes are readable and not just browsable.
 // tyndale_passages has no id column, but titles are unique within a kind (298 themes, 125
 // profiles, all distinct), so (kind, title) is a safe key.
+// start_chapter/start_verse are the anchor `getThemeIndex` already sorts on — structured and
+// NOT NULL for all 423 rows, so `Open in Study` reads them directly rather than re-deriving the
+// same values by parsing the `ref` display string (which is a span like "7:1-6" or "1:2–9:12",
+// built for reading, not parsing).
 export function getPassage(kind, title) {
-  return query(`SELECT kind, title, book, ref, body FROM tyndale_passages
+  return query(`SELECT kind, title, book, ref, body, start_chapter, start_verse FROM tyndale_passages
     WHERE kind = ? AND title = ?`, [kind, title])[0] || null;
 }
 

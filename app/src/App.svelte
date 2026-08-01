@@ -74,15 +74,36 @@
   // keyed on the current node's identity, not stack depth: a path-map branch jump truncates then
   // pushes and can land on the same depth, which would skip the history entry. A passage node has
   // no `id`, only a `book` (shared by every other passage anchored in it) and a `title` (unique
-  // within pkind, per getPassage's own contract) — keying on book would collide two different
-  // passages at the same depth back into the very same bug this identity check exists to avoid.
-  const libIdent = (n) => (n.kind === 'passage' ? n.title : (n.id ?? n.book ?? n.q ?? n.route ?? ''));
+  // only *within* a pkind, per getPassage's own contract — "The Son of Man" is both a theme and a
+  // profile) — keying on title alone would still collide a theme with a same-titled profile at the
+  // same depth back into the very same bug this identity check exists to avoid.
+  const libIdent = (n) => (n.kind === 'passage' ? `${n.pkind}:${n.title}` : (n.id ?? n.book ?? n.q ?? n.route ?? ''));
   const libKey = () => {
     const n = lib.stack.at(-1);
     return `${lib.stack.length}:${n.kind}:${libIdent(n)}${n.letter ?? ''}`;
   };
   const keyOf = () => `${route.view}/${study.book}/${study.chapter}/${route.view === 'library' ? libKey() : ''}`;
   let navKey = keyOf();
+
+  // The URL alone only ever encodes the current *leaf* (an article id, a hub's book, ...) — never
+  // the trail that led there, which is exactly why `applyHash` collapses to a 2-deep stack on a
+  // fresh load. That collapse is correct for a bookmark/reload (no prior state exists to recover),
+  // but the same `applyHash` used to run for *every* Back/Forward too, discarding the real,
+  // already-in-memory trail on every step. Back is supposed to walk the trail, not re-derive a
+  // shorter one from the URL each time. Fix: carry the real trail in `history.state` (structured
+  // clone via $state.snapshot, since lib.stack is a reactive proxy) on every push/replace, and on
+  // Back/Forward prefer restoring that verbatim over reparsing the URL.
+  const snapshot = () => ({
+    view: route.view, book: study.book, chapter: study.chapter, verse: study.verse,
+    stack: $state.snapshot(lib.stack),
+  });
+  function restoreState(state) {
+    route.view = state.view;
+    study.book = state.book; study.chapter = state.chapter; study.verse = state.verse;
+    study.verseEnd = null; study.word = null;
+    lib.stack = state.stack;
+    navKey = keyOf();
+  }
 
   // Parse a deep link synchronously, before the URL-sync effect below ever runs. That effect's
   // first pass fires with route.view still at its module default ('home') if this hasn't run
@@ -95,19 +116,31 @@
   if (location.hash.length > 2) applyHash();
 
   // A new view/book/chapter pushes a history entry; a verse-only change replaces (no history spam).
-  // applyHash() resyncs navKey, so a back/forward/manual hash change only replaces (never re-pushes).
+  // applyHash()/restoreState() both resync navKey, so a back/forward/manual hash change only
+  // replaces (never re-pushes).
   $effect(() => {
     void `${route.view}/${study.book}/${study.chapter}/${study.verse}/${lib.stack.length}/${lib.stack.at(-1)?.id ?? ''}`; // establish reactive deps
     const url = serialize();
-    if (keyOf() !== navKey) { history.pushState(null, '', url); navKey = keyOf(); }
-    else { history.replaceState(null, '', url); }
+    if (keyOf() !== navKey) { history.pushState(snapshot(), '', url); navKey = keyOf(); }
+    else { history.replaceState(snapshot(), '', url); }
   });
+
+  // Back/Forward between two of our own entries fires *both* `popstate` (carrying the trail via
+  // `event.state`) and `hashchange` (the fragment differs) — checking `history.state` directly,
+  // rather than either event's own payload, means it doesn't matter which fires first or that
+  // `hashchange` events carry no state at all: `history.state` already reflects the entry we've
+  // landed on by the time either handler runs, so both call this and agree. A manual hash edit or
+  // a bookmark fires only `hashchange`, with `history.state` null — the browser created that entry,
+  // not us — which is the one remaining case that needs the URL-only rebuild.
+  function onHistoryNav() {
+    if (history.state) restoreState(history.state);
+    else applyHash();
+  }
 
   onMount(async () => {
     dark = isDark();
-    // hashchange fires on back/forward (hash URLs) and manual edits/bookmarks; our own pushState
-    // does not fire it, so this only reacts to real navigation.
-    window.addEventListener('hashchange', applyHash);
+    window.addEventListener('popstate', onHistoryNav);
+    window.addEventListener('hashchange', onHistoryNav);
     // Sequential splash-out: db ready → book fades to blank (phase 1) → then the blank
     // overlay is dropped so the UI fades in (phase 2). The delay clears the book fade first.
     try { await loadDb(); loaded = true; setTimeout(() => { splashUp = false; }, 430); }

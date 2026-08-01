@@ -3,9 +3,15 @@ import { render, fireEvent } from '@testing-library/svelte';
 import { resetLibrary, lib } from '../../lib/library.svelte.js';
 import SearchSurface from './SearchSurface.svelte';
 
-// db.js is mocked so this test controls exactly which groups are populated/capped, rather than
-// depending on how many corpus rows happen to match a real term today.
-const { results } = vi.hoisted(() => ({ results: { dict: [], themes: [], profiles: [], books: [] } }));
+// db.js is mocked so this test controls exactly which groups are populated/capped/truncated,
+// rather than depending on how many corpus rows happen to match a real term today. The truncated
+// flags are set independently of array length here — same as the real searchLibrary, where a
+// group's rendered length is always <= its cap, but whether that length is the TRUE total or a cut
+// is a separate fact the caller can't infer from length alone.
+const { results } = vi.hoisted(() => ({
+  results: { dict: [], themes: [], profiles: [], books: [],
+    dictTruncated: false, themesTruncated: false, profilesTruncated: false },
+}));
 vi.mock('../../lib/db.js', () => ({ searchLibrary: () => results }));
 
 beforeEach(() => {
@@ -14,6 +20,9 @@ beforeEach(() => {
   results.themes = [];
   results.profiles = [];
   results.books = [];
+  results.dictTruncated = false;
+  results.themesTruncated = false;
+  results.profilesTruncated = false;
 });
 
 describe('SearchSurface', () => {
@@ -28,13 +37,23 @@ describe('SearchSurface', () => {
     expect(getByText('Book of Revelation')).toBeTruthy();
   });
 
-  // The header renders res.dict.length, but that's the LIMIT 20 in searchLibrary's query, not a
-  // true total. Rendering it as-is when the cap is hit would claim the corpus has exactly 20
-  // matches when it might have 300 — so a capped count must render as a floor ("20+"), not a total.
-  it('renders the dictionary count as a floor ("20+") when the 20-result cap is hit', () => {
+  // The header renders res.dict.length, but a length equal to the cap doesn't by itself mean rows
+  // were cut — searchLibrary now says so explicitly via dictTruncated. Render "+" only when that
+  // flag is set, not merely when the count happens to equal the cap.
+  it('renders the dictionary count as a floor ("20+") when searchLibrary reports truncation', () => {
     results.dict = Array.from({ length: 20 }, (_, i) => ({ id: `d${i}`, title: `Word ${i}` }));
+    results.dictTruncated = true;
     const { getByText } = render(SearchSurface, { q: 'a' });
     expect(getByText('Dictionary · 20+')).toBeTruthy();
+  });
+
+  // Regression: this is the exact shape a naive "n === cap" check gets wrong — 20 real rows, none
+  // hidden. Rendering "20+" here would claim more results exist than the corpus actually has.
+  it('renders the dictionary count plainly, with no "+", when the count equals the cap but nothing was truncated', () => {
+    results.dict = Array.from({ length: 20 }, (_, i) => ({ id: `d${i}`, title: `Word ${i}` }));
+    results.dictTruncated = false;
+    const { getByText } = render(SearchSurface, { q: 'a' });
+    expect(getByText('Dictionary · 20')).toBeTruthy();
   });
 
   it('renders an uncapped dictionary count plainly', () => {
@@ -43,10 +62,18 @@ describe('SearchSurface', () => {
     expect(getByText('Dictionary · 1')).toBeTruthy();
   });
 
-  it('caps themes/profiles counts as a floor ("10+") too', () => {
+  it('renders the themes count as a floor ("10+") when searchLibrary reports truncation', () => {
     results.themes = Array.from({ length: 10 }, (_, i) => ({ title: `Theme ${i}`, book: 'Gen', ref: '1:1' }));
+    results.themesTruncated = true;
     const { getByText } = render(SearchSurface, { q: 'a' });
     expect(getByText('Themes · 10+')).toBeTruthy();
+  });
+
+  it('renders the themes count plainly, with no "+", when the count equals the cap but nothing was truncated', () => {
+    results.themes = Array.from({ length: 10 }, (_, i) => ({ title: `Theme ${i}`, book: 'Gen', ref: '1:1' }));
+    results.themesTruncated = false;
+    const { getByText } = render(SearchSurface, { q: 'a' });
+    expect(getByText('Themes · 10')).toBeTruthy();
   });
 
   // Regression: the plan's own CSS used `.reslbl:first-of-type`, which never actually matches —

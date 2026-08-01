@@ -433,13 +433,41 @@ describe('library explorer', () => {
   });
 
   test('searchLibrary ignores terms shorter than two characters', () => {
-    expect(db.searchLibrary('a')).toEqual({ dict: [], themes: [], profiles: [], books: [] });
+    expect(db.searchLibrary('a')).toEqual({ dict: [], themes: [], profiles: [], books: [],
+      dictTruncated: false, themesTruncated: false, profilesTruncated: false });
   });
 
   test('searchLibrary treats % and _ as literal characters, not LIKE wildcards', () => {
     // unescaped, '_' matches any single character and would return 107 dict rows; no title
     // literally contains "a_c".
-    expect(db.searchLibrary('a_c')).toEqual({ dict: [], themes: [], profiles: [], books: [] });
+    expect(db.searchLibrary('a_c')).toEqual({ dict: [], themes: [], profiles: [], books: [],
+      dictTruncated: false, themesTruncated: false, profilesTruncated: false });
+  });
+
+  // Regression: a capped group's length alone can't tell "the cap cut rows" apart from "this many
+  // exist and none were cut" — "zeb" has exactly 20 real dict matches (the cap) and "pi" has
+  // exactly 10 real theme matches (the cap), neither with anything hidden. Both must report
+  // truncated: false, or the UI renders a false "+" on an exact count (see SearchSurface.svelte).
+  test('searchLibrary reports no truncation when a capped group\'s true count exactly equals the cap', () => {
+    const zeb = db.searchLibrary('zeb');
+    expect(zeb.dict).toHaveLength(20);
+    expect(zeb.dictTruncated).toBe(false);
+
+    const pi = db.searchLibrary('pi');
+    expect(pi.themes).toHaveLength(10);
+    expect(pi.themesTruncated).toBe(false);
+  });
+
+  // "an" genuinely exceeds every cap (661 dict titles, 79 themes, 17 profiles contain "an") — the
+  // rendered list still stays capped at 20/10/10, but the *Truncated flags must say so honestly.
+  test('searchLibrary reports truncation when a capped group\'s true count exceeds the cap', () => {
+    const r = db.searchLibrary('an');
+    expect(r.dict).toHaveLength(20);
+    expect(r.dictTruncated).toBe(true);
+    expect(r.themes).toHaveLength(10);
+    expect(r.themesTruncated).toBe(true);
+    expect(r.profiles).toHaveLength(10);
+    expect(r.profilesTruncated).toBe(true);
   });
 
   test('getXrefs returns both directions', () => {

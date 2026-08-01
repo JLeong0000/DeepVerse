@@ -13,11 +13,12 @@
   let res = $derived(searchLibrary(q));
   let total = $derived(res.dict.length + res.themes.length + res.profiles.length + res.books.length);
 
-  // searchLibrary caps dict at 20 and themes/profiles at 10 each (books is never capped — 66 max).
-  // A capped length is a floor on the true match count, not the count itself, so "Dictionary · 20"
-  // when 300 articles match would be a claim the corpus doesn't support. Render it as "20+" instead.
-  const DICT_CAP = 20, GROUP_CAP = 10;
-  const countLabel = (n, cap) => (n === cap ? `${n}+` : n);
+  // searchLibrary caps dict at 20 and themes/profiles at 10 each (books is never capped — 66 max),
+  // but fetches one row past each cap so `res.*Truncated` tells us whether the cap actually cut
+  // anything. "Dictionary · 20" when 300 articles match — or "20+" when exactly 20 exist and
+  // nothing was cut — are both claims the corpus doesn't support; only render "+" when rows were
+  // truly hidden.
+  const countLabel = (n, truncated) => (truncated ? `${n}+` : n);
 
   // Offsets into the flattened order, for turning a rendered row into the highlight index Enter/↑↓
   // traversal uses. Order must match flattenSearchResults.
@@ -44,7 +45,7 @@
   <p class="none">Nothing matches “{q}”.</p>
 {:else}
   {#if res.dict.length}
-    <div class="reslbl" class:first={firstGroup === 'dict'}>Dictionary · {countLabel(res.dict.length, DICT_CAP)}</div>
+    <div class="reslbl" class:first={firstGroup === 'dict'}>Dictionary · {countLabel(res.dict.length, res.dictTruncated)}</div>
     <div class="cols2">
       {#each res.dict as d, i (d.id)}
         <div class="entry" class:hi={highlight === i}>
@@ -57,11 +58,11 @@
   {/if}
 
   {#each [
-    ['Themes', 'theme', 'themes', themesOffset, res.themes],
-    ['Profiles', 'profile', 'profiles', profilesOffset, res.profiles],
-  ] as [label, pkind, key, offset, list]}
+    ['Themes', 'theme', 'themes', themesOffset, res.themes, res.themesTruncated],
+    ['Profiles', 'profile', 'profiles', profilesOffset, res.profiles, res.profilesTruncated],
+  ] as [label, pkind, key, offset, list, truncated]}
     {#if list.length}
-      <div class="reslbl" class:first={firstGroup === key}>{label} · {countLabel(list.length, GROUP_CAP)}</div>
+      <div class="reslbl" class:first={firstGroup === key}>{label} · {countLabel(list.length, truncated)}</div>
       <div class="cols2">
         {#each list as p, i (p.title)}
           <div class="entry" class:hi={highlight === offset + i}>

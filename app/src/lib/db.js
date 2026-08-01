@@ -535,20 +535,35 @@ export function getBookHub(book) {
 
 // One query across all four datasets: making the user first guess which route holds the answer
 // would tax the primary objective. Titles only — full-text search over 8.4 MB is not viable here.
+//
+// Each capped group fetches one row PAST its cap (LIMIT 21/11) so the caller can tell "the cap
+// truncated more rows" apart from "this many rows exist and none were cut" — rendering a capped
+// count as if it were a total (or as a floor when it's actually exact) is the same overclaim this
+// project has shipped before, just moved from the count to the "+" instead of fixing it. The
+// extra row is trimmed off before returning; only the `*Truncated` flag reveals it existed.
+export const SEARCH_DICT_CAP = 20;
+export const SEARCH_GROUP_CAP = 10;
 export function searchLibrary(term) {
   const q = String(term || '').trim().toLowerCase();
-  const empty = { dict: [], themes: [], profiles: [], books: [] };
+  const empty = { dict: [], themes: [], profiles: [], books: [],
+    dictTruncated: false, themesTruncated: false, profilesTruncated: false };
   if (q.length < 2) return empty;
   // '%' and '_' are LIKE wildcards, not literal characters a searcher typed — escape them so
   // e.g. "a_c" (0 literal matches) doesn't silently become "a<any char>c" (107 matches).
   const like = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
+  const dictRows = query(`SELECT id, title FROM dict_articles
+    WHERE kind='article' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY length(title), sort_title LIMIT ${SEARCH_DICT_CAP + 1}`, [like]);
+  const themeRows = query(`SELECT title, book, ref FROM tyndale_passages
+    WHERE kind='theme' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY title LIMIT ${SEARCH_GROUP_CAP + 1}`, [like]);
+  const profileRows = query(`SELECT title, book, ref FROM tyndale_passages
+    WHERE kind='profile' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY title LIMIT ${SEARCH_GROUP_CAP + 1}`, [like]);
   return {
-    dict: query(`SELECT id, title FROM dict_articles
-      WHERE kind='article' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY length(title), sort_title LIMIT 20`, [like]),
-    themes: query(`SELECT title, book, ref FROM tyndale_passages
-      WHERE kind='theme' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY title LIMIT 10`, [like]),
-    profiles: query(`SELECT title, book, ref FROM tyndale_passages
-      WHERE kind='profile' AND lower(title) LIKE ? ESCAPE '\\' ORDER BY title LIMIT 10`, [like]),
+    dict: dictRows.slice(0, SEARCH_DICT_CAP),
+    dictTruncated: dictRows.length > SEARCH_DICT_CAP,
+    themes: themeRows.slice(0, SEARCH_GROUP_CAP),
+    themesTruncated: themeRows.length > SEARCH_GROUP_CAP,
+    profiles: profileRows.slice(0, SEARCH_GROUP_CAP),
+    profilesTruncated: profileRows.length > SEARCH_GROUP_CAP,
     books: BOOKS.filter(([, name]) => name.toLowerCase().includes(q)).map(([code]) => code),
   };
 }

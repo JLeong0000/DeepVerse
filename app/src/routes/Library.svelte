@@ -1,6 +1,7 @@
 <script>
   // The library frame: search field and breadcrumb above, one surface below. No sidebar —
   // start -> a route's index -> an article, with the breadcrumb as the way back.
+  import { tick } from 'svelte';
   import { lib, pushNode, replaceTop, popNode, flattenSearchResults } from '../lib/library.svelte.js';
   import { getRandomArticle, searchLibrary } from '../lib/db.js';
   import Breadcrumb from '../components/library/Breadcrumb.svelte';
@@ -43,9 +44,11 @@
   }
 
   // ↑↓ move the selection among the current search results; Enter opens the selected one — same
-  // traversal pattern as WordSearch.svelte, adapted to results living in a sibling surface rather
-  // than the input's own dropdown.
-  function onSearchKey(e) {
+  // traversal pattern as WordSearch.svelte's onListKey, adapted to results living in a sibling
+  // surface (several .cols2 groups) rather than one flat listEl of its own. Scroll-follow mirrors
+  // WordSearch's tick()-then-scrollIntoView exactly; the highlighted row is found by class instead
+  // of by listEl child index, since SearchSurface's results aren't one flat list.
+  async function onSearchKey(e) {
     if (current.kind !== 'search') return;
     if (e.key === 'ArrowDown') { e.preventDefault(); searchHighlight = Math.min(searchHighlight + 1, searchNodes.length - 1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); searchHighlight = Math.max(searchHighlight - 1, 0); }
@@ -53,7 +56,11 @@
       e.preventDefault();
       const n = searchNodes[searchHighlight];
       if (n) { pushNode(n); inputEl?.blur(); }   // blur lets the existing effect clear the field, same as a result click would
+      return;
     }
+    else return;
+    await tick();
+    document.querySelector('.surface .entry.hi')?.scrollIntoView({ block: 'nearest' });
   }
 
   function wander() {

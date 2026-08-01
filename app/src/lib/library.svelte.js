@@ -87,6 +87,19 @@ export function replaceTop(node) {
   lib.mapOpen = false;
 }
 
+// Flattens searchLibrary's grouped results into the single order the search surface renders them
+// in (dict, then themes, then profiles, then books) and keyboard traversal walks. Each entry is
+// the exact node pushNode would receive for that result, so arrow-key selection and a click land
+// on the same place — see SearchSurface.svelte, which computes its highlight offsets in this order.
+export function flattenSearchResults(res) {
+  return [
+    ...res.dict.map((d) => ({ kind: 'article', id: d.id, title: d.title })),
+    ...res.themes.map((t) => ({ kind: 'passage', pkind: 'theme', title: t.title, book: t.book })),
+    ...res.profiles.map((p) => ({ kind: 'passage', pkind: 'profile', title: p.title, book: p.book })),
+    ...res.books.map((b) => ({ kind: 'hub', book: b })),
+  ];
+}
+
 export function resetLibrary() {
   lib.stack = [{ kind: 'start' }];
   lib.crumbsOpen = false;

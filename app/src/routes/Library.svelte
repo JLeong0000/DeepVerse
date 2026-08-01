@@ -1,8 +1,8 @@
 <script>
   // The library frame: search field and breadcrumb above, one surface below. No sidebar —
   // start -> a route's index -> an article, with the breadcrumb as the way back.
-  import { lib, pushNode, replaceTop, popNode } from '../lib/library.svelte.js';
-  import { getRandomArticle } from '../lib/db.js';
+  import { lib, pushNode, replaceTop, popNode, flattenSearchResults } from '../lib/library.svelte.js';
+  import { getRandomArticle, searchLibrary } from '../lib/db.js';
   import Breadcrumb from '../components/library/Breadcrumb.svelte';
   import StartSurface from '../components/library/StartSurface.svelte';
   import DictionaryIndex from '../components/library/DictionaryIndex.svelte';
@@ -11,11 +11,15 @@
   import BookHub from '../components/library/BookHub.svelte';
   import ArticleSurface from '../components/library/ArticleSurface.svelte';
   import PassageSurface from '../components/library/PassageSurface.svelte';
+  import SearchSurface from '../components/library/SearchSurface.svelte';
 
   let term = $state('');
   let inputEl = $state(null);
+  let searchHighlight = $state(0);   // ↑↓ traversal position, per WordSearch.svelte's pattern
 
   let current = $derived(lib.stack.at(-1));
+  // The exact nodes Enter/↑↓ walk, in the same order SearchSurface renders them in.
+  let searchNodes = $derived(current.kind === 'search' ? flattenSearchResults(searchLibrary(current.q)) : []);
 
   // The search crumb is a projection of `term`, not a second source of truth — so whenever the
   // stack moves off it from *outside* the field (a crumb click truncates the trail, ✦ Wander in
@@ -29,12 +33,27 @@
 
   function onInput() {
     const q = term.trim();
+    searchHighlight = 0;   // a new term is a new result set — same as WordSearch resetting on input
     if (q.length < 2) {
       if (current.kind === 'search') popNode();
       return;
     }
     if (current.kind === 'search') replaceTop({ kind: 'search', q });
     else pushNode({ kind: 'search', q });
+  }
+
+  // ↑↓ move the selection among the current search results; Enter opens the selected one — same
+  // traversal pattern as WordSearch.svelte, adapted to results living in a sibling surface rather
+  // than the input's own dropdown.
+  function onSearchKey(e) {
+    if (current.kind !== 'search') return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); searchHighlight = Math.min(searchHighlight + 1, searchNodes.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); searchHighlight = Math.max(searchHighlight - 1, 0); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      const n = searchNodes[searchHighlight];
+      if (n) { pushNode(n); inputEl?.blur(); }   // blur lets the existing effect clear the field, same as a result click would
+    }
   }
 
   function wander() {
@@ -58,7 +77,7 @@
 
 <div class="frame">
   <div class="searchrow">
-    <input bind:this={inputEl} bind:value={term} oninput={onInput} class="search" type="text"
+    <input bind:this={inputEl} bind:value={term} oninput={onInput} onkeydown={onSearchKey} class="search" type="text"
       placeholder="Search the library — press / to focus…" autocomplete="off" />
     <button class="wander" onclick={wander}>✦ Wander in</button>
   </div>
@@ -82,6 +101,8 @@
       <ArticleSurface id={current.id} anchor={current.anchor ?? null} />
     {:else if current.kind === 'passage'}
       <PassageSurface pkind={current.pkind} title={current.title} />
+    {:else if current.kind === 'search'}
+      <SearchSurface q={current.q} highlight={searchHighlight} />
     {:else}
       <p class="stub">{current.kind}</p>
     {/if}

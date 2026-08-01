@@ -18,6 +18,13 @@
   let open = $state(null);   // { ref, index } — index is the block the preview was opened from
   $effect(() => { id; open = null; });   // a new article clears any open preview
 
+  // Set by ArticleView: true when the body rendered a "See X; Y" clause naming a real target that
+  // dict_xref has no row for (Garlic, Jerubbesheth, Jezaniah — build-side clause regex misses a
+  // clause ending right after a citation's closing paren). xrefs.out is empty for these, so without
+  // this flag the box below would say the article "names no other entry" right under a paragraph
+  // that visibly names one.
+  let hasUnresolvedXref = $state(false);
+
   // A node restored from a bookmarked/reloaded URL carries its id as a placeholder title (there's
   // no db to read the real one from until it's loaded) — the breadcrumb shows the raw id for a
   // moment, then this corrects it. Guarded on the stack top still being *this* id so a fast
@@ -66,6 +73,7 @@
        different view. -->
   <div class="body" bind:this={bodyEl}>
     <ArticleView {article} {supplements} {xrefs}
+      bind:hasUnresolvedXref
       onref={(ref, i) => (open = open?.index === i ? null : { ref, index: i })}
       openIndex={open?.index ?? null}
       preview={open ? previewSnippet : null}
@@ -86,8 +94,17 @@
           </button>
         {/each}
       </div>
+    {:else if hasUnresolvedXref}
+      <!-- Garlic, Jerubbesheth, Jezaniah: the body above names real entries (rendered as .xdead,
+           since the build-side resolver's clause regex didn't catch them — see xref.mjs, out of
+           scope here), so dict_xref holds no rows and xrefs.out is empty. Saying this article
+           "names no other entry" would contradict the paragraph right above it. -->
+      <div class="deadend">
+        Named above, but not linked — the corpus has no indexed door for the entry this article
+        cites. Search for it directly, pick another route, or ✦ Wander in.
+      </div>
     {:else}
-      <!-- 2,652 of the 6,010 articles have no resolved outbound link; an empty box would read as a bug -->
+      <!-- 2,649 of the 6,010 articles have no resolved outbound link; an empty box would read as a bug -->
       <div class="deadend">
         A dead end — this article names no other entry. Search, pick another route, or ✦ Wander in.
       </div>

@@ -10,6 +10,13 @@
   const NOTE_SRC = 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
   const INTRO_CLAMP = 280;
 
+  // Same overclaim Task 13 already fixed for search (see SearchSurface's own countLabel): "· 12"
+  // reads as a total in the exact same grammar as the true totals beside it (themes, profiles),
+  // but it's dict_articles.n LIMIT 12 — Revelation actually has 263 citing articles, Genesis 874.
+  // "12+" only renders when the cap genuinely cut rows; a book with fewer than 12 (3 John: 9) gets
+  // its real, untruncated count.
+  const countLabel = (n, truncated) => (truncated ? `${n}+` : n);
+
   let { book } = $props();
   let hub = $derived(getBookHub(book));
   let introOpen = $state(false);
@@ -18,6 +25,14 @@
   function openInStudy() {
     goToPassage({ book, chapter: 1, verse: null });
     go('study');
+  }
+
+  // Matches PassageIndex's own openPassage exactly — the node shape four producers (PassageIndex,
+  // SearchSurface, a restored URL, and now this hub) all have to agree on. `book` comes from this
+  // component's own prop, not the query: getBookHub's passages query never selects a `book` column
+  // (every row it returns is already scoped to this one book by its WHERE clause).
+  function openPassage(pkind, p) {
+    pushNode({ kind: 'passage', pkind, title: p.title, book });
   }
 </script>
 
@@ -63,7 +78,9 @@
   <div class="hl">Themes anchored here · {hub.themes.length}</div>
   {#if hub.themes.length}
     <div class="chips">
-      {#each hub.themes as t (t.title)}<span class="chip">{t.title}<span class="r">{t.ref}</span></span>{/each}
+      {#each hub.themes as t (t.title)}
+        <button class="chip act" onclick={() => openPassage('theme', t)}>{t.title}<span class="r">{t.ref}</span></button>
+      {/each}
     </div>
   {:else}<p class="none">None.</p>{/if}
 </div>
@@ -72,13 +89,15 @@
   <div class="hl">Profiles anchored here · {hub.profiles.length}</div>
   {#if hub.profiles.length}
     <div class="chips">
-      {#each hub.profiles as p (p.title)}<span class="chip">{p.title}<span class="r">{p.ref}</span></span>{/each}
+      {#each hub.profiles as p (p.title)}
+        <button class="chip act" onclick={() => openPassage('profile', p)}>{p.title}<span class="r">{p.ref}</span></button>
+      {/each}
     </div>
   {:else}<p class="none">None.</p>{/if}
 </div>
 
 <div class="sec">
-  <div class="hl">Dictionary articles citing this book most · {hub.articles.length}</div>
+  <div class="hl">Dictionary articles citing this book most · {countLabel(hub.articles.length, hub.articlesTruncated)}</div>
   <div class="chips">
     {#each hub.articles as a (a.id)}
       <button class="chip act" onclick={() => pushNode({ kind: 'article', id: a.id, title: a.title })}>

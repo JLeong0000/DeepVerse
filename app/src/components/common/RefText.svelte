@@ -25,7 +25,7 @@
     class="xr"
     title="Go to {bookName(s.ref.book)} {s.ref.chapter}:{s.ref.verse}"
     onclick={() => {
-      if (onref) { onref(s.ref, s.text); return; }
+      if (onref) { onref(s.ref); return; }
       goToPassage({ book: s.ref.book, chapter: s.ref.chapter, verse: s.ref.verse });
       onnavigate?.();
     }}

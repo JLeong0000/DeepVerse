@@ -7,7 +7,8 @@
 
   const DICT_SOURCE = 'Tyndale Open Bible Dictionary · © 2023 Tyndale House Publishers · CC BY-SA 4.0';
   let { article, supplements = [], source = null, onnavigate = null,
-        xrefs = null, onxref = null, onref = null, openIndex = null, preview = null } = $props();
+        xrefs = null, onxref = null, onref = null, openIndex = null, preview = null,
+        hasUnresolvedXref = $bindable(false) } = $props();
 
   let blocks = $derived(parseArticleBlocks(article.body));
 
@@ -27,6 +28,14 @@
     });
     return { lead: m[1], see: m[2], targets };
   }
+
+  // A handful of articles (build-side clause regex vs. this component's own — see xdead below)
+  // end up with a "See X; Y" clause rendered in the body while dict_xref holds no rows for the
+  // article at all. The host (ArticleSurface) needs to know that happened so it doesn't also
+  // claim, in its "Where this leads" box, that the article names nothing.
+  $effect(() => {
+    hasUnresolvedXref = blocks.some((b) => splitClause(b.text)?.targets.some((t) => !t.id));
+  });
 
   // The preview's identity is the block it was opened from, not the citation text: two different
   // blocks routinely cite the identical span ("Dt 14:7" appears 4× across "Animals"), and a

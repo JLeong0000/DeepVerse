@@ -77,7 +77,12 @@
   // only *within* a pkind, per getPassage's own contract — "The Son of Man" is both a theme and a
   // profile) — keying on title alone would still collide a theme with a same-titled profile at the
   // same depth back into the very same bug this identity check exists to avoid.
-  const libIdent = (n) => (n.kind === 'passage' ? `${n.pkind}:${n.title}` : (n.id ?? n.book ?? n.q ?? n.route ?? ''));
+  // n.q (the search term) is deliberately excluded here: Library.svelte's onInput already uses
+  // replaceTop for every keystroke on an existing search node (a term change is not a new step —
+  // see its comment), but libIdent used to fold n.q into the identity anyway, so a term change
+  // looked like a new node to keyOf() and pushed a history entry per keystroke regardless. One
+  // search crumb should cost one history entry no matter how the term inside it changes.
+  const libIdent = (n) => (n.kind === 'passage' ? `${n.pkind}:${n.title}` : (n.id ?? n.book ?? n.route ?? ''));
   const libKey = () => {
     const n = lib.stack.at(-1);
     return `${lib.stack.length}:${n.kind}:${libIdent(n)}${n.letter ?? ''}`;

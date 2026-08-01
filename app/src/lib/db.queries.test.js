@@ -425,6 +425,20 @@ describe('library explorer', () => {
     expect(hub.articles[0].n).toBe(81);
   });
 
+  // Whole-branch-review Fix 3: `articles` is capped at BOOK_HUB_ARTICLE_CAP (12), same "top N, not
+  // a total" gap Task 13 already fixed for search. Revelation has 263 distinct articles citing it
+  // (only the top 12 come back) and 3 John has just 9 (nothing was cut) — both must be knowable
+  // from the return value, not just inferred from articles.length === 12.
+  test('getBookHub flags articles as truncated only when the cap actually cut rows', () => {
+    const rev = db.getBookHub('Rev');
+    expect(rev.articles).toHaveLength(12);
+    expect(rev.articlesTruncated).toBe(true);
+
+    const johnLetter = db.getBookHub('3John');
+    expect(johnLetter.articles.length).toBeLessThan(12);
+    expect(johnLetter.articlesTruncated).toBe(false);
+  });
+
   test('searchLibrary spans all four datasets', () => {
     const r = db.searchLibrary('revelation');
     expect(r.dict.some((x) => x.title === 'Revelation, Book of')).toBe(true);

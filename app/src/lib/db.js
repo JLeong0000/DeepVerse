@@ -516,20 +516,26 @@ export function getProfileIndex() {
     FROM tyndale_passages p WHERE p.kind='profile' ORDER BY p.title`);
 }
 
+// Same "fetch one row past the cap" trick as searchLibrary's SEARCH_DICT_CAP/SEARCH_GROUP_CAP:
+// Revelation has 263 articles citing it and Genesis has 874 — this cap only ever shows the top
+// slice, so the caller needs to know whether it just hid 251 more, not render 12 as if it were
+// the total.
+export const BOOK_HUB_ARTICLE_CAP = 12;
 export function getBookHub(book) {
   const intro = query('SELECT summary, intro FROM book_intros WHERE book=?', [book])[0] || null;
   const passages = query(`SELECT kind, title, ref FROM tyndale_passages
     WHERE book=? ORDER BY start_chapter, start_verse, seq`, [book]);
   // Ranked by how many verses of this book each article cites — straight from dict_verse.
-  const articles = query(`SELECT a.id, a.title, COUNT(*) AS n
+  const articleRows = query(`SELECT a.id, a.title, COUNT(*) AS n
     FROM dict_verse v JOIN dict_articles a ON a.id = v.article_id
-    WHERE v.book = ? GROUP BY a.id ORDER BY n DESC, a.sort_title LIMIT 12`, [book]);
+    WHERE v.book = ? GROUP BY a.id ORDER BY n DESC, a.sort_title LIMIT ${BOOK_HUB_ARTICLE_CAP + 1}`, [book]);
   return {
     summary: intro?.summary ?? '',
     intro: intro?.intro ?? '',
     themes: passages.filter((p) => p.kind === 'theme'),
     profiles: passages.filter((p) => p.kind === 'profile'),
-    articles,
+    articles: articleRows.slice(0, BOOK_HUB_ARTICLE_CAP),
+    articlesTruncated: articleRows.length > BOOK_HUB_ARTICLE_CAP,
   };
 }
 

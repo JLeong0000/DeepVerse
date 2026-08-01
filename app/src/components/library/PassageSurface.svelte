@@ -6,6 +6,7 @@
   import { goToPassage } from '../../lib/study.svelte.js';
   import { go } from '../../lib/router.svelte.js';
   import { bookName } from '../../lib/refs.js';
+  import { lib } from '../../lib/library.svelte.js';
   import ArticleView from '../workbench/ArticleView.svelte';
 
   // themes and profiles ship in the study-notes package, not the dictionary
@@ -13,6 +14,15 @@
 
   let { pkind, title } = $props();
   let passage = $derived(getPassage(pkind, title));
+
+  // A node restored from a URL (App.svelte's applyHash) has no `book` — it isn't knowable
+  // synchronously there, since applyHash can run before the db loads — while PassageIndex and
+  // SearchSurface both attach it when they push the node live. Backfill it here once the row
+  // loads, so a restored node ends up the same shape as a live-navigated one.
+  $effect(() => {
+    const n = lib.stack.at(-1);
+    if (passage && n?.kind === 'passage' && n.pkind === pkind && n.title === title) n.book = passage.book;
+  });
 
   function openInStudy() {
     // start_chapter/start_verse are the anchor — structured columns, not a re-parse of the `ref`

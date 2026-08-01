@@ -4,6 +4,7 @@
   import { loadDb } from './lib/db.js';
   import { route, go } from './lib/router.svelte.js';
   import { study } from './lib/study.svelte.js';
+  import { lib, pushNode, resetLibrary } from './lib/library.svelte.js';
   import Home from './routes/Home.svelte';
   import Study from './routes/Study.svelte';
   import Comparison from './routes/Comparison.svelte';
@@ -25,6 +26,19 @@
     const v = route.view;
     if (v === 'study') return `#/study/${study.book}/${study.chapter}${study.verse ? '/' + study.verse : ''}`;
     if (v === 'compare') return `#/compare/${study.book}/${study.chapter}`;
+    if (v === 'library') {
+      const n = lib.stack.at(-1);
+      // The article's anchor (a "## Cattle" subhead a door pointed at) rides along so a bookmarked
+      // or reloaded link scrolls to the same place the original door landed on, not just the top
+      // of the article.
+      if (n.kind === 'article') return `#/library/article/${encodeURIComponent(n.id)}${n.anchor ? '/' + encodeURIComponent(n.anchor) : ''}`;
+      if (n.kind === 'hub') return `#/library/book/${n.book}`;
+      if (n.kind === 'passage') return `#/library/${n.pkind}/${encodeURIComponent(n.title)}`;
+      // A dictionary letter can itself be '#' (Task 4's bucket for non-A–Z sort titles). Encoding
+      // it keeps that literal character from riding along as a second, meaningless fragment marker.
+      if (n.kind === 'route') return `#/library/${n.route}${n.letter ? '/' + encodeURIComponent(n.letter) : ''}`;
+      return '#/library';
+    }
     return `#/${v}`;
   }
   function applyHash() {
@@ -37,9 +51,37 @@
       study.verse = parts[3] ? +parts[3] : null;
       study.verseEnd = null; study.word = null;
     }
+    if (view === 'library' && parts[1]) {
+      resetLibrary();
+      if (parts[1] === 'article' && parts[2]) {
+        const id = decodeURIComponent(parts[2]);
+        pushNode({ kind: 'article', id, title: id, anchor: parts[3] ? decodeURIComponent(parts[3]) : null });
+      } else if (parts[1] === 'book' && parts[2]) {
+        pushNode({ kind: 'hub', book: parts[2] });
+      } else if ((parts[1] === 'theme' || parts[1] === 'profile') && parts[2]) {
+        // `book` is the anchor PassageIndex/SearchSurface both attach to a passage node, but no
+        // consumer reads it back off the node — getPassage(kind, title) is already a safe lookup
+        // key on its own (titles are unique within a kind) — and it isn't knowable synchronously
+        // here anyway: applyHash can run before the db is loaded. PassageSurface fills it in once
+        // the row loads, the same way ArticleSurface backfills a restored article's title.
+        pushNode({ kind: 'passage', pkind: parts[1], title: decodeURIComponent(parts[2]) });
+      } else if (['dict', 'themes', 'profiles', 'books'].includes(parts[1])) {
+        pushNode({ kind: 'route', route: parts[1], letter: parts[2] ? decodeURIComponent(parts[2]) : undefined });
+      }
+    }
     navKey = keyOf();
   }
-  const keyOf = () => `${route.view}/${study.book}/${study.chapter}`; // a new history entry per view/chapter
+  // keyed on the current node's identity, not stack depth: a path-map branch jump truncates then
+  // pushes and can land on the same depth, which would skip the history entry. A passage node has
+  // no `id`, only a `book` (shared by every other passage anchored in it) and a `title` (unique
+  // within pkind, per getPassage's own contract) — keying on book would collide two different
+  // passages at the same depth back into the very same bug this identity check exists to avoid.
+  const libIdent = (n) => (n.kind === 'passage' ? n.title : (n.id ?? n.book ?? n.q ?? n.route ?? ''));
+  const libKey = () => {
+    const n = lib.stack.at(-1);
+    return `${lib.stack.length}:${n.kind}:${libIdent(n)}${n.letter ?? ''}`;
+  };
+  const keyOf = () => `${route.view}/${study.book}/${study.chapter}/${route.view === 'library' ? libKey() : ''}`;
   let navKey = keyOf();
 
   // Parse a deep link synchronously, before the URL-sync effect below ever runs. That effect's
@@ -55,7 +97,7 @@
   // A new view/book/chapter pushes a history entry; a verse-only change replaces (no history spam).
   // applyHash() resyncs navKey, so a back/forward/manual hash change only replaces (never re-pushes).
   $effect(() => {
-    void `${route.view}/${study.book}/${study.chapter}/${study.verse}`; // establish reactive deps
+    void `${route.view}/${study.book}/${study.chapter}/${study.verse}/${lib.stack.length}/${lib.stack.at(-1)?.id ?? ''}`; // establish reactive deps
     const url = serialize();
     if (keyOf() !== navKey) { history.pushState(null, '', url); navKey = keyOf(); }
     else { history.replaceState(null, '', url); }

@@ -2,7 +2,7 @@
   // An article, plus the doors out of it. "Where this leads" is what converts an article with
   // links buried in its last sentence into a junction with visible exits.
   import { getArticle, getArticleSupplements, getXrefs, getRefPreview } from '../../lib/db.js';
-  import { pushNode } from '../../lib/library.svelte.js';
+  import { lib, pushNode } from '../../lib/library.svelte.js';
   import { displayTitle } from '../../lib/titles.js';
   import { goToPassage } from '../../lib/study.svelte.js';
   import { go } from '../../lib/router.svelte.js';
@@ -17,6 +17,12 @@
 
   let open = $state(null);   // { ref, index } — index is the block the preview was opened from
   $effect(() => { id; open = null; });   // a new article clears any open preview
+
+  // A node restored from a bookmarked/reloaded URL carries its id as a placeholder title (there's
+  // no db to read the real one from until it's loaded) — the breadcrumb shows the raw id for a
+  // moment, then this corrects it. Guarded on the stack top still being *this* id so a fast
+  // click-through to another article before the db resolves can't stamp a stale title onto it.
+  $effect(() => { if (article && lib.stack.at(-1)?.id === id) lib.stack.at(-1).title = article.title; });
 
   const KIND_LABEL = { chart: 'Chart', textbox: 'Textbox' };
 

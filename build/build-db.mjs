@@ -150,10 +150,11 @@ console.log('study_notes:', studyNotes.count);
 
 // 6) TYNDALE CULTURAL LAYER: dictionary + themes/profiles + book intros
 const tyndale = loadTyndale(db);
-// `rows` carries all 6,141 parsed articles for loadXrefs to reuse; logging it would dump ~9 MB
-const { rows: _rows, ...tyndaleCounts } = tyndale;
+// `rows` carries all 6,141 parsed articles and `xrefLinks` the source's own "See …" link targets,
+// both for loadXrefs to reuse; logging either would dump megabytes
+const { rows: _rows, xrefLinks: _links, ...tyndaleCounts } = tyndale;
 console.log('tyndale:', JSON.stringify(tyndaleCounts));
-const xrefs = loadXrefs(db, tyndale.rows);
+const xrefs = loadXrefs(db, tyndale.rows, tyndale.xrefLinks);
 console.log('dict_xref:', JSON.stringify(xrefs));
 
 db.exec(`

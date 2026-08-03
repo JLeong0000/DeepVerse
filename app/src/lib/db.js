@@ -606,21 +606,19 @@ export function getPassage(kind, title) {
     WHERE kind = ? AND title = ?`, [kind, title])[0] || null;
 }
 
-// Both directions, plus the targets the source names that do not exist. Outbound feeds the doors
-// row; inbound is what the path map can reveal and nothing else in the UI can; `missing` is shown
-// honestly rather than dropped, because hiding it would overstate how complete the graph is.
+// Both directions. Outbound feeds the doors row; inbound is what the path map can reveal and
+// nothing else in the UI can. Every edge resolves — `dst` is NOT NULL — because the graph is built
+// from the source's own ?item= links rather than matched by title.
 export function getXrefs(id) {
   return {
-    // `raw` is the target exactly as the source wrote it. The in-prose linkifier needs it to match
-    // the "See …" clause text: the clause says "Mark of the Beast", the article's title is
+    // `raw` is the source's own link text, which is what the in-prose linkifier matches against the
+    // rendered clause: the link reads "Mark of the Beast" while the article it points at is titled
     // "Mark of God*, Mark of the Beast". Matching on title alone would silently miss those.
     out: query(`SELECT a.id, a.title, x.raw, x.anchor FROM dict_xref x
       JOIN dict_articles a ON a.id = x.dst
-      WHERE x.src = ? AND x.dst IS NOT NULL ORDER BY x.seq`, [id]),
+      WHERE x.src = ? ORDER BY x.seq`, [id]),
     in: query(`SELECT a.id, a.title FROM dict_xref x
       JOIN dict_articles a ON a.id = x.src WHERE x.dst = ? ORDER BY a.sort_title`, [id]),
-    missing: query(`SELECT raw FROM dict_xref
-      WHERE src = ? AND dst IS NULL ORDER BY seq`, [id]).map((r) => r.raw),
   };
 }
 

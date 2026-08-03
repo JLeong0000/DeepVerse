@@ -552,15 +552,23 @@ describe('library explorer', () => {
     expect(beast.find((o) => o.id === 'MarkofGodMarkoftheBeast').raw).toBe('Mark of the Beast');
   });
 
-  test('getXrefs reports targets the source names but the corpus lacks', () => {
-    // "Advent of Christ" is nothing but a See clause, one of whose three targets does not exist
+  // "Advent of Christ" is nothing but a See clause. Its three targets used to be two, because
+  // "Jesus Christ, Life and Teachings of" was reported as absent from the corpus — the display text
+  // of a link that points, and always pointed, at the JesusChristTeachingsof article.
+  test('getXrefs resolves a target whose link text differs from the article title', () => {
     const x = db.getXrefs('AdventofChrist');
-    expect(x.missing).toContain('Jesus Christ, Life and Teachings of');
-    expect(x.out.length).toBe(2);
+    expect(x.out.length).toBe(3);
+    const hit = x.out.find((o) => o.raw === 'Jesus Christ, Life and Teachings of');
+    expect(hit.id).toBe('JesusChristTeachingsof');
+    expect(hit.title).toBe('Jesus Christ, Teachings of');
   });
 
-  test('getXrefs.missing is empty for an article whose targets all resolve', () => {
-    expect(db.getXrefs('Beast').missing).toEqual([]);
+  // Every edge comes from a ?item= link that named a target we hold, so there is no unresolved
+  // case to represent. A `missing` list would always be empty.
+  test('getXrefs exposes only out/in, and every out edge has a real id', () => {
+    const x = db.getXrefs('Beast');
+    expect(Object.keys(x).sort()).toEqual(['in', 'out']);
+    expect(x.out.every((o) => o.id && o.title)).toBe(true);
   });
 
   test('getRandomArticle only returns substantial articles', () => {

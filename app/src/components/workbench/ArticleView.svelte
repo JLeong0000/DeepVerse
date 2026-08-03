@@ -19,9 +19,6 @@
     if (!xrefs) return null;
     const m = new Map();
     for (const o of xrefs.out) if (!m.has(o.raw)) m.set(o.raw, o);
-    // recorded, but the entry does not exist in the corpus — rendered plain, and named in full by
-    // ArticleSurface's "absent from the corpus" list
-    for (const raw of xrefs.missing) if (!m.has(raw)) m.set(raw, null);
     return m;
   });
 
@@ -51,7 +48,7 @@
     {:else}
       <!-- every part is emitted verbatim: the prose runs, the separators and the trailing period
            all come straight out of the source, so its own "; " spacing cannot be lost here -->
-      <p class="mbody">{#each splitSeeClauses(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else if p.kind === 'dead'}<span class="xdead" title="named by the source, but no such entry exists in the corpus">{p.raw}</span>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
+      <p class="mbody">{#each splitSeeClauses(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
       {#if preview && openIndex === i}
         {@render preview()}
       {/if}
@@ -102,5 +99,4 @@
   .xref { background: none; border: none; font-family: inherit; font-size: inherit; padding: 0;
     color: var(--a); cursor: pointer; border-bottom: 1px dotted var(--a); }
   .xref:hover { border-bottom-style: solid; }
-  .xdead { color: var(--dim); font-style: italic; cursor: help; }
 </style>

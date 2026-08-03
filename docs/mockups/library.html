@@ -18,7 +18,7 @@
   </p>
   <p style="margin:0;">
     The figures below were corrected on 2026-08-01 and are correct as of that date, but
-    <code>dict_xref</code> has since been rebuilt (5,236 → 5,240 rows). Five of the ten demo article bodies
+    <code>dict_xref</code> has since been rebuilt twice (5,236 → 5,240 → 5,152 rows), the second time onto Tyndale's own link markup, which retracted its “3% of targets don't exist” wart entirely. Five of the ten demo article bodies
     are abridged paraphrases rather than corpus text, so their <code>See …</code> clauses are illustrative;
     the real graph is the <code>dict_xref</code> table.
   </p>
@@ -392,9 +392,9 @@ That daily reality is what gives the metaphor its force when it is applied to ki
   // Three states, and the distinction is load-bearing:
   //   an id  — loaded into this mockup, clickable
   //   'x'    — a real corpus article that this mockup simply does not carry (only 10 are loaded)
-  //   null   — named by the source and GENUINELY ABSENT from the corpus. Only 110 distinct names
-  //            are in this state; `Jesus Christ, Life and Teachings of` is cited 19 times and does
-  //            not exist. Verified against bible.db, not assumed.
+  //   null   — RETRACTED. This state was an artefact of the old title-matching resolver, not a
+  //            property of the corpus: every cross-reference Tyndale writes resolves. Left in place
+  //            because this file is a historical artifact; the app has no such state.
   const XREF = {
     'Antichrist':'antichrist', 'Armageddon':'armageddon', 'Beast':'beast', 'Babel':'babel',
     'Mark of the Beast':'markofgod', 'Revelation, Book of':'revbook', 'Babylon, Babylonia':'babylon',
@@ -583,7 +583,7 @@ That daily reality is what gives the metaphor its force when it is applied to ki
   }
 
   // ---- the cross-reference edge list ----
-  // In the real app this is `dict_xref` (5,240 rows), precomputed at build time: resolving 6,010
+  // In the real app this is `dict_xref` (5,152 rows), precomputed at build time: reading 6,010
   // bodies at query time would mean pulling 8.4 MB of prose through sql.js. Derived here from the
   // same "See …" clauses so the mockup's graph is the real one for these articles.
   const EDGES = (() => {
@@ -990,14 +990,13 @@ That daily reality is what gives the metaphor its force when it is applied to ki
 
 <h3>Warts on display, all real</h3>
 <ul>
-  <li><b>3% of cross-reference targets don't exist.</b> 140 of the 5,240 links Tyndale writes name an article
-    that is not in the corpus — 110 distinct names, led by <code>Jesus Christ, Life and Teachings of</code> at 19
-    citations. Open <b>Christ</b> (via ✦ Wander in) to see one: it stays plain italic text in the prose and is
-    listed under the doors rather than 404-ing.
-    <br /><b>Corrected:</b> an earlier version of this mockup claimed <code>False Christs, False Messiahs</code>
-    and <code>Prophets, False</code> were absent. Both exist. That map was hand-built rather than queried; it is
-    now checked against <code>bible.db</code>, and targets this mockup simply doesn't load are shown as a third,
-    distinct state.</li>
+  <li><s><b>3% of cross-reference targets don't exist.</b></s> <b>RETRACTED (2026-08-03) — this was
+    never true.</b> The claim came from a resolver that rebuilt the graph by matching prose against
+    article titles. Driving it from Tyndale's own <code>?item=</code> link markup instead resolves
+    every one of the 5,152 edges. <code>Jesus Christ, Life and Teachings of</code>, cited 19 times and
+    named here as the flagship example, is the display text of a link pointing at the
+    <code>Jesus Christ, Teachings of</code> article, which was in the corpus all along. Exactly one
+    link in the dictionary names something outside the package, and it is a Map, not an article.</li>
   <li><b><code>Mark of the Beast</code> is not a title.</b> It is the second headword of <code>Mark of God*, Mark of
     the Beast</code>, and resolves only via the unique-title-segment tier.</li>
   <li><b><code>sort_title</code> is not unique</b> — 131 colliding groups. The Dictionary index shows

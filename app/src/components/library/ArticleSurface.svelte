@@ -125,20 +125,12 @@
           </button>
         {/each}
       </div>
-    {:else if !xrefs.missing.length}
-      <!-- 2,649 of the 6,010 articles have no resolved outbound link; an empty box would read as a
-           bug. Suppressed when the article names only entries the corpus lacks — the list below
-           already accounts for those, and "names no other entry" would contradict it. -->
+    {:else}
+      <!-- 2,632 of the 6,010 articles write no "See …" clause at all; an empty box would read as
+           a bug. There is no third case: every link Tyndale writes resolves, so an article either
+           has doors or names nothing. -->
       <div class="deadend">
         A dead end — this article names no other entry. Search, pick another route, or ✦ Wander in.
-      </div>
-    {/if}
-    {#if xrefs.missing.length}
-      <!-- 140 of the 5,240 links name an article Tyndale never wrote. Listing them is more honest
-           than hiding them, and stops the graph looking more complete than it is. -->
-      <div class="absent">
-        Named by the source, but absent from the corpus:
-        {xrefs.missing.map(displayTitle).join(' · ')}.
       </div>
     {/if}
   </div>
@@ -159,7 +151,6 @@
   .door:hover { border-color: var(--a); color: var(--a); }
   .anch { color: var(--dim); font-size: 10px; margin-left: 5px; }
   .deadend { font-size: 12px; color: var(--dim); font-style: italic; line-height: 1.55; }
-  .absent { margin-top: 9px; font-size: 11px; color: var(--dim); line-height: 1.5; font-style: italic; }
   .prev { margin: 8px 0 13px; padding: 9px 12px; border-left: 2px solid var(--b);
     background: var(--panel); font-size: 13px; line-height: 1.6; border-radius: 0 5px 5px 0; max-width: 74ch; }
   .pr { font-size: 10.5px; color: var(--b); font-variant: small-caps; letter-spacing: .05em; }

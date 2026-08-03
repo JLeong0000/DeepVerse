@@ -12,7 +12,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { toOsis, toOsisOrNull } from './books.mjs';
-import { buildIndex, extractXrefs } from './xref.mjs';
+import { buildIndex, buildXrefRows } from './xref.mjs';
 
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', nbsp: ' ', apos: "'", '#39': "'" };
 function decodeEntities(s) {
@@ -194,6 +194,42 @@ export function extractIncludes(bodyXml) {
   return out;
 }
 
+// Cross-references, taken from the source's own link markup rather than reconstructed from prose.
+//
+// Tyndale writes a cross-reference as a "See" clause whose targets are real links:
+//   <span class="ital">See</span> <a href="?item=Plants_Article_...">Plants (Onion)</a>.
+// The href names the target ENTRY unambiguously — `name` there is the same id we store — so the
+// graph never has to be guessed from the display text. That matters: the display text routinely
+// disagrees with the target's title ("Jesus Christ, Life and Teachings of" links to
+// JesusChristTeachingsof), and one link's text can contain a semicolon
+// ("Birds (Fowl, Domestic; Partridge)"), which no prose-level split can tell from a separator.
+//
+// Three link kinds appear in these bodies and only the first is a cross-reference:
+//   ?item=  an entry            -> an edge
+//   #Sub    a subhead in THIS article ("Locust (below)") -> not an edge; the reader is already there
+//   ?bref=  scripture           -> handled by extractBrefs
+//
+// The clause ends at the first period that closes it; ANY_SEE deliberately also matches a "See"
+// inside a parenthetical aside ("(See also Col 4:16; Rv 1:3.)"), because those contain no ?item=
+// link and so contribute nothing — no separate rule is needed to exclude them.
+const SEE_CLAUSE = /<span class="ital">See(?: also)?<\/span>(.*?)(?:\.\s*<\/p>|\.\s|\.$)/gs;
+const ITEM_LINK = /<a\b[^>]*href="\?item=([A-Za-z0-9]+)_(Article|Textbox|Chart|Map)_[^"]*"[^>]*>(.*?)<\/a>/gs;
+
+export function extractSeeXrefs(bodyXml) {
+  const out = [];
+  for (const clause of String(bodyXml).matchAll(SEE_CLAUSE)) {
+    for (const a of clause[1].matchAll(ITEM_LINK)) {
+      // Run through cleanBody, not a private normaliser: the app matches this string back against
+      // the flattened prose to decide what to underline, so the two must be byte-identical. A
+      // hand-rolled `\s+` collapse is NOT the same — cleanBody collapses only [ \t]+, and the
+      // corpus puts a non-breaking space inside link text ("Chronology of the Bible (Old Testament)").
+      const text = cleanBody(a[3]);
+      if (text) out.push({ item: a[1], kind: a[2], text });
+    }
+  }
+  return out;
+}
+
 export function sortTitle(title) {
   return title
     .replace(/\*/g, '')
@@ -243,29 +279,33 @@ export function loadTyndale(db) {
   db.exec('COMMIT');
 
   return { articles: dict.articles.length, verses: dict.verses.length,
-    passages: passages.length, intros: intros.length, rows: dict.articles };
+    passages: passages.length, intros: intros.length,
+    rows: dict.articles, xrefLinks: dict.xrefLinks };
 }
 
-// Derives the cross-reference graph from the bodies already present in the committed intermediate.
-// Computed, never vendored — the same treatment `differences` gets. Supplements take part at both
-// ends: they write "See …" clauses of their own, and articles cite them by title. `articles` is
-// the raw row array from tyndale-dictionary.json.gz:
-//   [id, title, sort_title, kind, host_id, body, is_html, n_refs, seq]
-export function loadXrefs(db, articles) {
+// Builds the cross-reference graph from the "See …" links parse-tyndale.mjs lifted out of the
+// source markup. Computed, never vendored — the same treatment `differences` gets. Supplements take
+// part at both ends: they write "See …" clauses of their own, and articles link to them.
+//   `articles`   the raw row array: [id, title, sort_title, kind, host_id, body, is_html, n_refs, seq]
+//   `xrefLinks`  { [src]: [{ item, kind, text }] } in source order
+export function loadXrefs(db, articles, xrefLinks) {
   const arts = articles.map((r) => ({ id: r[0], title: r[1], sort_title: r[2], kind: r[3],
     host_id: r[4], body: r[5] }));
   const ix = buildIndex(arts);
   const ins = db.prepare('INSERT INTO dict_xref VALUES (?,?,?,?,?)');
-  let rows = 0, anchored = 0, missing = 0;
+  let rows = 0, anchored = 0, dropped = 0;
   db.exec('BEGIN');
   for (const a of arts) {
-    for (const e of extractXrefs(a, ix)) {
+    const links = xrefLinks[a.id] ?? [];
+    const edges = buildXrefRows(a, links, ix);
+    dropped += links.length - edges.length;
+    for (const e of edges) {
       ins.run(e.src, e.dst, e.raw, e.anchor, e.seq);
       rows++;
       if (e.anchor) anchored++;
-      if (!e.dst) missing++;
     }
   }
   db.exec('COMMIT');
-  return { rows, resolved: rows - missing, missing, anchored };
+  // `dropped` is self-links, duplicate destinations and the one link that names a Map.
+  return { rows, anchored, dropped };
 }

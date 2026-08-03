@@ -21,46 +21,69 @@ describe('ArticleView', () => {
   // Regression: {#if k > 0}; {/if} had its trailing space trimmed by Svelte, so the linkified
   // clause read "See Antichrist;Armageddon." — the plain-text path above never exercises this
   // branch, so it passed while the reconstructed clause was actually corrupting Tyndale's text.
-  it('linkifies a resolved target, marks one the corpus lacks, and keeps the "; " separator', () => {
+  it('linkifies both targets and keeps the "; " separator', () => {
     const xrefs = {
-      out: [{ id: 'Antichrist', title: 'Antichrist', raw: 'Antichrist', anchor: null }],
-      in: [], missing: ['Armageddon'],
+      out: [{ id: 'Antichrist', title: 'Antichrist', raw: 'Antichrist', anchor: null },
+            { id: 'Armageddon', title: 'Armageddon', raw: 'Armageddon', anchor: null }],
+      in: [],
     };
     const { getByRole, container } = render(ArticleView, { article, xrefs });
     expect(getByRole('button', { name: 'Antichrist' })).toBeTruthy();
-    expect(container.querySelector('.xdead')?.textContent).toBe('Armageddon');
+    expect(getByRole('button', { name: 'Armageddon' })).toBeTruthy();
     expect(container.querySelector('.mbody').textContent)
       .toBe('Example prose about the topic. See Antichrist; Armageddon.');
   });
 
-  // The invariant that keeps this component and build/lib/xref.mjs from disagreeing: linkification
-  // is driven by dict_xref alone. "Armageddon" is named in the prose but recorded nowhere — neither
-  // resolved nor missing — so it must render as ordinary text, not as a link and not as a .xdead
-  // claim about the corpus. Previously the component matched the clause itself and marked it dead.
+  // One link naming two subheads. The build stores it as a single edge whose `raw` contains the
+  // semicolon; splitting the clause on ';' produced a broken "Birds (Fowl, Domestic" link and an
+  // orphan "Partridge)" that the app announced as missing from the dictionary.
+  it('renders a target whose own text contains a semicolon as one link', () => {
+    const brood = {
+      id: 'Brood', title: 'Brood', n_refs: 0,
+      body: 'Young birds. See Birds (Fowl, Domestic; Partridge). Also used of vipers.',
+    };
+    const xrefs = {
+      out: [{ id: 'Birds', title: 'Birds', raw: 'Birds (Fowl, Domestic; Partridge)',
+              anchor: 'Fowl, Domestic' }],
+      in: [],
+    };
+    const { container } = render(ArticleView, { article: brood, xrefs });
+    expect([...container.querySelectorAll('.xref')].map((e) => e.textContent))
+      .toEqual(['Birds (Fowl, Domestic; Partridge)']);
+    expect(container.querySelector('.mbody').textContent).toBe(brood.body);
+  });
+
+  // The invariant that keeps this component and the build from disagreeing: linkification is driven
+  // by dict_xref alone. "Armageddon" is named in the prose but recorded nowhere, so it must render
+  // as ordinary text. Previously the component matched the clause itself and marked such a run as
+  // an entry the corpus lacked — a claim it had no basis to make.
   it('leaves a target the build recorded nothing for as ordinary prose', () => {
     const xrefs = {
       out: [{ id: 'Antichrist', title: 'Antichrist', raw: 'Antichrist', anchor: null }],
-      in: [], missing: [],
+      in: [],
     };
-    const { container } = render(ArticleView, { article, xrefs });
-    expect(container.querySelector('.xdead')).toBeNull();
+    const { container, getByRole } = render(ArticleView, { article, xrefs });
+    expect(getByRole('button', { name: 'Antichrist' })).toBeTruthy();
+    expect([...container.querySelectorAll('.xref')].map((e) => e.textContent)).toEqual(['Antichrist']);
     expect(container.querySelector('.mbody').textContent)
       .toBe('Example prose about the topic. See Antichrist; Armageddon.');
   });
 
-  // A "(See …)" aside is a scripture citation or an in-article pointer, never an entry, so the
-  // build stores nothing for it — and this component must not invent a link. 7 in the corpus.
+  // A "(See …)" aside is a scripture citation or an in-article pointer, never an entry. The source
+  // marks up no ?item= link inside one, so the build records nothing and there is nothing to match.
+  // 7 in the corpus.
   it('never linkifies a parenthetical "(See …)" aside', () => {
     const aside = {
       id: 'BibleCanonofthe', title: 'Bible, Canon of the', n_refs: 0,
-      body: 'Paul expected his letters to be read aloud. (See also Antichrist.) Later readers disagreed.',
+      body: 'Read aloud. (See also Col 4:16; Rv 1:3.) Later readers disagreed. See Antichrist.',
     };
     const xrefs = {
       out: [{ id: 'Antichrist', title: 'Antichrist', raw: 'Antichrist', anchor: null }],
-      in: [], missing: [],
+      in: [],
     };
-    const { container, queryByRole } = render(ArticleView, { article: aside, xrefs });
-    expect(queryByRole('button', { name: 'Antichrist' })).toBeNull();
+    const { container } = render(ArticleView, { article: aside, xrefs });
+    // the only cross-reference link is the real clause at the end, not anything in the aside
+    expect([...container.querySelectorAll('.xref')].map((e) => e.textContent)).toEqual(['Antichrist']);
     expect(container.querySelector('.mbody').textContent).toBe(aside.body);
   });
 

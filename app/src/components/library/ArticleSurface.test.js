@@ -9,7 +9,7 @@ import ArticleSurface from './ArticleSurface.svelte';
 const { current, supplements, go } = vi.hoisted(() => ({
   current: {
     article: { id: 'Host', title: 'Host', body: 'Cites Gen 1:1 in the body.', n_refs: 1, kind: 'article' },
-    xrefs: { out: [], in: [], missing: [] },
+    xrefs: { out: [], in: [] },
   },
   supplements: [{ id: 's1', title: 'A Textbox', kind: 'textbox', is_html: 0, body: 'Cites Rom 5:1 in a box.' }],
   go: vi.fn(),
@@ -35,7 +35,7 @@ Element.prototype.scrollIntoView = () => {};
 // before each test so ordering between describe blocks can never leak state.
 beforeEach(() => {
   current.article = { id: 'Host', title: 'Host', body: 'Cites Gen 1:1 in the body.', n_refs: 1, kind: 'article' };
-  current.xrefs = { out: [], in: [], missing: [] };
+  current.xrefs = { out: [], in: [] };
   current.preview = null;
 });
 
@@ -104,33 +104,37 @@ describe('ArticleSurface — a clause following a citation\'s closing paren (Gar
       out: [{ id: 'FoodandFoodPreparation', title: 'Food and Food Preparation',
               raw: 'Food and Food Preparation', anchor: null },
             { id: 'Plants', title: 'Plants', raw: 'Plants (Onion)', anchor: null }],
-      in: [], missing: [],
+      in: [],
     };
     const { container, queryByText } = render(ArticleSurface, { id: 'Garlic' });
     expect(queryByText(/A dead end — this article names no other entry/)).toBeNull();
-    expect(container.querySelector('.xdead')).toBeNull();
+    
     expect([...container.querySelectorAll('.xref')].map((e) => e.textContent))
       .toEqual(['Food and Food Preparation', 'Plants (Onion)']);
     // the source's own "; " spacing, and its trailing period, survive the linkified render
     expect(container.querySelector('.mbody').textContent).toBe(current.article.body);
   });
 
-  // 22 articles name only entries the corpus lacks. The "absent from the corpus" list accounts for
-  // them, so the dead-end line must stay suppressed — it would contradict the list directly below.
-  it('suppresses the dead-end line when every named entry is absent from the corpus', () => {
+  // Ahiah's one target used to be reported as absent from the corpus. Its link points at the real
+  // Ahijah article, so the article has a door like any other and no dead-end line.
+  it('opens a door for a target whose link text differs from the article title', () => {
     current.article = {
       id: 'Ahiah', title: 'Ahiah', n_refs: 0, kind: 'article',
-      body: 'Alternate spelling of Ahijah. See Ahijah, Life and Teachings of.',
+      body: 'KJV form of Ahijah. See Ahijah #1, #2, and #6.',
     };
-    current.xrefs = { out: [], in: [], missing: ['Ahijah, Life and Teachings of'] };
-    const { queryByText } = render(ArticleSurface, { id: 'Ahiah' });
+    current.xrefs = {
+      out: [{ id: 'Ahijah', title: 'Ahijah', raw: 'Ahijah #1, #2, and #6', anchor: null }],
+      in: [],
+    };
+    const { container, queryByText } = render(ArticleSurface, { id: 'Ahiah' });
     expect(queryByText(/A dead end — this article names no other entry/)).toBeNull();
-    expect(queryByText(/Named by the source, but absent from the corpus/)).toBeTruthy();
+    expect(container.querySelector('.xref').textContent).toBe('Ahijah #1, #2, and #6');
+    expect(container.querySelector('.door').textContent.trim()).toBe('Ahijah');
   });
 
   it('still shows the genuine dead-end message for an article with no clause at all', () => {
     current.article = { id: 'Host', title: 'Host', body: 'Cites Gen 1:1 in the body.', n_refs: 1, kind: 'article' };
-    current.xrefs = { out: [], in: [], missing: [] };
+    current.xrefs = { out: [], in: [] };
     const { queryByText } = render(ArticleSurface, { id: 'Host' });
     expect(queryByText(/A dead end — this article names no other entry/)).toBeTruthy();
   });

@@ -51,51 +51,61 @@ claiming a roster of individuals.
 `Asher (Person)`, `Asher (Place)` and `Asher (Tribe)` all sort as `asher`. Any index must
 **display `title` and only sort by `sort_title`**, or it prints the same word three times.
 
-### 4. There is a real cross-reference graph
+### 4. There is a real cross-reference graph, and the source hands it to us
 
 Across all 6,141 dictionary rows — the 6,010 articles and the 131 supplements they host — Tyndale
-wrote 3,659 `See …` clauses naming 5,345 targets. Normalised the way `scripture.js` normalises
-(curly apostrophes, the `*` marker, `#N` sense pointers, `See also`, and the quotes Tyndale wraps a
-supplement's title in), **95.1% resolve**:
+writes its cross-references as "See …" clauses whose targets are **real links**:
 
-| tier | rule | resolved |
+```xml
+<span class="ital">See</span> <a href="?item=Plants_Article_TyndaleOpenBibleDictionary">Plants (Onion)</a>.
+```
+
+The `?item=` id is the `name` attribute of the target entry, which is the id we store. **Nothing is
+matched by text.** That is load-bearing, because the display text routinely disagrees with the
+target's title — `Jesus Christ, Life and Teachings of` links to the article titled `Jesus Christ,
+Teachings of` — and because one link's text can contain a semicolon (`Birds (Fowl, Domestic;
+Partridge)`), which no prose-level split can tell from a separator between two targets.
+
+Three link kinds appear in these bodies, and only the first is a cross-reference:
+
+| href | meaning | treatment |
 |---|---|---|
-| 1 | exact normalised `title` | 4,986 |
-| 2 | `sort_title` | 2 |
-| 3 | a comma-delimited title segment claimed by exactly one row | 2 |
-| 4 | `Article (Subhead)` → article + its `## Subhead` block | 94 |
-| | **strict tier total** | **5,084 / 5,345 (95.1%)** |
+| `?item=` | another entry | an edge |
+| `#Subhead` | a subhead in **this** article (`Locust (below)`) | not an edge — the reader is already there |
+| `?bref=` | scripture | `extractBrefs`, then RefText |
 
-A further **99 targets name a real article with an unmatched subhead** (`Plants (Vine)` where no
-`## Vine` block exists). The build links these to the host article with the anchor dropped — a
-correct, useful link — which takes the final figure to **5,183 of 5,345 (97.0%)**. The 95.1% above
-is the strict tier total; 97.0% is what ships.
+**5,220 `?item=` links sit inside See-clauses. 5,152 become edges;** the 68 dropped are 64 duplicate
+destinations, 3 self-links, and 1 naming a Map (Maps are not ingested). **Every stored edge
+resolves — `dst` is NOT NULL** — and every stored `raw` occurs verbatim in its article's body, which
+is what lets the app underline exactly the runs the source marked up.
 
-The remaining **162 target instances (110 distinct names) genuinely do not exist** and are stored
-with `dst` NULL rather than discarded — see the schema below.
-
-Tier 3 exists for one visible case: `See Mark of the Beast.` resolves only as the second headword
-of `Mark of God*, Mark of the Beast`. The remaining 3.0% are **genuine source defects** — `Jesus
-Christ, Life and Teachings of` is cited 19 times and does not exist. They degrade to plain text.
+A `(Subhead)` in the link text anchors the reader inside the destination: 87 edges carry one. A link
+naming two subheads is still one link, so it is one edge, anchored on the first that exists.
 
 A supplement is never a destination in its own right unless it has to be: a matched textbox or
 chart resolves to the article that hosts it, anchored by its own title, because that is where it is
 rendered. Only the 13 supplements with no host resolve to themselves.
 
+> **Superseded approach.** This originally reconstructed the graph from flattened prose using a
+> clause regex plus four tiers of fuzzy title matching, because `cleanBody` unwrapped the `<a>` tags
+> and kept only their text. That version had 89 edges the source states and 33 it does not, and
+> reported 140 targets as "absent from the corpus" — of which **exactly one** was genuinely outside
+> the package. Tyndale writes no dangling article cross-reference at all.
+
 ### 5. The graph is not shaped like a map
 
 | | |
 |---|---|
-| distinct resolved edges | 5,100 (5,092 of them article-to-article) |
-| articles with ≥1 edge | 4,076 (68%) |
-| **isolated articles** | **1,934 (32%)** |
-| connected components of ≥2 | 599 |
-| largest component | 2,512 |
+| distinct edges | 5,152 (5,144 of them article-to-article) |
+| articles with ≥1 edge | 4,096 (68%) |
+| **isolated articles** | **1,914 (32%)** |
+| connected components of ≥2 | 603 |
+| largest component | 2,518 |
 | **second largest** | **15** |
 | median degree | 1 (max 152, `Plants`) |
 
 A whole-corpus graph view was rejected on these numbers: a third of the corpus would render as
-floating dust, and the structure is one hairball plus 598 specks with no legible mid-scale shape.
+floating dust, and the structure is one hairball plus 602 specks with no legible mid-scale shape.
 Local neighbourhoods are the opposite — **1-hop median 2 nodes, p90 5** — which is what the path
 map draws.
 
@@ -260,8 +270,7 @@ Four additions, all running on data already in the corpus:
 
 ### `dict_xref` — a new table, and why the build step is justified
 
-**5,240 rows** — 5,100 resolved edges plus **140 that name an article the corpus does not contain**
-(110 distinct names). 244 KB.
+**5,152 rows**, every one resolved — `dst` is NOT NULL. 87 carry a subhead anchor. ~240 KB.
 
 ```sql
 CREATE TABLE dict_xref (
@@ -369,7 +378,7 @@ its real stack index; expander state resetting on navigation.
 **Path map** — branch click truncating to the correct step; solid/dashed spine classification;
 phantom nodes unclickable; drag suppressing the click that follows it.
 
-**Post-build invariants** — `dict_xref` totals (5,240 rows: 5,100 resolved, 140 unresolved, 94
+**Post-build invariants** — `dict_xref` totals (5,152 rows: 0 unresolved, 87
 anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
 with an empty `raw`.
 

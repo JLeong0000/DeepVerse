@@ -10,12 +10,14 @@ export function validate(db) {
     const have = db.prepare("SELECT COUNT(DISTINCT chapter) n FROM verses WHERE book=? AND version='NIV'").get(book).n;
     if (have !== chapters) problems.push(`verses: ${book} has ${have} chapters, expected ${chapters}`);
   }
-  const resolved = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c;
-  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5100`);
+  const edges = db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c;
+  if (edges < 5000) problems.push(`dict_xref: ${edges} edges, expected ~5152`);
+  const unresolved = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c;
+  if (unresolved) problems.push(`dict_xref: ${unresolved} rows with a NULL dst; every edge comes from a ?item= link and must resolve`);
   const selfEdges = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c;
   if (selfEdges) problems.push(`dict_xref: ${selfEdges} self-edges`);
-  // dst may legitimately be NULL (the source names an article that does not exist); src may not,
-  // and a non-null dst must point at a real article.
+  // Both endpoints must be real articles: a row exists only where the source's own ?item= link
+  // named a target we hold.
   const dangling = db.prepare(`SELECT COUNT(*) c FROM dict_xref x
     LEFT JOIN dict_articles a ON a.id = x.src
     LEFT JOIN dict_articles b ON b.id = x.dst

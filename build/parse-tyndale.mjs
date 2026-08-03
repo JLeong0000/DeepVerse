@@ -9,7 +9,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { OSIS_BOOKS } from './lib/books.mjs';
-import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, sortTitle, titleTerms }
+import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, extractSeeXrefs, sortTitle, titleTerms }
   from './lib/tyndale.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,6 +57,9 @@ function lexHit(terms, book, chapter, verse) {
 const articles = [];
 const verseRows = [];
 const hostOf = new Map();          // "textbox:AaronThePriest" -> host article id
+// The source's own cross-reference links, per item id: [{ item, kind, text }] in document order.
+// Vendored alongside the bodies because the bodies are flattened to text, which loses the targets.
+const xrefLinks = {};
 let seq = 0, brefTotal = 0, brefKept = 0;
 
 for (const f of fs.readdirSync(`${DICT}/Articles`).sort()) {
@@ -70,6 +73,8 @@ for (const f of fs.readdirSync(`${DICT}/Articles`).sort()) {
     const terms = titleTerms(it.title);
     articles.push([it.name, it.title, sortTitle(it.title), 'article', null,
       structureBody(it.body), 0, refs.length, seq++]);
+    const links = extractSeeXrefs(it.body);
+    if (links.length) xrefLinks[it.name] = links;
     for (const r of refs)
       verseRows.push([it.name, r.book, r.chapter, r.verse, lexHit(terms, r.book, r.chapter, r.verse)]);
     // an article's embedded supplements name it as their host
@@ -90,6 +95,8 @@ for (const [file, kind, isHtml] of [['Textboxes/Textboxes.xml', 'textbox', 0],
     if (!host) orphanSupps++;
     articles.push([it.name, it.title, sortTitle(it.title), kind, host,
       cleanBody(it.body, isHtml === 1), isHtml, 0, seq++]);
+    const links = extractSeeXrefs(it.body);
+    if (links.length) xrefLinks[it.name] = links;
   }
 }
 
@@ -125,7 +132,7 @@ for (const [file, field] of [['BookIntroSummaries.xml', 'summary'], ['BookIntros
 const introRows = OSIS_BOOKS.filter((b) => intros.has(b))
   .map((b) => [b, intros.get(b).summary, intros.get(b).intro]);
 
-write('tyndale-dictionary', { articles, verses: verseRows });
+write('tyndale-dictionary', { articles, verses: verseRows, xrefLinks });
 write('tyndale-passages', passages);
 write('tyndale-bookintros', introRows);
 

@@ -1,183 +1,151 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normKey, buildIndex, resolveTarget, extractXrefs } from '../lib/xref.mjs';
+import { buildIndex, resolveLink, buildXrefRows } from '../lib/xref.mjs';
+import { extractSeeXrefs } from '../lib/tyndale.mjs';
 
+// Rows carry only what the resolver reads. Bodies matter for their "## " subheads.
 const ARTICLES = [
-  { id: 'Beast', title: 'Beast', sort_title: 'beast', kind: 'article', host_id: null,
-    body: 'Figurative usage. See Antichrist; Mark of the Beast; Prophets, False.' },   // last one absent
-  { id: 'Antichrist', title: 'Antichrist', sort_title: 'antichrist', kind: 'article', host_id: null,
-    body: 'A denier.' },
-  { id: 'MarkofGod', title: 'Mark of God*, Mark of the Beast', sort_title: 'mark of god, mark of the beast',
-    kind: 'article', host_id: null, body: 'Ensignia.' },
-  { id: 'Animals', title: 'Animals', sort_title: 'animals', kind: 'article', host_id: null,
+  { id: 'Beast', title: 'Beast', kind: 'article', host_id: null, body: 'Figurative usage.' },
+  { id: 'Antichrist', title: 'Antichrist', kind: 'article', host_id: null, body: 'A denier.' },
+  { id: 'Animals', title: 'Animals', kind: 'article', host_id: null,
     body: 'Creatures.\n## Cattle\nOxen and cows.\n## Deer\nGazelles.' },
-  { id: 'Bull', title: 'Bull*, Bullock', sort_title: 'bull, bullock', kind: 'article', host_id: null,
-    body: 'A male ox. See Animals (Cattle).' },
-  { id: 'Lord', title: 'Lord’s Supper, the', sort_title: "lord's supper, the", kind: 'article',
-    host_id: null, body: 'A meal.' },
-  { id: 'Cup', title: 'Cup', sort_title: 'cup', kind: 'article', host_id: null,
-    body: 'A vessel. See Lord’s Supper, the.' },
-  { id: 'Vine', title: 'Plants', sort_title: 'plants', kind: 'article', host_id: null,
-    body: 'Flora.\n## Bramble\nThorns.' },
-  { id: 'Grape', title: 'Grape', sort_title: 'grape', kind: 'article', host_id: null,
-    body: 'Fruit. See Plants (Vine).' },
-  { id: 'Self', title: 'Self', sort_title: 'self', kind: 'article', host_id: null,
-    body: 'Circular. See Self.' },
-  // Supplements. A hosted one is rendered inside its host; an orphan has nowhere else to live.
-  { id: 'CupBox', title: 'A Cup of Cold Water', sort_title: 'a cup of cold water',
-    kind: 'textbox', host_id: 'Cup', body: 'Hospitality.' },
-  { id: 'LooseBox', title: 'Nobody Hosts This', sort_title: 'nobody hosts this',
-    kind: 'textbox', host_id: null, body: 'Adrift. See Antichrist; Grape.' },
-  { id: 'BeastChart', title: 'Antichrist', sort_title: 'antichrist',
-    kind: 'chart', host_id: 'Beast', body: 'A chart sharing its title with an article.' },
+  { id: 'Birds', title: 'Birds', kind: 'article', host_id: null,
+    body: 'Fowl.\n## Fowl, Domestic\nHens.\n## Partridge\nGround birds.' },
+  { id: 'Cup', title: 'Cup', kind: 'article', host_id: null, body: 'A vessel.' },
+  // Supplements: a hosted one renders inside its host, an orphan is its own destination.
+  { id: 'CupBox', title: 'A Cup of Cold Water', kind: 'textbox', host_id: 'Cup', body: 'Hospitality.' },
+  { id: 'LooseBox', title: 'Nobody Hosts This', kind: 'textbox', host_id: null, body: 'Adrift.' },
 ];
 const IX = buildIndex(ARTICLES);
+const link = (item, text, kind = 'Article') => ({ item, kind, text });
 
-test('normKey: strips asterisks, sense pointers, trailing punctuation, curly apostrophes', () => {
-  assert.equal(normKey('Minerals* and Metals'), 'minerals and metals');
-  assert.equal(normKey('Acbor #2'), 'acbor');
-  assert.equal(normKey('Sin.'), 'sin');
-  assert.equal(normKey('Lord’s  Supper'), "lord's supper");
-  assert.equal(normKey('Testaments (above)'), 'testaments');
+test('buildIndex: collects "## " subheads, keyed case-insensitively', () => {
+  assert.deepEqual([...IX.subheads.get('Animals').keys()], ['cattle', 'deer']);
+  assert.equal(IX.subheads.get('Animals').get('cattle'), 'Cattle');
+  assert.equal(IX.subheads.has('Beast'), false);      // no subheads, no entry
 });
 
-test('normKey: unwraps a fully quoted title but leaves quotes that are part of one', () => {
-  // Tyndale quotes a supplement's title when it cites one: `See “Abraham’s Bosom”.`
-  assert.equal(normKey('“Abraham’s Bosom”'), "abraham's bosom");
-  assert.equal(normKey('Calling Jesus “Beelzebul”'), 'calling jesus “beelzebul”');
-  assert.equal(normKey('Oak, Diviners’'), "oak, diviners'");
+test('resolveLink: a plain article link resolves to itself with no anchor', () => {
+  assert.deepEqual(resolveLink(link('Antichrist', 'Antichrist'), IX),
+    { dst: 'Antichrist', anchor: null });
 });
 
-test('tier 1: exact normalised title', () => {
-  assert.deepEqual(resolveTarget('Antichrist', IX), { dst: 'Antichrist', anchor: null });
+test('resolveLink: "(Subhead)" in the link text anchors inside the target', () => {
+  assert.deepEqual(resolveLink(link('Animals', 'Animals (Cattle)'), IX),
+    { dst: 'Animals', anchor: 'Cattle' });
 });
 
-test('tier 3: a comma segment claimed by exactly one article', () => {
-  // "Mark of the Beast" is the SECOND headword of "Mark of God*, Mark of the Beast"
-  assert.deepEqual(resolveTarget('Mark of the Beast', IX), { dst: 'MarkofGod', anchor: null });
+test('resolveLink: an unmatched subhead still yields a link, anchor dropped', () => {
+  assert.deepEqual(resolveLink(link('Animals', 'Animals (Wolf)'), IX),
+    { dst: 'Animals', anchor: null });
 });
 
-test('tier 3 does not fire when a segment is ambiguous or single-word', () => {
-  // "the" appears as a segment of "Lord’s Supper, the" but is one word — never indexed
-  assert.equal(resolveTarget('the', IX), null);
+// The defect that made splitting on ';' impossible: ONE link naming TWO subheads. Splitting it
+// produced a broken "Birds (Fowl, Domestic" target plus an orphan "Partridge)" reported as absent.
+test('resolveLink: one link naming two subheads yields one edge, on the first that exists', () => {
+  assert.deepEqual(resolveLink(link('Birds', 'Birds (Fowl, Domestic; Partridge)'), IX),
+    { dst: 'Birds', anchor: 'Fowl, Domestic' });
+  assert.deepEqual(resolveLink(link('Birds', 'Birds (Nonesuch; Partridge)'), IX),
+    { dst: 'Birds', anchor: 'Partridge' });
 });
 
-test('tier 4: Article (Subhead) resolves to the article plus the anchor', () => {
-  assert.deepEqual(resolveTarget('Animals (Cattle)', IX), { dst: 'Animals', anchor: 'Cattle' });
-});
-
-test('tier 4 fallback: unmatched subhead still links the host, anchor dropped', () => {
-  assert.deepEqual(resolveTarget('Plants (Vine)', IX), { dst: 'Vine', anchor: null });
-});
-
-test('an inverted title with a comma still resolves exactly', () => {
-  assert.deepEqual(resolveTarget('Lord’s Supper, the', IX), { dst: 'Lord', anchor: null });
-});
-
-test('a hosted supplement resolves to its host, anchored by its own title', () => {
-  assert.deepEqual(resolveTarget('A Cup of Cold Water', IX),
+test('resolveLink: a hosted supplement redirects to its host, anchored by its own title', () => {
+  assert.deepEqual(resolveLink(link('CupBox', 'A Cup of Cold Water', 'Textbox'), IX),
     { dst: 'Cup', anchor: 'A Cup of Cold Water' });
 });
 
-test('an orphan supplement is its own destination and carries no anchor', () => {
-  assert.deepEqual(resolveTarget('Nobody Hosts This', IX), { dst: 'LooseBox', anchor: null });
+test('resolveLink: an orphan supplement is its own destination', () => {
+  assert.deepEqual(resolveLink(link('LooseBox', 'Nobody Hosts This', 'Textbox'), IX),
+    { dst: 'LooseBox', anchor: null });
 });
 
-test('an article outranks a supplement that normalises to the same title', () => {
-  // BeastChart is titled "Antichrist" too. The article is the entry a reader can open.
-  assert.deepEqual(resolveTarget('Antichrist', IX), { dst: 'Antichrist', anchor: null });
+// The corpus has exactly one: Succoth links to the KeyPlacesintheExodus Map. Maps are not ingested.
+test('resolveLink: a target that is not in the package resolves to nothing', () => {
+  assert.equal(resolveLink(link('KeyPlacesintheExodus', 'map', 'Map'), IX), null);
 });
 
-test('a target absent from the corpus resolves to null, never throws', () => {
-  assert.equal(resolveTarget('Jesus Christ, Life and Teachings of', IX), null);
-});
-
-test('extractXrefs: splits a multi-target clause and RECORDS the absent one', () => {
-  // "Prophets, False" is absent from this fixture. It must be kept with dst null, not dropped:
-  // the UI shows these honestly, and discarding them would overstate how complete the graph is.
-  const rows = extractXrefs(ARTICLES[0], IX);
+test('buildXrefRows: emits one row per link, in source order, with seq', () => {
+  const rows = buildXrefRows(ARTICLES[0], [link('Antichrist', 'Antichrist'), link('Animals', 'Animals (Cattle)')], IX);
   assert.deepEqual(rows, [
     { src: 'Beast', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 },
-    { src: 'Beast', dst: 'MarkofGod', raw: 'Mark of the Beast', anchor: null, seq: 1 },
-    { src: 'Beast', dst: null, raw: 'Prophets, False', anchor: null, seq: 2 },
+    { src: 'Beast', dst: 'Animals', raw: 'Animals (Cattle)', anchor: 'Cattle', seq: 1 },
   ]);
 });
 
-test('extractXrefs: honours "See also" and carries an anchor', () => {
-  assert.deepEqual(extractXrefs(ARTICLES[4], IX),
-    [{ src: 'Bull', dst: 'Animals', raw: 'Animals (Cattle)', anchor: 'Cattle', seq: 0 }]);
+test('buildXrefRows: `raw` is the link text, not the target title', () => {
+  // the real case: the link reads "Jesus Christ, Life and Teachings of" and points at an article
+  // titled "Jesus Christ, Teachings of". The app matches this string against the rendered prose.
+  const rows = buildXrefRows(ARTICLES[0], [link('Antichrist', 'The Man of Lawlessness')], IX);
+  assert.equal(rows[0].raw, 'The Man of Lawlessness');
+  assert.equal(rows[0].dst, 'Antichrist');
 });
 
-test('extractXrefs: deduplicates an absent target named twice', () => {
-  const a = { id: 'D', body: 'One. See Nowhere At All. Two. See Nowhere At All.' };
-  assert.deepEqual(extractXrefs(a, IX),
-    [{ src: 'D', dst: null, raw: 'Nowhere At All', anchor: null, seq: 0 }]);
+test('buildXrefRows: drops a link to the page it is already on', () => {
+  assert.deepEqual(buildXrefRows(ARTICLES[0], [link('Beast', 'Beast')], IX), []);
 });
 
-test('extractXrefs: drops self-edges', () => {
-  assert.deepEqual(extractXrefs(ARTICLES[9], IX), []);
+test('buildXrefRows: drops a hosted supplement linking to its own host', () => {
+  const box = ARTICLES.find((a) => a.id === 'CupBox');
+  assert.deepEqual(buildXrefRows(box, [link('Cup', 'Cup')], IX), []);
 });
 
-test('extractXrefs: reads a supplement body as a source', () => {
-  assert.deepEqual(extractXrefs(ARTICLES[11], IX), [
-    { src: 'LooseBox', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 },
-    { src: 'LooseBox', dst: 'Grape', raw: 'Grape', anchor: null, seq: 1 },
+test('buildXrefRows: deduplicates two links to the same destination', () => {
+  const rows = buildXrefRows(ARTICLES[0],
+    [link('Animals', 'Animals (Cattle)'), link('Animals', 'Animals (Deer)')], IX);
+  assert.deepEqual(rows, [
+    { src: 'Beast', dst: 'Animals', raw: 'Animals (Cattle)', anchor: 'Cattle', seq: 0 },
   ]);
 });
 
-test('extractXrefs: a hosted supplement never links to the article it sits inside', () => {
-  // The mirror of the self-edge case, and the reason it needs its own guard: `src` stays the box's
-  // own id, so src and dst genuinely differ and the no-self-edges invariant cannot see it. The
-  // real corpus has one — the textbox AbominationOfDesolation names Abomination, its host.
-  const box = { id: 'CupBox', kind: 'textbox', host_id: 'Cup', body: 'Boxed. See Cup; Grape.' };
-  assert.deepEqual(extractXrefs(box, IX),
-    [{ src: 'CupBox', dst: 'Grape', raw: 'Grape', anchor: null, seq: 0 }]);
+// --- extractSeeXrefs: reading the links out of the source markup ---
+
+const SEE = (inner) => `<p class="fl">Prose. <span class="ital">See</span> ${inner}.</p>`;
+const A = (id, text, kind = 'Article') =>
+  `<a href="?item=${id}_${kind}_TyndaleOpenBibleDictionary">${text}</a>`;
+
+test('extractSeeXrefs: takes the item id and the display text', () => {
+  assert.deepEqual(extractSeeXrefs(SEE(A('Antichrist', 'Antichrist'))),
+    [{ item: 'Antichrist', kind: 'Article', text: 'Antichrist' }]);
 });
 
-test('extractXrefs: a host citing its own supplement is a self-edge, and is dropped', () => {
-  // The redirect sends the box back to the article doing the citing. This is the only shape the
-  // hosted case takes anywhere in the real corpus — Flood, the names its own textbox
-  // “Scientific Evidence for the Flood?” and nothing else cites a hosted supplement from outside.
-  const host = { id: 'Cup', kind: 'article', body: 'A vessel. See A Cup of Cold Water.' };
-  assert.deepEqual(extractXrefs(host, IX), []);
+test('extractSeeXrefs: several targets in one clause', () => {
+  assert.deepEqual(
+    extractSeeXrefs(SEE(`${A('FoodandFoodPreparation', 'Food and Food Preparation')}; ${A('Plants', 'Plants (Onion)')}`)),
+    [{ item: 'FoodandFoodPreparation', kind: 'Article', text: 'Food and Food Preparation' },
+     { item: 'Plants', kind: 'Article', text: 'Plants (Onion)' }]);
 });
 
-test('extractXrefs: skips structural pointers like "See above"', () => {
-  assert.deepEqual(extractXrefs({ id: 'X', body: 'Text. See above.' }, IX), []);
+test('extractSeeXrefs: "See also" is the same clause', () => {
+  const xml = `<p class="fl">Prose. <span class="ital">See also</span> ${A('Antichrist', 'Antichrist')}.</p>`;
+  assert.deepEqual(extractSeeXrefs(xml), [{ item: 'Antichrist', kind: 'Article', text: 'Antichrist' }]);
 });
 
-test('extractXrefs: deduplicates a target named twice by the same article', () => {
-  const a = { id: 'D', body: 'One. See Antichrist. Two. See Antichrist.' };
-  assert.deepEqual(extractXrefs(a, IX),
-    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+// A "#Subhead" href points inside the SAME article ("Locust (below)"). The reader is already there,
+// so it is not an edge — and it must never be reported as a target absent from the corpus.
+test('extractSeeXrefs: an intra-article "#Subhead" link is not a cross-reference', () => {
+  assert.deepEqual(extractSeeXrefs(SEE('<a href="#Locust">Locust (below)</a>')), []);
 });
 
-test('extractXrefs: matches a "See" clause preceded by a period inside a closing curly quote', () => {
-  // Tyndale often closes a sentence with the period INSIDE the quote mark, e.g.
-  // `...the English word "eon." See Age.` The clause is invisible unless the quote is
-  // allowed to sit between the terminator and "See".
-  const a = { id: 'D', body: 'Greek word for a long period of time or age, from which comes the English word “eon.” See Antichrist.' };
-  assert.deepEqual(extractXrefs(a, IX),
-    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+test('extractSeeXrefs: a scripture ?bref= link is not a cross-reference', () => {
+  assert.deepEqual(extractSeeXrefs(SEE('<a href="?bref=Gen.1.1">Gn 1:1</a>')), []);
 });
 
-test('extractXrefs: matches a "See" clause preceded by a citation\'s closing paren', () => {
-  // The source drops the period when a sentence ends on a citation, e.g. Garlic's
-  // `...used in cooking (Nm 11:5) See Food and Food Preparation.`
-  const a = { id: 'D', body: 'A plant used in cooking (Nm 11:5) See Antichrist.' };
-  assert.deepEqual(extractXrefs(a, IX),
-    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+// The 7 parenthetical asides in the corpus. They carry no ?item= link, so no separate rule is
+// needed to exclude them — which is why this replaced a regex that had to guess.
+test('extractSeeXrefs: a parenthetical aside contributes nothing', () => {
+  const xml = '<p class="fl">Read aloud. (<span class="ital">See also</span> '
+    + '<a href="?bref=Col.4.16">Col 4:16</a>; <a href="?bref=Rev.1.3">Rv 1:3</a>.) More prose.</p>';
+  assert.deepEqual(extractSeeXrefs(xml), []);
 });
 
-test('extractXrefs: a parenthetical "(See …)" aside is not a cross-reference', () => {
-  // An OPENING paren is the one context where "See" reliably introduces something that is not an
-  // entry — a scripture citation or a pointer inside the article. 7 occurrences in the corpus.
-  const a = { id: 'D', body: 'The letters were read aloud. (See also Antichrist.) Later readers disagreed.' };
-  assert.deepEqual(extractXrefs(a, IX), []);
+test('extractSeeXrefs: link text is normalised exactly as cleanBody normalises the body', () => {
+  // a non-breaking space inside link text must survive, because the app matches this string
+  // against the flattened body, where cleanBody leaves U+00A0 alone
+  const xml = SEE(A('ChronologyoftheBibleOldTestament', 'Chronology of the Bible (Old Testament)'));
+  assert.equal(extractSeeXrefs(xml)[0].text, 'Chronology of the Bible (Old Testament)');
 });
 
-test('extractXrefs: matches a "See" clause preceded by a semicolon', () => {
-  const a = { id: 'D', body: 'Several views exist; See Antichrist.' };
-  assert.deepEqual(extractXrefs(a, IX),
-    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+test('extractSeeXrefs: inline markup inside the link text is stripped', () => {
+  assert.deepEqual(extractSeeXrefs(SEE(A('Antichrist', '<span class="ital">Antichrist</span>'))),
+    [{ item: 'Antichrist', kind: 'Article', text: 'Antichrist' }]);
 });

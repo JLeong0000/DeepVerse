@@ -1,126 +1,74 @@
-// Resolves Tyndale's own "See …" cross-references into edges between dictionary entries.
+// Turns Tyndale's own "See …" links into edges between dictionary entries.
 //
-// The dictionary writes cross-references as prose sentences ("See Sin.", "See Antichrist;
-// Armageddon."). This module turns them into a graph over all 6,141 dictionary rows — the 6,010
-// articles and the 131 supplements (textboxes and charts) they host, which both cite and are
-// cited. The corpus names 5,345 targets across 3,659 clauses; 105 are dropped as duplicates or
-// self-links, leaving 5,240 edges, of which it resolves 5,100 (97.33%). The rest are genuine source
-// defects ("Jesus Christ, Life and Teachings of" is cited 19 times and does not exist) and must
-// degrade to nothing rather than throw.
+// The source states every cross-reference explicitly — `?item=Plants_Article_…` names the target
+// entry, and its `name` is the id we store — so this module resolves nothing by text. It maps the
+// link's item id to a destination, works out where in that destination the reader should land, and
+// drops the links that are not edges. `extractSeeXrefs` in tyndale.mjs does the parsing.
+//
+// This replaced a resolver that reconstructed the graph from flattened prose with a clause regex
+// and four tiers of fuzzy title matching. That approach could not see what the markup states: it
+// got 89 edges wrong in one direction and 33 in the other, and reported 139 targets as "absent from
+// the corpus" that are nothing of the kind — including "Jesus Christ, Life and Teachings of",
+// cited 19 times, whose link points at the JesusChristTeachingsof article we have had all along.
 
 const HEAD_MARK = '## ';
 
-// A cross-reference is a sentence beginning with a capital S. The preceding sentence may end in
-// any terminator, and Tyndale routinely puts that terminator INSIDE a closing quote
-// (`…the English word “eon.” See Age.`), so the quote must be allowed to follow it.
-// Lower-case "see also Nm 3:2-4" is a scripture citation and is deliberately not matched.
-//
-// `)` is allowed as a terminator too, because the source drops the period when a sentence ends on
-// a citation's closing paren (`…used in cooking (Nm 11:5) See Food and Food Preparation.`).
-// An audit of all 3,666 "See "/"See also " occurrences in the corpus found exactly 10 this
-// expression did not match: the 3 that follow `)`, all genuine cross-references, and 7 that follow
-// `(` — parenthetical asides citing scripture or pointing inside the article ("(See also Col 4:16;
-// Rv 1:3.)", "(See the discussion on this manuscript above.)"). `(` is therefore deliberately NOT
-// allowed: it is the one context where "See" reliably introduces something that is not an entry.
-const CLAUSE = /(?:^|[.;!?)][”"’']?\s*|\n\s*)See(?: also)? ([^.\n]+)\./g;
-
-// Pointers into the article's own structure, not to another entry.
-const STRUCTURAL = /^\s*(?:the\s+)?(?:above|below|note|chart|introduction)\b/i;
-
-export function normKey(s) {
-  return String(s).trim().toLowerCase()
-    .replace(/[‘’]/g, "'")           // curly -> straight apostrophe
-    .replace(/\*/g, '')                        // the source's cross-reference asterisk
-    .replace(/[.\s]+$/, '')                    // trailing period / whitespace
-    .replace(/^“([^“”]*)”$/, '$1')             // Tyndale quotes a supplement it cites, whole
-    .replace(/\s*#\d+\s*$/, '')                // " #2" is an intra-article sense pointer
-    .replace(/\s*\((?:above|below)\)\s*$/, '')
-    .replace(/\s+/g, ' ');
-}
-
 const isArticle = (r) => r.kind === 'article';
 
+// Subheads, so a link reading "Animals (Cattle)" can land on the "## Cattle" block rather than the
+// top of a 60-heading article. Keyed on the lower-cased subhead, valued with the source's casing.
 export function buildIndex(rows) {
-  const byTitle = new Map(), bySort = new Map(), subheads = new Map(), byId = new Map();
-  const segOwners = new Map();
-  // Articles first, so a supplement can never take a key an article wants: "Followers of the Way"
-  // is both a textbox and an article, and the article is the entry a reader can open on its own.
-  for (const r of [...rows.filter(isArticle), ...rows.filter((x) => !isArticle(x))]) {
+  const byId = new Map(), subheads = new Map();
+  for (const r of rows) {
     byId.set(r.id, r);
-    const tk = normKey(r.title);
-    if (isArticle(r) || !byTitle.has(tk)) byTitle.set(tk, r.id);
-    const sk = normKey(r.sort_title ?? r.title);
-    if (!bySort.has(sk)) bySort.set(sk, r.id);   // sort_title collides across 131 groups
-    // Comma segments let "See Mark of the Beast." reach "Mark of God*, Mark of the Beast".
-    // Single words are far too ambiguous to index; a segment is only usable when exactly one
-    // row claims it, which is what keeps this from guessing.
-    for (const seg of tk.split(/,\s*/)) {
-      if (!seg || seg.split(' ').length < 2) continue;
-      if (!segOwners.has(seg)) segOwners.set(seg, new Set());
-      segOwners.get(seg).add(r.id);
-    }
     const hs = new Map();
-    for (const line of String(r.body).split('\n'))
-      if (line.startsWith(HEAD_MARK)) hs.set(normKey(line.slice(3)), line.slice(3).trim());
+    for (const line of String(r.body).split('\n')) {
+      if (!line.startsWith(HEAD_MARK)) continue;
+      const head = line.slice(HEAD_MARK.length).trim();
+      hs.set(head.toLowerCase(), head);
+    }
     if (hs.size) subheads.set(r.id, hs);
   }
-  const bySeg = new Map();
-  for (const [seg, ids] of segOwners) if (ids.size === 1) bySeg.set(seg, [...ids][0]);
-  return { byTitle, bySort, bySeg, subheads, byId };
+  return { byId, subheads };
 }
 
-const direct = (key, ix) => ix.byTitle.get(key) ?? ix.bySort.get(key) ?? ix.bySeg.get(key) ?? null;
-
-// Where a matched row actually sends the reader. A supplement is not a page of its own: a hosted
-// one is rendered inside its host, so the link opens the host scrolled to the box — the same shape
-// a "(Subhead)" match produces. Only an orphan supplement, which no article includes, is its own
-// destination. `subKey` is the normalised subhead of a "Article (Subhead)" match, else null.
-function destination(id, ix, subKey) {
-  const row = ix.byId.get(id);
+// A supplement is not a page of its own: a hosted one renders inside its host, so the link opens
+// the host scrolled to the box. Only an orphan supplement, which no article embeds, is its own
+// destination. A "(Subhead)" in the display text picks a block inside the destination; an
+// unmatched one still yields a correct link, with the anchor simply dropped.
+//
+// "Birds (Fowl, Domestic; Partridge)" names two subheads in ONE link. The reader follows one link,
+// so it yields one edge, anchored on the first of those subheads that exists.
+export function resolveLink(link, ix) {
+  const row = ix.byId.get(link.item);
+  if (!row) return null;                    // a Map, or an id not in the package
   if (!isArticle(row))
-    return row.host_id ? { dst: row.host_id, anchor: row.title } : { dst: id, anchor: null };
-  // An unmatched subhead still yields a correct link — the anchor is simply dropped.
-  return { dst: id, anchor: subKey === null ? null : ix.subheads.get(id)?.get(subKey) ?? null };
+    return row.host_id ? { dst: row.host_id, anchor: row.title } : { dst: row.id, anchor: null };
+  const m = link.text.match(/\(([^()]*)\)\s*$/);
+  if (!m) return { dst: row.id, anchor: null };
+  const hs = ix.subheads.get(row.id);
+  for (const part of m[1].split(';')) {
+    const hit = hs?.get(part.trim().toLowerCase());
+    if (hit) return { dst: row.id, anchor: hit };
+  }
+  return { dst: row.id, anchor: null };
 }
 
-export function resolveTarget(rawTarget, ix) {
-  const key = normKey(String(rawTarget).replace(/^\s*also\s+/i, ''));
-  const hit = direct(key, ix);
-  if (hit) return destination(hit, ix, null);
-  // "Animals (Cattle)" points at a subhead inside another article.
-  const m = key.match(/^(.*?)\s*\(([^()]*)\)?$/);
-  if (!m) return null;
-  const host = direct(normKey(m[1]), ix);
-  if (!host) return null;
-  return destination(host, ix, normKey(m[2]));
-}
-
-// Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 140 of the
-// 5,240 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
-// Teachings of" is cited 19 times. The UI shows these honestly rather than silently dropping them,
-// so the resolver must keep them.
-export function extractXrefs(row, ix) {
+// One row per distinct destination. `raw` is the link's display text, which is what the app matches
+// against the rendered prose to decide which run to underline.
+export function buildXrefRows(row, links, ix) {
   const out = [];
   const seen = new Set();
-  for (const m of String(row.body).matchAll(CLAUSE)) {
-    for (const rawTarget of m[1].split(';')) {
-      const target = rawTarget.replace(/^\s*also\s+/i, '').trim();
-      if (!target || STRUCTURAL.test(target)) continue;
-      const hit = resolveTarget(target, ix);
-      // A row never links to the page it is already on. Compared after the hosted-supplement
-      // redirect, so an article naming a textbox of its own drops out (Flood, the cites
-      // “Scientific Evidence for the Flood?”), and so does the mirror case: a hosted supplement
-      // naming its own host (the textbox AbominationOfDesolation cites Abomination). The second
-      // arm needs its own test because `src` stays the box's id, so src and dst really do differ.
-      if (hit && (hit.dst === row.id || hit.dst === row.host_id)) continue;
-      // Tagged so the resolved and unresolved namespaces can never collide, even though no
-      // article id currently contains a colon.
-      const dedupe = hit ? `id:${hit.dst}` : `raw:${normKey(target)}`;
-      if (seen.has(dedupe)) continue;
-      seen.add(dedupe);
-      out.push({ src: row.id, dst: hit ? hit.dst : null, raw: target,
-        anchor: hit ? hit.anchor : null, seq: out.length });
-    }
+  for (const link of links) {
+    const hit = resolveLink(link, ix);
+    if (!hit) continue;
+    // A row never links to the page it is already on — an article naming a textbox of its own, or
+    // a hosted textbox naming its host. Compared after the hosted-supplement redirect, so `src`
+    // and `dst` really can differ here.
+    if (hit.dst === row.id || hit.dst === row.host_id) continue;
+    if (seen.has(hit.dst)) continue;
+    seen.add(hit.dst);
+    out.push({ src: row.id, dst: hit.dst, raw: link.text, anchor: hit.anchor, seq: out.length });
   }
   return out;
 }

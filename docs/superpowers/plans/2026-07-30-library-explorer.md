@@ -4,7 +4,7 @@
 
 **Goal:** Build a browsable, search-first explorer at `#/library` over the Tyndale corpus already in `bible.db`, where the breadcrumb is the navigation stack and Tyndale's own cross-references are the way through.
 
-**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,240 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
+**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,152 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
 
 **Tech Stack:** Svelte 5 (runes), sql.js, Vite, Vitest (app), `node --test` (build), `node:sqlite` (build).
 
@@ -274,6 +274,12 @@ cd build && node --test test/xref.test.mjs
 Expected: FAIL — `Cannot find module '../lib/xref.mjs'`.
 
 - [ ] **Step 3: Write the implementation**
+
+> **SUPERSEDED (2026-08-03).** The module below reconstructs the graph from flattened prose with a
+> clause regex and fuzzy title matching. It was replaced: Tyndale's source markup states every
+> cross-reference explicitly as `?item=` links, which `cleanBody` had been discarding. The shipped
+> `xref.mjs` consumes those links instead. The snippets in this task and in Task 2 are kept as the
+> record of what was built, not as a description of the code. See the spec, §4.
 
 Create `build/lib/xref.mjs`:
 
@@ -653,7 +659,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 cd build && npm run build
 ```
 
-Expected: among the output, `dict_xref: {"rows":5240,"resolved":5100,"missing":140,"anchored":94}` and `validation OK`.
+Expected: among the output, `dict_xref: {"rows":5152,"anchored":87,"dropped":68}` and `validation OK`.
 
 - [ ] **Step 7: Verify a fresh clone can still build**
 
@@ -678,7 +684,7 @@ Expected: `copy-assets: bible.db version <hash>` with a **new** hash. Confirm `d
 sqlite3 app/public/bible.db "SELECT COUNT(*) FROM dict_xref;"
 ```
 
-Expected: `5240`.
+Expected: `5152`.
 
 - [ ] **Step 9: Run the build suite**
 

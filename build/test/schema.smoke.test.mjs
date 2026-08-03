@@ -28,58 +28,54 @@ test('agapao has a Louw-Nida domain', () => {
   assert.match(r.ln, /^25\./);
 });
 
-test('dict_xref: 5240 rows — 5100 resolved, 140 naming an article that does not exist', () => {
+test('dict_xref: 5152 rows, every one resolved', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5240);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5100);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 140);
-  assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 110);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5152);
+  // dst is NOT NULL by construction: the graph is built from the source's own ?item= links, so a
+  // row exists only where a target was found. The old title-matching resolver left 140 unresolved,
+  // 139 of which were its own failures rather than gaps in the dictionary.
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 87);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c, 0);
-  // every non-null endpoint must be a real article
   const orphans = db.prepare(`SELECT COUNT(*) c FROM dict_xref x
     LEFT JOIN dict_articles a ON a.id = x.src
     LEFT JOIN dict_articles b ON b.id = x.dst
-    WHERE a.id IS NULL OR (x.dst IS NOT NULL AND b.id IS NULL)`).get().c;
+    WHERE a.id IS NULL OR b.id IS NULL`).get().c;
   assert.equal(orphans, 0);
   db.close();
 });
 
-// The clause regex allows ')' as a sentence terminator, because the source drops the period when a
-// sentence ends on a citation's closing paren. These three articles are the entire population: with
-// the narrower expression they produced zero rows each, so the article showed a "dead end" notice
-// under a paragraph that visibly names another entry.
-test('dict_xref: a clause following a citation\'s closing paren is recorded', () => {
+// Every stored `raw` is the source's own link text, and the app finds it by literal match in the
+// flattened body to decide what to underline. If one did not occur verbatim, that edge would have
+// a door but no underlined text — the exact drift this design exists to prevent.
+test('dict_xref: every raw occurs verbatim in its article body', () => {
   const db = new DatabaseSync('../data/bible.db');
-  const edges = (src) => db.prepare('SELECT dst, raw FROM dict_xref WHERE src=? ORDER BY seq')
-    .all(src).map((r) => `${r.dst} <- ${r.raw}`);
-  assert.deepEqual(edges('Garlic'),
-    ['FoodandFoodPreparation <- Food and Food Preparation', 'Plants <- Plants (Onion)']);
-  assert.deepEqual(edges('Jerubbesheth'), ['Gideon <- Gideon']);
-  assert.deepEqual(edges('Jezaniah'), ['Jaazaniah <- Jaazaniah #1']);
+  const bad = db.prepare(`SELECT COUNT(*) c FROM dict_xref x
+    JOIN dict_articles a ON a.id = x.src
+    WHERE instr(a.body, x.raw) = 0`).get().c;
+  assert.equal(bad, 0);
   db.close();
 });
 
-// The counterpart guard. "See" after an OPENING paren introduces a parenthetical aside — a
-// scripture citation or a pointer inside the article — never an entry, and there are 7 of them.
-// Allowing '(' alongside ')' would turn every one into a bogus cross-reference.
-test('dict_xref: a parenthetical "(See …)" aside is not a cross-reference', () => {
+// Formerly reported as "absent from the corpus" — the most-cited example of a supposed source
+// defect, 19 times over. The link points at an article that has been there all along.
+test('dict_xref: "Jesus Christ, Life and Teachings of" resolves', () => {
   const db = new DatabaseSync('../data/bible.db');
-  const raws = (src) => db.prepare('SELECT raw FROM dict_xref WHERE src=?').all(src).map((r) => r.raw);
-  // "(See also Col 4:16; Rv 1:3.)" — scripture, not entries
-  assert.equal(raws('BibleCanonofthe').some((r) => /Col 4:16|Rv 1:3/.test(r)), false);
-  // "(See the discussion on this manuscript above.)" — a pointer inside the article
-  assert.equal(raws('BibleManuscriptsandTextoftheNewTestament')
-    .some((r) => /discussion on this manuscript/.test(r)), false);
+  const rows = db.prepare(`SELECT DISTINCT dst FROM dict_xref WHERE raw = ?`)
+    .all('Jesus Christ, Life and Teachings of');
+  assert.deepEqual(rows.map((r) => r.dst), ['JesusChristTeachingsof']);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE raw = ?')
+    .get('Jesus Christ, Life and Teachings of').c, 19);
   db.close();
 });
 
-test('dict_xref: the most-cited missing target is named 19 times', () => {
+// One link, two subheads. The old ';' split made a broken "Birds (Fowl, Domestic" target and an
+// orphan "Partridge)" that the app announced as missing from the dictionary.
+test('dict_xref: a link naming two subheads is one edge', () => {
   const db = new DatabaseSync('../data/bible.db');
-  const r = db.prepare(`SELECT raw, COUNT(*) c FROM dict_xref WHERE dst IS NULL
-    GROUP BY raw ORDER BY c DESC LIMIT 1`).get();
-  assert.equal(r.raw, 'Jesus Christ, Life and Teachings of');
-  assert.equal(r.c, 19);
+  const rows = db.prepare('SELECT dst, raw, anchor FROM dict_xref WHERE src = ?').all('Brood');
+  assert.deepEqual(rows.map((r) => `${r.dst}|${r.raw}|${r.anchor}`),
+    ['Birds|Birds (Fowl, Domestic; Partridge)|Fowl, Domestic']);
   db.close();
 });
 

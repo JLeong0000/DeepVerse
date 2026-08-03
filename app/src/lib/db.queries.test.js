@@ -242,6 +242,38 @@ describe('chapter recap', () => {
   });
 });
 
+// The preview box falls back NIV -> NKJV -> NLT. This is a content decision, not a nicety: the
+// NKJV follows the Textus Receptus, so it carries 16 verses the NIV has no row for. A dictionary
+// article that links one of them ("Heart" cites Acts 8:37) used to render an empty box.
+describe('getRefPreview version fallback', () => {
+  test('an ordinary verse comes from the NIV', () => {
+    const p = db.getRefPreview('John.3.16');
+    expect(p.version).toBe('NIV');
+    expect(p.text).toMatch(/For God so loved the world/);
+  });
+  test('a range previews its first verse', () => {
+    expect(db.getRefPreview('1John.4.9-1John.4.10').text)
+      .toBe(db.getRefPreview('1John.4.9').text);
+  });
+  test('Acts 8:37 falls back to the NKJV, which has it and the NIV does not', () => {
+    expect(db.getChapter('NIV', 'Acts', 8).some((v) => v.verse === 37)).toBe(false);
+    expect(db.getChapter('NKJV', 'Acts', 8).some((v) => v.verse === 37)).toBe(true);
+    const p = db.getRefPreview('Acts.8.37');
+    expect(p.version).toBe('NKJV');
+    expect(p.text).toMatch(/I believe that Jesus Christ is the Son of God/);
+  });
+  test('Esther 11 and 12 are in no translation we carry — the Greek Additions', () => {
+    for (const ref of ['Esth.11.1', 'Esth.12.1']) {
+      expect(db.getRefPreview(ref)).toEqual({ text: '', version: null });
+    }
+    // Protestant Esther ends at chapter 10 in all three
+    for (const v of ['NIV', 'NKJV', 'NLT']) expect(db.getChapter(v, 'Esth', 11)).toEqual([]);
+  });
+  test('a malformed ref yields the same empty shape, not a throw', () => {
+    expect(db.getRefPreview('not-a-ref')).toEqual({ text: '', version: null });
+  });
+});
+
 describe('study notes', () => {
   test('getChapterStudyNoteCount: annotated chapter vs unknown book', () => {
     expect(db.getChapterStudyNoteCount('Gen', 1)).toBe(19);

@@ -161,6 +161,21 @@ test('extractXrefs: matches a "See" clause preceded by a period inside a closing
     [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
 });
 
+test('extractXrefs: matches a "See" clause preceded by a citation\'s closing paren', () => {
+  // The source drops the period when a sentence ends on a citation, e.g. Garlic's
+  // `...used in cooking (Nm 11:5) See Food and Food Preparation.`
+  const a = { id: 'D', body: 'A plant used in cooking (Nm 11:5) See Antichrist.' };
+  assert.deepEqual(extractXrefs(a, IX),
+    [{ src: 'D', dst: 'Antichrist', raw: 'Antichrist', anchor: null, seq: 0 }]);
+});
+
+test('extractXrefs: a parenthetical "(See …)" aside is not a cross-reference', () => {
+  // An OPENING paren is the one context where "See" reliably introduces something that is not an
+  // entry — a scripture citation or a pointer inside the article. 7 occurrences in the corpus.
+  const a = { id: 'D', body: 'The letters were read aloud. (See also Antichrist.) Later readers disagreed.' };
+  assert.deepEqual(extractXrefs(a, IX), []);
+});
+
 test('extractXrefs: matches a "See" clause preceded by a semicolon', () => {
   const a = { id: 'D', body: 'Several views exist; See Antichrist.' };
   assert.deepEqual(extractXrefs(a, IX),

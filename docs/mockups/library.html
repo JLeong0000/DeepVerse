@@ -1,4 +1,29 @@
 <meta charset="utf-8" />
+
+<div style="border:2px solid #8a2f2f; border-radius:8px; padding:14px 18px; margin:0 0 22px;
+            background:rgba(138,47,47,.06); font-family:system-ui,sans-serif; line-height:1.55;">
+  <div style="font-weight:700; font-size:15px; color:#8a2f2f; margin-bottom:6px;">
+    SUPERSEDED — historical design artifact, not the visual contract
+  </div>
+  <p style="margin:0 0 8px;">
+    <b>The running app at <code>#/library</code> is the visual contract.</b> This file is kept for the
+    design history only. Do not transcribe its numbers, its markup or its CSS into code — check the app,
+    or query <code>data/bible.db</code>.
+  </p>
+  <p style="margin:0 0 8px;">
+    It has misled implementers twice. A full audit found <b>21 of its 137 database-checkable claims were
+    wrong</b>, including every one of its ten per-article citation counts and a title (<code>Command</code>)
+    that does not exist in the corpus. Separately, a <code>.reslbl:first-of-type</code> selector that never
+    matched anything was copied from here into the plan and then into the code.
+  </p>
+  <p style="margin:0;">
+    The figures below were corrected on 2026-08-01 and are correct as of that date, but
+    <code>dict_xref</code> has since been rebuilt (5,236 → 5,240 rows). Five of the ten demo article bodies
+    are abridged paraphrases rather than corpus text, so their <code>See …</code> clauses are illustrative;
+    the real graph is the <code>dict_xref</code> table.
+  </p>
+</div>
+
 <h2>Library (#/library) — single column, drill-down, breadcrumb spine</h2>
 <p class="subtitle">
   Phase 2 of the Tyndale cultural layer. No sidebar: one surface at a time — <b>start → a route's index → an
@@ -558,7 +583,7 @@ That daily reality is what gives the metaphor its force when it is applied to ki
   }
 
   // ---- the cross-reference edge list ----
-  // In the real app this is `dict_xref` (5,236 rows), precomputed at build time: resolving 6,010
+  // In the real app this is `dict_xref` (5,240 rows), precomputed at build time: resolving 6,010
   // bodies at query time would mean pulling 8.4 MB of prose through sql.js. Derived here from the
   // same "See …" clauses so the mockup's graph is the real one for these articles.
   const EDGES = (() => {
@@ -965,7 +990,7 @@ That daily reality is what gives the metaphor its force when it is applied to ki
 
 <h3>Warts on display, all real</h3>
 <ul>
-  <li><b>3% of cross-reference targets don't exist.</b> 140 of the 5,236 links Tyndale writes name an article
+  <li><b>3% of cross-reference targets don't exist.</b> 140 of the 5,240 links Tyndale writes name an article
     that is not in the corpus — 110 distinct names, led by <code>Jesus Christ, Life and Teachings of</code> at 19
     citations. Open <b>Christ</b> (via ✦ Wander in) to see one: it stays plain italic text in the prose and is
     listed under the doors rather than 404-ing.

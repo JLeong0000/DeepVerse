@@ -325,13 +325,29 @@ export function getChapterCrossRefStats(book, chapter) {
   return query(`SELECT COUNT(*) AS total, COUNT(DISTINCT from_verse) AS versesWithRefs
     FROM cross_refs WHERE from_book=? AND from_chapter=? AND votes>0`, [book, chapter])[0];
 }
-// NIV text of a cross-ref target's first verse (to_ref may be a range like "1John.4.9-1John.4.10").
+// Text of a cross-ref target's first verse (to_ref may be a range like "1John.4.9-1John.4.10"),
+// with the version it came from.
+//
+// NIV first, then NKJV, then NLT. The fallback is not cosmetic: the NKJV follows the Textus
+// Receptus and so carries 16 verses the NIV has no row for at all (Acts 8:37, Mark 9:44, Rom 16:24
+// …). Previewing those from the NKJV shows the reader the verse the source article is citing,
+// which is the whole point of the box; returning nothing would hide a real textual difference
+// behind what looks like a rendering bug.
+//
+// { text: '', version: null } means no translation here has the verse — see ABSENT in
+// ArticleSurface.svelte, which explains why rather than showing an empty box.
+const PREVIEW_VERSIONS = ['NIV', 'NKJV', 'NLT'];
+
 export function getRefPreview(toRef) {
   const first = String(toRef).split('-')[0];
   const m = first.match(/^(\w+)\.(\d+)\.(\d+)$/);
-  if (!m) return '';
-  return query("SELECT text FROM verses WHERE version='NIV' AND book=? AND chapter=? AND verse=?",
-    [m[1], +m[2], +m[3]])[0]?.text || '';
+  if (!m) return { text: '', version: null };
+  for (const version of PREVIEW_VERSIONS) {
+    const text = query('SELECT text FROM verses WHERE version=? AND book=? AND chapter=? AND verse=?',
+      [version, m[1], +m[2], +m[3]])[0]?.text;
+    if (text) return { text, version };
+  }
+  return { text: '', version: null };
 }
 
 // Chapter-level context from the Theographic knowledge graph (people/places/events named in the

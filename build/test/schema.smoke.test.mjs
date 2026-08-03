@@ -28,10 +28,10 @@ test('agapao has a Louw-Nida domain', () => {
   assert.match(r.ln, /^25\./);
 });
 
-test('dict_xref: 5236 rows — 5096 resolved, 140 naming an article that does not exist', () => {
+test('dict_xref: 5240 rows — 5100 resolved, 140 naming an article that does not exist', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5236);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5096);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5240);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5100);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 140);
   assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 110);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
@@ -42,6 +42,35 @@ test('dict_xref: 5236 rows — 5096 resolved, 140 naming an article that does no
     LEFT JOIN dict_articles b ON b.id = x.dst
     WHERE a.id IS NULL OR (x.dst IS NOT NULL AND b.id IS NULL)`).get().c;
   assert.equal(orphans, 0);
+  db.close();
+});
+
+// The clause regex allows ')' as a sentence terminator, because the source drops the period when a
+// sentence ends on a citation's closing paren. These three articles are the entire population: with
+// the narrower expression they produced zero rows each, so the article showed a "dead end" notice
+// under a paragraph that visibly names another entry.
+test('dict_xref: a clause following a citation\'s closing paren is recorded', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const edges = (src) => db.prepare('SELECT dst, raw FROM dict_xref WHERE src=? ORDER BY seq')
+    .all(src).map((r) => `${r.dst} <- ${r.raw}`);
+  assert.deepEqual(edges('Garlic'),
+    ['FoodandFoodPreparation <- Food and Food Preparation', 'Plants <- Plants (Onion)']);
+  assert.deepEqual(edges('Jerubbesheth'), ['Gideon <- Gideon']);
+  assert.deepEqual(edges('Jezaniah'), ['Jaazaniah <- Jaazaniah #1']);
+  db.close();
+});
+
+// The counterpart guard. "See" after an OPENING paren introduces a parenthetical aside — a
+// scripture citation or a pointer inside the article — never an entry, and there are 7 of them.
+// Allowing '(' alongside ')' would turn every one into a bogus cross-reference.
+test('dict_xref: a parenthetical "(See …)" aside is not a cross-reference', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const raws = (src) => db.prepare('SELECT raw FROM dict_xref WHERE src=?').all(src).map((r) => r.raw);
+  // "(See also Col 4:16; Rv 1:3.)" — scripture, not entries
+  assert.equal(raws('BibleCanonofthe').some((r) => /Col 4:16|Rv 1:3/.test(r)), false);
+  // "(See the discussion on this manuscript above.)" — a pointer inside the article
+  assert.equal(raws('BibleManuscriptsandTextoftheNewTestament')
+    .some((r) => /discussion on this manuscript/.test(r)), false);
   db.close();
 });
 

@@ -6,7 +6,7 @@
   import { getXrefs } from '../../lib/db.js';
   import { displayTitle } from '../../lib/titles.js';
 
-  // Branches drawn per step. Ours, not the data's — `Plants` has 151 neighbours (measured against
+  // Branches drawn per step. Ours, not the data's — `Plants` has 152 neighbours (measured against
   // the resolver that indexes all 131 supplements) and would bury the spine.
   const MAX_BRANCHES = 7;
   // H=420 (not 348): at MAX_BRANCHES=7 a step's branches stack up to 4 rows deep on one side

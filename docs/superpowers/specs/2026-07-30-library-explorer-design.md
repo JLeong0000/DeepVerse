@@ -4,7 +4,10 @@
 **Status:** approved design, pending implementation plan
 **Phase:** 2 of the Tyndale cultural layer
 **Follows:** `2026-07-29-tyndale-cultural-layer-design.md` (Phase 1, shipped at `51ae790`)
-**Mockup:** `docs/mockups/library.html` — interactive, built from real `bible.db` content
+**Visual contract:** the running app at `#/library`. `docs/mockups/library.html` is SUPERSEDED — a
+historical design artifact whose numbers and markup have misled implementers twice (21 of 137
+database-checkable claims were wrong, and a selector that never matched anything was copied from it
+into the code). Check the app, or query `data/bible.db`.
 
 ## Goal
 
@@ -51,21 +54,21 @@ claiming a roster of individuals.
 ### 4. There is a real cross-reference graph
 
 Across all 6,141 dictionary rows — the 6,010 articles and the 131 supplements they host — Tyndale
-wrote 3,656 `See …` clauses naming 5,341 targets. Normalised the way `scripture.js` normalises
+wrote 3,659 `See …` clauses naming 5,345 targets. Normalised the way `scripture.js` normalises
 (curly apostrophes, the `*` marker, `#N` sense pointers, `See also`, and the quotes Tyndale wraps a
 supplement's title in), **95.1% resolve**:
 
 | tier | rule | resolved |
 |---|---|---|
-| 1 | exact normalised `title` | 4,983 |
+| 1 | exact normalised `title` | 4,986 |
 | 2 | `sort_title` | 2 |
 | 3 | a comma-delimited title segment claimed by exactly one row | 2 |
 | 4 | `Article (Subhead)` → article + its `## Subhead` block | 94 |
-| | **strict tier total** | **5,081 / 5,341 (95.1%)** |
+| | **strict tier total** | **5,084 / 5,345 (95.1%)** |
 
-A further **98 targets name a real article with an unmatched subhead** (`Plants (Vine)` where no
+A further **99 targets name a real article with an unmatched subhead** (`Plants (Vine)` where no
 `## Vine` block exists). The build links these to the host article with the anchor dropped — a
-correct, useful link — which takes the final figure to **5,179 of 5,341 (97.0%)**. The 95.1% above
+correct, useful link — which takes the final figure to **5,183 of 5,345 (97.0%)**. The 95.1% above
 is the strict tier total; 97.0% is what ships.
 
 The remaining **162 target instances (110 distinct names) genuinely do not exist** and are stored
@@ -83,13 +86,13 @@ rendered. Only the 13 supplements with no host resolve to themselves.
 
 | | |
 |---|---|
-| distinct resolved edges | 5,096 (5,088 of them article-to-article) |
-| articles with ≥1 edge | 4,073 (68%) |
-| **isolated articles** | **1,937 (32%)** |
+| distinct resolved edges | 5,100 (5,092 of them article-to-article) |
+| articles with ≥1 edge | 4,076 (68%) |
+| **isolated articles** | **1,934 (32%)** |
 | connected components of ≥2 | 599 |
-| largest component | 2,509 |
+| largest component | 2,512 |
 | **second largest** | **15** |
-| median degree | 1 (max 151, `Plants`) |
+| median degree | 1 (max 152, `Plants`) |
 
 A whole-corpus graph view was rejected on these numbers: a third of the corpus would render as
 floating dust, and the structure is one hairball plus 598 specks with no legible mid-scale shape.
@@ -257,7 +260,7 @@ Four additions, all running on data already in the corpus:
 
 ### `dict_xref` — a new table, and why the build step is justified
 
-**5,236 rows** — 5,096 resolved edges plus **140 that name an article the corpus does not contain**
+**5,240 rows** — 5,100 resolved edges plus **140 that name an article the corpus does not contain**
 (110 distinct names). 244 KB.
 
 ```sql
@@ -366,7 +369,7 @@ its real stack index; expander state resetting on navigation.
 **Path map** — branch click truncating to the correct step; solid/dashed spine classification;
 phantom nodes unclickable; drag suppressing the click that follows it.
 
-**Post-build invariants** — `dict_xref` totals (5,236 rows: 5,096 resolved, 140 unresolved, 94
+**Post-build invariants** — `dict_xref` totals (5,240 rows: 5,100 resolved, 140 unresolved, 94
 anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
 with an empty `raw`.
 

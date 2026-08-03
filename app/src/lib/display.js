@@ -113,6 +113,67 @@ export function parseArticleBlocks(body) {
       : { kind: line.startsWith('•') ? 'item' : 'para', text: line });
 }
 
+// Splits a body block into the "See …" cross-reference targets the BUILD recorded, and the prose
+// around them.
+//
+// What counts as a cross-reference is decided once, in build/lib/xref.mjs, and stored in dict_xref.
+// This function never re-decides it: it locates a candidate clause, then asks `byRaw` — keyed on
+// `raw`, the source's exact wording — what the build stored for each ';'-separated target. A run
+// the build recorded nothing for is returned as ordinary prose. That is what keeps the two from
+// drifting apart: the parenthetical asides ("(See also Col 4:16; Rv 1:3.)" — a scripture citation,
+// "(See the discussion on this manuscript above.)" — a pointer inside the article) are absent from
+// dict_xref, so they can never be underlined here.
+//
+// Every character outside a matched target is passed through verbatim, including the separators.
+// Nothing is re-emitted from a template, which is why the source's own "; " spacing survives.
+//
+// byRaw: Map<raw, {id,title,anchor} | null>   — null means recorded but absent from the corpus
+// returns: [{kind:'text',text} | {kind:'link',raw,id,title,anchor} | {kind:'dead',raw}]
+const SEE_CLAUSE = /\bSee(?: also)? ([^.\n]+)\./g;
+
+// The one place the build REJECTS a "See" that this locator would otherwise find: an opening paren
+// makes it a parenthetical aside — a scripture citation or a pointer inside the article, never an
+// entry. There are 7 in the corpus, and build/lib/xref.mjs excludes them by omitting '(' from its
+// terminator class. Mirrored here so the two match the identical set of 3,659 clauses; without it a
+// segment inside an aside could collide with a raw recorded by some other clause of the same
+// article and be underlined. (No such collision exists today — this keeps it that way.)
+const isAside = (src, at) => /\([\s ]*$/.test(src.slice(0, at));
+
+export function splitSeeClauses(text, byRaw) {
+  const src = String(text ?? '');
+  const spans = [];
+  if (byRaw?.size) {
+    SEE_CLAUSE.lastIndex = 0;
+    let m;
+    while ((m = SEE_CLAUSE.exec(src))) {
+      if (isAside(src, m.index)) continue;
+      const capStart = m.index + m[0].length - 1 - m[1].length;
+      const found = [];
+      let pos = 0;
+      for (const seg of m[1].split(';')) {
+        const raw = seg.trim();
+        const hit = byRaw.get(raw);
+        if (raw && hit !== undefined) {
+          const at = capStart + pos + (seg.length - seg.trimStart().length);
+          found.push({ start: at, end: at + raw.length, raw, hit });
+        }
+        pos += seg.length + 1;      // + the ';' the split consumed
+      }
+      // a clause naming nothing the build recorded is prose, not a cross-reference
+      if (found.length) spans.push(...found);
+    }
+  }
+  const out = [];
+  let last = 0;
+  for (const s of spans) {
+    if (s.start > last) out.push({ kind: 'text', text: src.slice(last, s.start) });
+    out.push(s.hit ? { kind: 'link', raw: s.raw, ...s.hit } : { kind: 'dead', raw: s.raw });
+    last = s.end;
+  }
+  if (last < src.length) out.push({ kind: 'text', text: src.slice(last) });
+  return out;
+}
+
 // A one-line preview for the card: headings and bullets are structural, so drop them and run the
 // prose together. Used where only the opening of an article is shown.
 export function articlePreview(body, max) {

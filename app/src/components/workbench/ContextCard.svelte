@@ -19,14 +19,16 @@
   let expanded = $state({ nt: false, ot: false });
   $effect(() => { study.book; study.chapter; study.verse; expanded.nt = false; expanded.ot = false; });
 
-  // cross-refs for the verse, each with a NIV preview, grouped into NT / OT.
+  // cross-refs for the verse, each with a verse preview, grouped into NT / OT. Every cross-ref
+  // target here has NIV text (checked corpus-wide), so getRefPreview's NKJV/NLT fallback never
+  // fires on this surface — .text is simply the NIV line it has always shown.
   let groups = $derived.by(() => {
     if (study.verse == null) return [];
     const refs = getCrossRefs(study.book, study.chapter, study.verse).map(r => ({
       to_ref: r.to_ref,
       votes: r.votes,
       firstRef: r.to_ref.split('-')[0],
-      preview: getRefPreview(r.to_ref),
+      preview: getRefPreview(r.to_ref).text,
     }));
     const ot = refs.filter(r => bookOrder(r.firstRef.split('.')[0]) < 39);
     const nt = refs.filter(r => bookOrder(r.firstRef.split('.')[0]) >= 39);

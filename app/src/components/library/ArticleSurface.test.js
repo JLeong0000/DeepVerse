@@ -19,7 +19,7 @@ vi.mock('../../lib/db.js', () => ({
   getArticle: () => current.article,
   getArticleSupplements: () => supplements,
   getXrefs: () => current.xrefs,
-  getRefPreview: () => '',
+  getRefPreview: () => current.preview ?? { text: 'In the beginning…', version: 'NIV' },
   verseExists: () => true,
 }));
 
@@ -36,6 +36,44 @@ Element.prototype.scrollIntoView = () => {};
 beforeEach(() => {
   current.article = { id: 'Host', title: 'Host', body: 'Cites Gen 1:1 in the body.', n_refs: 1, kind: 'article' };
   current.xrefs = { out: [], in: [], missing: [] };
+  current.preview = null;
+});
+
+// The preview box is where DeepVerse either surfaces a textual difference or hides it behind what
+// looks like a rendering bug. Three cases, all reachable from real articles.
+describe('ArticleSurface — verse preview when the NIV lacks the verse', () => {
+  it('labels a fallback with the version it came from and says why', async () => {
+    // "Heart" links Acts 8:37, which the NIV has no row for and the NKJV does
+    current.article = { id: 'Heart', title: 'Heart', n_refs: 1, kind: 'article',
+      body: 'A whole, true heart (Acts 8:37).' };
+    current.preview = { text: 'Then Philip said, “If you believe…”', version: 'NKJV' };
+    const { getByRole, container, queryByText } = render(ArticleSurface, { id: 'Heart' });
+    await fireEvent.click(getByRole('button', { name: 'Acts 8:37' }));
+    expect(container.querySelector('.pr').textContent).toContain('NKJV');
+    expect(queryByText(/absent from the earliest Greek manuscripts/)).toBeTruthy();
+    // still openable — we have the text, just not from the NIV
+    expect(getByRole('button', { name: /Open in Study/ })).toBeTruthy();
+  });
+
+  it('explains an absence instead of rendering an empty box, and offers no dead Open button', async () => {
+    // "Gabatha" links Add Est 12:1 — the Greek Additions, in none of our three translations
+    current.article = { id: 'Gabatha', title: 'Gabatha', n_refs: 1, kind: 'article',
+      body: 'Alternate name for Bigthan (Add Est 12:1).' };
+    current.preview = { text: '', version: null };
+    const { getByRole, queryByRole, queryByText } = render(ArticleSurface, { id: 'Gabatha' });
+    await fireEvent.click(getByRole('button', { name: 'Est 12:1' }));
+    expect(queryByText(/Greek Additions to Esther/)).toBeTruthy();
+    expect(queryByText(/all three end at Esther 10/)).toBeTruthy();
+    expect(queryByRole('button', { name: /Open in Study/ })).toBeNull();
+  });
+
+  it('adds no note at all when the NIV has the verse', async () => {
+    current.preview = { text: 'In the beginning…', version: 'NIV' };
+    const { getByRole, container } = render(ArticleSurface, { id: 'Host' });
+    await fireEvent.click(getByRole('button', { name: 'Gen 1:1' }));
+    expect(container.querySelector('.pnote')).toBeNull();
+    expect(container.querySelector('.pr').textContent).toContain('NIV');
+  });
 });
 
 // Regression guard for the round-2 defect (commit 4598be2): ArticleSurface used to render its
@@ -52,21 +90,42 @@ describe('ArticleSurface', () => {
   });
 });
 
-// Regression for the whole-branch-review fix: Garlic, Jerubbesheth and Jezaniah end their body in
-// a "See X; Y" clause the build-side resolver's regex doesn't catch, so dict_xref (and therefore
-// getXrefs().out) holds no rows for them — but the UI's own clause regex still renders the clause,
-// as two `.xdead` spans, right above the "Where this leads" box. Before this fix that box said "A
-// dead end — this article names no other entry" directly under a paragraph visibly naming two.
-describe('ArticleSurface — unresolved "See …" clause with empty dict_xref (Garlic/Jerubbesheth/Jezaniah)', () => {
-  it('does not claim the article names no other entry when the body visibly names two', () => {
+// Garlic's clause follows a citation's closing paren, which the build-side regex now matches, so
+// dict_xref holds its two edges and the prose underlines them. This is the article that used to
+// show "no such article exists" over two entries that do exist, and "A dead end" under a paragraph
+// naming them — the two halves of that contradiction came from different tasks.
+describe('ArticleSurface — a clause following a citation\'s closing paren (Garlic)', () => {
+  it('underlines both targets and offers both doors, with no dead-end claim', () => {
     current.article = {
       id: 'Garlic', title: 'Garlic', n_refs: 1, kind: 'article',
       body: 'Bulbous herb cultivated for use in cooking (Nm 11:5) See Food and Food Preparation; Plants (Onion).',
     };
-    current.xrefs = { out: [], in: [], missing: [] };
+    current.xrefs = {
+      out: [{ id: 'FoodandFoodPreparation', title: 'Food and Food Preparation',
+              raw: 'Food and Food Preparation', anchor: null },
+            { id: 'Plants', title: 'Plants', raw: 'Plants (Onion)', anchor: null }],
+      in: [], missing: [],
+    };
     const { container, queryByText } = render(ArticleSurface, { id: 'Garlic' });
     expect(queryByText(/A dead end — this article names no other entry/)).toBeNull();
-    expect(container.querySelector('.xdead')).toBeTruthy();
+    expect(container.querySelector('.xdead')).toBeNull();
+    expect([...container.querySelectorAll('.xref')].map((e) => e.textContent))
+      .toEqual(['Food and Food Preparation', 'Plants (Onion)']);
+    // the source's own "; " spacing, and its trailing period, survive the linkified render
+    expect(container.querySelector('.mbody').textContent).toBe(current.article.body);
+  });
+
+  // 22 articles name only entries the corpus lacks. The "absent from the corpus" list accounts for
+  // them, so the dead-end line must stay suppressed — it would contradict the list directly below.
+  it('suppresses the dead-end line when every named entry is absent from the corpus', () => {
+    current.article = {
+      id: 'Ahiah', title: 'Ahiah', n_refs: 0, kind: 'article',
+      body: 'Alternate spelling of Ahijah. See Ahijah, Life and Teachings of.',
+    };
+    current.xrefs = { out: [], in: [], missing: ['Ahijah, Life and Teachings of'] };
+    const { queryByText } = render(ArticleSurface, { id: 'Ahiah' });
+    expect(queryByText(/A dead end — this article names no other entry/)).toBeNull();
+    expect(queryByText(/Named by the source, but absent from the corpus/)).toBeTruthy();
   });
 
   it('still shows the genuine dead-end message for an article with no clause at all', () => {

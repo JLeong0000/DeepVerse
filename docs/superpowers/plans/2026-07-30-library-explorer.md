@@ -4,12 +4,16 @@
 
 **Goal:** Build a browsable, search-first explorer at `#/library` over the Tyndale corpus already in `bible.db`, where the breadcrumb is the navigation stack and Tyndale's own cross-references are the way through.
 
-**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,236 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
+**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,240 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
 
 **Tech Stack:** Svelte 5 (runes), sql.js, Vite, Vitest (app), `node --test` (build), `node:sqlite` (build).
 
 **Spec:** `docs/superpowers/specs/2026-07-30-library-explorer-design.md`
-**Mockup:** `docs/mockups/library.html` — interactive, matches the approved design. Consult it for layout and copy.
+**Visual contract:** the running app at `#/library`. `docs/mockups/library.html` is SUPERSEDED — a
+historical design artifact only. Do not transcribe its numbers, markup or CSS: 21 of its 137
+database-checkable claims were wrong, and its `.reslbl:first-of-type` selector (which never matched
+anything) was copied from it into this plan and then into the code. Consult the app for layout and
+copy, and `data/bible.db` for any figure.
 
 ## Global Constraints
 
@@ -279,7 +283,8 @@ Create `build/lib/xref.mjs`:
 // The dictionary writes cross-references as prose sentences ("See Sin.", "See Antichrist;
 // Armageddon."). This module turns them into a graph over all 6,141 dictionary rows — the 6,010
 // articles and the 131 supplements (textboxes and charts) they host, which both cite and are
-// cited. It resolves 97.0% of the 5,341 targets the corpus names; the rest are genuine source
+// cited. The corpus names 5,345 targets across 3,659 clauses; 105 are dropped as duplicates or
+// self-links, leaving 5,240 edges, of which it resolves 5,100 (97.33%). The rest are genuine source
 // defects ("Jesus Christ, Life and Teachings of" is cited 19 times and does not exist) and must
 // degrade to nothing rather than throw.
 
@@ -363,7 +368,7 @@ export function resolveTarget(rawTarget, ix) {
 }
 
 // Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 140 of the
-// 5,236 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
+// 5,240 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
 // Teachings of" is cited 19 times. The UI shows these honestly rather than silently dropping them,
 // so the resolver must keep them.
 export function extractXrefs(row, ix) {
@@ -437,10 +442,10 @@ Wire the resolver into the build so the graph lands in `bible.db`, with post-bui
 Append to `build/test/schema.smoke.test.mjs`:
 
 ```javascript
-test('dict_xref: 5236 rows — 5096 resolved, 140 naming an article that does not exist', () => {
+test('dict_xref: 5240 rows — 5100 resolved, 140 naming an article that does not exist', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5236);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5096);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5240);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c, 5100);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NULL').get().c, 140);
   assert.equal(db.prepare('SELECT COUNT(DISTINCT raw) c FROM dict_xref WHERE dst IS NULL').get().c, 110);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE anchor IS NOT NULL').get().c, 94);
@@ -628,7 +633,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 
 ```javascript
   const resolved = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE dst IS NOT NULL').get().c;
-  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5096`);
+  if (resolved < 5000) problems.push(`dict_xref: ${resolved} resolved edges, expected ~5100`);
   const selfEdges = db.prepare('SELECT COUNT(*) c FROM dict_xref WHERE src = dst').get().c;
   if (selfEdges) problems.push(`dict_xref: ${selfEdges} self-edges`);
   // dst may legitimately be NULL (the source names an article that does not exist); src may not,
@@ -648,7 +653,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 cd build && npm run build
 ```
 
-Expected: among the output, `dict_xref: {"rows":5236,"resolved":5096,"missing":140,"anchored":94}` and `validation OK`.
+Expected: among the output, `dict_xref: {"rows":5240,"resolved":5100,"missing":140,"anchored":94}` and `validation OK`.
 
 - [ ] **Step 7: Verify a fresh clone can still build**
 
@@ -673,7 +678,7 @@ Expected: `copy-assets: bible.db version <hash>` with a **new** hash. Confirm `d
 sqlite3 app/public/bible.db "SELECT COUNT(*) FROM dict_xref;"
 ```
 
-Expected: `5236`.
+Expected: `5240`.
 
 - [ ] **Step 9: Run the build suite**
 
@@ -2428,7 +2433,7 @@ Create `app/src/components/library/ArticleSurface.svelte`:
       </div>
     {/if}
     {#if xrefs.missing.length}
-      <!-- 140 of the 5,236 links name an article Tyndale never wrote. Listing them is more honest
+      <!-- 140 of the 5,240 links name an article Tyndale never wrote. Listing them is more honest
            than hiding them, and stops the graph looking more complete than it is. -->
       <div class="absent">
         Named by the source, but absent from the corpus:

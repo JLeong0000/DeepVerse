@@ -3,7 +3,8 @@
 // The dictionary writes cross-references as prose sentences ("See Sin.", "See Antichrist;
 // Armageddon."). This module turns them into a graph over all 6,141 dictionary rows — the 6,010
 // articles and the 131 supplements (textboxes and charts) they host, which both cite and are
-// cited. It resolves 97.0% of the 5,341 targets the corpus names; the rest are genuine source
+// cited. The corpus names 5,345 targets across 3,659 clauses; 105 are dropped as duplicates or
+// self-links, leaving 5,240 edges, of which it resolves 5,100 (97.33%). The rest are genuine source
 // defects ("Jesus Christ, Life and Teachings of" is cited 19 times and does not exist) and must
 // degrade to nothing rather than throw.
 
@@ -13,7 +14,15 @@ const HEAD_MARK = '## ';
 // any terminator, and Tyndale routinely puts that terminator INSIDE a closing quote
 // (`…the English word “eon.” See Age.`), so the quote must be allowed to follow it.
 // Lower-case "see also Nm 3:2-4" is a scripture citation and is deliberately not matched.
-const CLAUSE = /(?:^|[.;!?][”"’']?\s*|\n\s*)See(?: also)? ([^.\n]+)\./g;
+//
+// `)` is allowed as a terminator too, because the source drops the period when a sentence ends on
+// a citation's closing paren (`…used in cooking (Nm 11:5) See Food and Food Preparation.`).
+// An audit of all 3,666 "See "/"See also " occurrences in the corpus found exactly 10 this
+// expression did not match: the 3 that follow `)`, all genuine cross-references, and 7 that follow
+// `(` — parenthetical asides citing scripture or pointing inside the article ("(See also Col 4:16;
+// Rv 1:3.)", "(See the discussion on this manuscript above.)"). `(` is therefore deliberately NOT
+// allowed: it is the one context where "See" reliably introduces something that is not an entry.
+const CLAUSE = /(?:^|[.;!?)][”"’']?\s*|\n\s*)See(?: also)? ([^.\n]+)\./g;
 
 // Pointers into the article's own structure, not to another entry.
 const STRUCTURAL = /^\s*(?:the\s+)?(?:above|below|note|chart|introduction)\b/i;
@@ -87,7 +96,7 @@ export function resolveTarget(rawTarget, ix) {
 }
 
 // Emits one row per distinct target, INCLUDING targets that do not exist (dst null). 140 of the
-// 5,236 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
+// 5,240 links Tyndale writes name an article that is not in the corpus — "Jesus Christ, Life and
 // Teachings of" is cited 19 times. The UI shows these honestly rather than silently dropping them,
 // so the resolver must keep them.
 export function extractXrefs(row, ix) {

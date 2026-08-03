@@ -2,39 +2,27 @@
   // The article body renderer, shared by the Context tab's modal and the library's article
   // surface. Deliberately owns no chrome — no title bar, no scroll container, no positioning —
   // so each host can frame it however it needs.
-  import { parseArticleBlocks } from '../../lib/display.js';
+  import { parseArticleBlocks, splitSeeClauses } from '../../lib/display.js';
   import RefText from '../common/RefText.svelte';
 
   const DICT_SOURCE = 'Tyndale Open Bible Dictionary · © 2023 Tyndale House Publishers · CC BY-SA 4.0';
   let { article, supplements = [], source = null, onnavigate = null,
-        xrefs = null, onxref = null, onref = null, openIndex = null, preview = null,
-        hasUnresolvedXref = $bindable(false) } = $props();
+        xrefs = null, onxref = null, onref = null, openIndex = null, preview = null } = $props();
 
   let blocks = $derived(parseArticleBlocks(article.body));
 
-  // Only inside a "See …" clause, never in loose prose: Calf, Clay, Hour, Evening and Command are
-  // all real article titles, so linkifying titles wherever they appear would make every paragraph
-  // a minefield. The source wrote "See X." deliberately — that is the only context safe to trust.
-  const CLAUSE = /^(.*?)(\bSee(?: also)? )([^.]+)\.\s*$/;
-  function splitClause(text) {
+  // Linkification is driven entirely by dict_xref — see splitSeeClauses. This component holds no
+  // opinion about what a "See …" clause is; it only renders what the build stored, keyed on the
+  // source's exact wording. Titles are never matched in loose prose: Calf, Clay, Hour, Evening and
+  // Command are all real entries, so that would make every paragraph a minefield.
+  let byRaw = $derived.by(() => {
     if (!xrefs) return null;
-    const m = text.match(CLAUSE);
-    if (!m) return null;
-    const targets = m[3].split(';').map((t) => {
-      const raw = t.trim();
-      // dict_xref.raw is the source's own wording, so this is an exact match, not a guess
-      const hit = xrefs.out.find((o) => o.raw === raw);
-      return { raw, id: hit?.id ?? null };
-    });
-    return { lead: m[1], see: m[2], targets };
-  }
-
-  // A handful of articles (build-side clause regex vs. this component's own — see xdead below)
-  // end up with a "See X; Y" clause rendered in the body while dict_xref holds no rows for the
-  // article at all. The host (ArticleSurface) needs to know that happened so it doesn't also
-  // claim, in its "Where this leads" box, that the article names nothing.
-  $effect(() => {
-    hasUnresolvedXref = blocks.some((b) => splitClause(b.text)?.targets.some((t) => !t.id));
+    const m = new Map();
+    for (const o of xrefs.out) if (!m.has(o.raw)) m.set(o.raw, o);
+    // recorded, but the entry does not exist in the corpus — rendered plain, and named in full by
+    // ArticleSurface's "absent from the corpus" list
+    for (const raw of xrefs.missing) if (!m.has(raw)) m.set(raw, null);
+    return m;
   });
 
   // The preview's identity is the block it was opened from, not the citation text: two different
@@ -61,14 +49,9 @@
         {@render preview()}
       {/if}
     {:else}
-      {@const c = splitClause(b.text)}
-      {#if c}
-        <p class="mbody">
-          <RefText text={c.lead} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{c.see}{#each c.targets as t, k}{#if k > 0}{'; '}{/if}{#if t.id}<button class="xref" onclick={() => onxref?.(t.id)}>{t.raw}</button>{:else}<span class="xdead" title="named by the source, but no link was recorded for this target">{t.raw}</span>{/if}{/each}.
-        </p>
-      {:else}
-        <p class="mbody"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} /></p>
-      {/if}
+      <!-- every part is emitted verbatim: the prose runs, the separators and the trailing period
+           all come straight out of the source, so its own "; " spacing cannot be lost here -->
+      <p class="mbody">{#each splitSeeClauses(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else if p.kind === 'dead'}<span class="xdead" title="named by the source, but no such entry exists in the corpus">{p.raw}</span>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
       {#if preview && openIndex === i}
         {@render preview()}
       {/if}

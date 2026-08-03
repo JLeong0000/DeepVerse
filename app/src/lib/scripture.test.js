@@ -38,11 +38,12 @@ describe('lookupRefBook', () => {
       expect(lookupRefBook(t), t).toBe(code);
   });
 
-  // 3 and 4 Maccabees are cited but absent from the KJV Apocrypha, so they must stay unresolved —
-  // a key with no verses behind it would underline a link to nothing.
-  test('books we hold no text for stay unresolved', () => {
-    for (const t of ['3 Macc', '4 Macc', 'Ecclesiasticus3'])
-      expect(lookupRefBook(t), t).toBeNull();
+  // 3 and 4 Maccabees are cited but absent from the KJV Apocrypha. They resolve anyway, so the
+  // preview can name the book and say why there is no text, rather than the citation sitting inert.
+  test('books we hold no text for still resolve, so they can be explained', () => {
+    expect(lookupRefBook('3 Macc')).toBe('3Macc');
+    expect(lookupRefBook('4 Maccabees')).toBe('4Macc');
+    expect(lookupRefBook('Ecclesiasticus3')).toBeNull();
   });
 
   // "Add Est 11:1" is the source's own marker for the Greek Additions. Without the two-word form it
@@ -56,13 +57,24 @@ describe('lookupRefBook', () => {
     expect(r[0].ref.chapter).toBe(11);
   });
 
-  // We carry one edition of the deuterocanon and Tyndale cites others, so an apocryphal reference
-  // is only linked when the verse actually exists. "Apoc Bar 14:13" is the Apocalypse of Baruch;
-  // canonical Baruch has 6 chapters and must not absorb it.
-  test('an apocryphal reference outside our text stays plain', () => {
+  // "Apoc Bar" is the Apocalypse of Baruch — a different book from the Baruch of the Apocrypha,
+  // whose 6 chapters cannot reach 14. Without the two-word form it was absorbed into canonical
+  // Baruch and pointed at a verse that does not exist.
+  test('"Apoc Bar" is the Apocalypse of Baruch, not canonical Baruch', () => {
     const exists = (b, c) => b === 'Bar' && c <= 6;
-    expect(refs('see also Apoc Bar 14:13; 15:7', { exists })).toHaveLength(0);
-    expect(refs('Bar 4:22 says', { exists })).toHaveLength(1);
+    const r = refs('see also Apoc Bar 14:13', { exists });
+    expect(r).toHaveLength(1);
+    expect(r[0].ref.book).toBe('ApocBar');
+    expect(refs('Bar 4:22 says', { exists })[0].ref.book).toBe('Bar');
+  });
+
+  // We carry one edition of the deuterocanon and Tyndale cites others, so a reference into a book
+  // we DO hold is only linked when the verse exists — a real-but-wrong verse is worse than plain
+  // text. A book we hold nothing of is exempt: there is no wrong verse to land on.
+  test('a reference into a carried book is dropped when the verse is not ours', () => {
+    const exists = (b, c) => b === 'Bar' && c <= 6;
+    expect(refs('Bar 14:13 says', { exists })).toHaveLength(0);
+    expect(refs('3 Macc 2:1 says', { exists })).toHaveLength(1);
   });
 
   test('"In" does not resolve — it is an English word before a bare chapter:verse', () => {

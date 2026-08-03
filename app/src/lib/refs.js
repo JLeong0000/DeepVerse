@@ -27,10 +27,57 @@ export const APOCRYPHA = [
   ['PrMan', 'Prayer of Manasseh'], ['2Esd', '2 Esdras'],
 ];
 
-const APOC = new Map(APOCRYPHA);
-export function isApocrypha(code) { return APOC.has(code); }
+// Cited by Tyndale but NOT carried: the KJV Apocrypha, our only public-domain edition of the
+// deuterocanon, never contained them. They still resolve, so the reader gets an explanation
+// instead of a citation that silently does nothing.
+export const APOCRYPHA_UNCARRIED = [
+  ['3Macc', '3 Maccabees'], ['4Macc', '4 Maccabees'],
+  ['ApocBar', 'Apocalypse of Baruch (2 Baruch)'],
+];
 
-const NAME = new Map([...BOOKS, ...APOCRYPHA].map(([code, name]) => [code, name]));
+const APOC = new Map(APOCRYPHA);
+const APOC_NONE = new Map(APOCRYPHA_UNCARRIED);
+export function isApocrypha(code) { return APOC.has(code) || APOC_NONE.has(code); }
+// True when we hold text for the book. Drives the reference gate: a book we carry is checked
+// verse-by-verse (so "Apoc Bar 14:13" cannot land in canonical Baruch), while a book we carry
+// nothing of is allowed through precisely so the preview can say why it is empty.
+export function apocryphaHasText(code) { return APOC.has(code); }
+
+// What each book is, and whose Bible it is in. Shown under the verse in the preview box, because
+// "1 Maccabees 16:11" means nothing to a reader raised on a 66-book Bible.
+const DEUTERO = 'In Catholic and Eastern Orthodox Bibles, and in the Apocrypha section of the 1611 '
+  + 'KJV; not in modern Protestant Bibles or the Hebrew Bible.';
+const ORTHODOX = 'Not in Catholic or modern Protestant Bibles; carried by Orthodox traditions and '
+  + 'printed as an appendix to the Latin Vulgate.';
+export const APOCRYPHA_NOTE = {
+  Tob: `Tobit, a tale of exile, blindness and marriage among the Jews of Assyria. ${DEUTERO}`,
+  Jdt: `Judith, the story of a widow who saves her town by killing the Assyrian general Holofernes. ${DEUTERO}`,
+  AddEsth: `The Greek Additions to Esther — six passages in the Septuagint's Esther that the Hebrew text lacks, numbered as chapters 11–16 after Jerome moved them to an appendix. ${DEUTERO}`,
+  Wis: `The Wisdom of Solomon, a Greek work of Jewish wisdom writing. ${DEUTERO}`,
+  Sir: `Ecclesiasticus, also called Sirach or Ben Sira — a book of wisdom teaching, and not the same book as Ecclesiastes. ${DEUTERO}`,
+  Bar: `Baruch, attributed to Jeremiah's scribe. ${DEUTERO}`,
+  PrAzar: `The Prayer of Azariah and the Song of the Three Young Men, an addition to Daniel 3. ${DEUTERO}`,
+  Sus: `Susanna, an addition to Daniel in which the young Daniel exposes two false accusers. ${DEUTERO}`,
+  Bel: `Bel and the Dragon, an addition to Daniel mocking Babylonian idol worship. ${DEUTERO}`,
+  '1Macc': `1 Maccabees, a Jewish history of the revolt against Antiochus IV and the Seleucids in the 2nd century BC. ${DEUTERO}`,
+  '2Macc': `2 Maccabees, a second account of the same revolt, condensed from a lost work by Jason of Cyrene. ${DEUTERO}`,
+  '1Esd': `1 Esdras, a Greek retelling of material from Chronicles, Ezra and Nehemiah. ${ORTHODOX}`,
+  '2Esd': `2 Esdras, also called 4 Ezra — an apocalypse written after the fall of Jerusalem in AD 70. ${ORTHODOX}`,
+  PrMan: `The Prayer of Manasseh, a short penitential prayer put in the mouth of the king of 2 Chronicles 33. ${ORTHODOX}`,
+  // carried nowhere in DeepVerse — these say what the book is AND why there is no text
+  '3Macc': '3 Maccabees, which despite its name is about Ptolemy IV persecuting the Jews of Egypt, '
+    + 'not the Maccabean revolt. Canonical in Eastern Orthodox churches only, and absent from the '
+    + 'KJV Apocrypha — the public-domain edition DeepVerse carries — so there is no text to show.',
+  '4Macc': '4 Maccabees, a philosophical essay on reason and martyrdom. Printed in an appendix to '
+    + 'the Greek Bible rather than as canon, and absent from the KJV Apocrypha — the public-domain '
+    + 'edition DeepVerse carries — so there is no text to show.',
+  ApocBar: 'The Apocalypse of Baruch, usually called 2 Baruch: a Jewish apocalypse written after '
+    + 'the destruction of the Temple in AD 70 and attributed to Jeremiah\u2019s scribe. It is a '
+    + 'different book from the Baruch of the Apocrypha. Not scripture for Jews or for most Christian '
+    + 'churches — it survives in the Syriac Peshitta tradition — so DeepVerse carries no text for it.',
+};
+
+const NAME = new Map([...BOOKS, ...APOCRYPHA, ...APOCRYPHA_UNCARRIED].map(([code, name]) => [code, name]));
 const ORDER = new Map(BOOKS.map(([code], i) => [code, i]));
 
 // Parse a free-form reference ("John 3:16", "1 John 2", "Ps 23", "gen 1:1", "Genesis") into

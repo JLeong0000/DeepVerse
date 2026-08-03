@@ -1,5 +1,5 @@
 // Turns the scripture references inside Tyndale prose into linkable spans.
-import { isApocrypha } from './refs.js';
+import { isApocrypha, apocryphaHasText } from './refs.js';
 //
 // Tyndale's display text mixes three abbreviation systems in the same sentence — its own compact
 // forms ("Gn", "Mt", "1 Sm"), standard ones ("Gen", "Matt", "1Sam") and full names ("Genesis") —
@@ -95,6 +95,12 @@ const REF_BOOKS = {
   Bel: 'Bel',
   '1Macc': '1Macc', '1Maccabees': '1Macc', '2Macc': '2Macc', '2Maccabees': '2Macc',
   '1Esd': '1Esd', '1Esdras': '1Esd', '2Esd': '2Esd', '2Esdras': '2Esd',
+
+  // Cited but not carried — the KJV Apocrypha never contained them. They resolve anyway so the
+  // preview can say what the book is and why there is no text, instead of the citation sitting
+  // inert. "Apoc Bar" is the Apocalypse of Baruch, a different book from the Baruch above.
+  '3Macc': '3Macc', '3Maccabees': '3Macc', '4Macc': '4Macc', '4Maccabees': '4Macc',
+  ApocBar: 'ApocBar', ApocBaruch: 'ApocBar',
 };
 
 // A verse spec is everything after "chapter:" that a reader sees as one citation —
@@ -106,11 +112,12 @@ const VERSE_SPEC = String.raw`\d+(?:[-\u2013\u2014]\d+(?::\d+)?)?(?:,[\s\u00a0]*
 // "1 Chr 5:3", "Gn 1:1", "1 Corinthians 11:23-34". The book is OPTIONAL so one scan also finds the
 // bare "3:16" citations; which book those belong to is decided per match below. The non-breaking
 // space alternative is required because Tyndale separates a book's number from its name with one.
-// `Add ` is allowed as a second book word so "Add Est 11:1" reads as the Additions to Esther rather
-// than as canonical Esther. It is the source's own marker and the only two-word book form it uses;
-// without it, three citations pointed at an Esther chapter 11 that no Protestant Bible has.
+// `Add ` and `Apoc ` are allowed as a leading book word: they are the source's own markers, and
+// both change which book is meant. "Add Est 11:1" is the Additions to Esther, not an Esther
+// chapter 11 no Protestant Bible has; "Apoc Bar 14:13" is the Apocalypse of Baruch, not the
+// canonical Baruch, whose 6 chapters cannot reach 14.
 const SCAN_RE = new RegExp(
-  String.raw`(?:\b((?:Add[\s ]+)?(?:[1-4][\s ]?)?[A-Z][A-Za-z]{1,11})\.?[\s ]+)?(?<![\d:])(\d+):(${VERSE_SPEC})`,
+  String.raw`(?:\b((?:(?:Add|Apoc)[\s ]+)?(?:[1-4][\s ]?)?[A-Z][A-Za-z]{1,11})\.?[\s ]+)?(?<![\d:])(\d+):(${VERSE_SPEC})`,
   'g');
 
 const SEPARATOR_ONLY = /^[;,\s ]*$/;
@@ -173,9 +180,9 @@ export function tokenizeRefs(text, { book: defaultBook = null, exists = null } =
     // the source's own occasional bad ref is better shown than silently dropped. The deuterocanon is
     // NOT: we carry one edition of it (the KJV Apocrypha), Tyndale cites editions that number
     // differently, and a reference that lands on a real-but-wrong verse is worse than a plain one.
-    // This is what stops "Apoc Bar 14:13" — the Apocalypse of Baruch, which we do not carry —
-    // resolving into canonical Baruch, whose 6 chapters cannot reach 14.
-    if (isApocrypha(book) && exists && !exists(book, chapter, verse)) { contBook = null; continue; }
+    // Only for books we hold: one we carry nothing of is let through on purpose, so the preview
+    // can name it and say why it is empty rather than the citation sitting inert.
+    if (isApocrypha(book) && apocryphaHasText(book) && exists && !exists(book, chapter, verse)) { contBook = null; continue; }
 
     if (start > last) out.push({ plain: src.slice(last, start) });
     out.push({ ref: { book, chapter, verse }, text: matched });

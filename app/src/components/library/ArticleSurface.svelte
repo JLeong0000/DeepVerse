@@ -6,7 +6,7 @@
   import { displayTitle } from '../../lib/titles.js';
   import { goToPassage } from '../../lib/study.svelte.js';
   import { go } from '../../lib/router.svelte.js';
-  import { bookName, isApocrypha } from '../../lib/refs.js';
+  import { bookName, isApocrypha, APOCRYPHA_NOTE } from '../../lib/refs.js';
   import { KJV_APOCRYPHA, versionLabel } from '../../lib/sources.js';
   import ArticleView from '../workbench/ArticleView.svelte';
 
@@ -64,8 +64,8 @@
   {@const p = getRefPreview(`${r.book}.${r.chapter}.${r.verse}`)}
   {@const apoc = isApocrypha(r.book)}
   {@const note = p.version === 'NIV' ? null
+    : apoc ? APOCRYPHA_NOTE[r.book] + (p.text ? ` Shown from the ${KJV_APOCRYPHA}.` : '')
     : !p.text ? 'No edition DeepVerse carries has this verse.'
-    : apoc ? `The Apocrypha — not in the NIV, NKJV or NLT. ${KJV_APOCRYPHA}.`
     : (VARIANT[`${r.book}.${r.chapter}.${r.verse}`]
         ?? `The NIV does not include this verse; it is shown here from the ${versionLabel(p.version)}.`)}
   <div class="prev" class:absent={!p.text}>

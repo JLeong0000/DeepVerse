@@ -6,7 +6,8 @@
   import { displayTitle } from '../../lib/titles.js';
   import { goToPassage } from '../../lib/study.svelte.js';
   import { go } from '../../lib/router.svelte.js';
-  import { bookName } from '../../lib/refs.js';
+  import { bookName, isApocrypha } from '../../lib/refs.js';
+  import { KJV_APOCRYPHA, versionLabel } from '../../lib/sources.js';
   import ArticleView from '../workbench/ArticleView.svelte';
 
   let { id, anchor = null } = $props();
@@ -26,31 +27,14 @@
 
   const KIND_LABEL = { chart: 'Chart', textbox: 'Textbox' };
 
-  // Verses the article links to that none of our three translations carry. Keyed by "book.chapter",
-  // because both cases are whole-chapter absences. Written by hand — there are only two, and a
-  // generic "not available" would hide the reason, which is itself the interesting content.
-  //
-  // Sources: the Additions to Esther are the six passages (107 verses) present in the Septuagint
-  // Greek Esther but not in the Hebrew; Jerome collected them as an appendix to the Vulgate, and
-  // the later chapter division numbered them on from Esther 10, producing chapters 11-16. Tyndale
-  // itself cites them as "Add Est 11:1" — the "Add" is the source's own marker, which our reference
-  // linkifier does not carry through.
-  const ABSENT = {
-    'Esth.11': 'Part of the Greek Additions to Esther. Tyndale cites this as “Add Est 11:1” — one ' +
-      'of six passages found in the Septuagint’s Greek Esther but not in the Hebrew text. Jerome ' +
-      'gathered them into an appendix to the Vulgate, and a later chapter division numbered them ' +
-      'on from Esther 10. Catholic and Orthodox canons include them; Protestant Bibles do not, so ' +
-      'no translation DeepVerse carries has this verse — all three end at Esther 10.',
-    'Esth.12': 'Part of the Greek Additions to Esther. Tyndale cites this as “Add Est 12:1” — one ' +
-      'of six passages found in the Septuagint’s Greek Esther but not in the Hebrew text. Jerome ' +
-      'gathered them into an appendix to the Vulgate, and a later chapter division numbered them ' +
-      'on from Esther 10. Catholic and Orthodox canons include them; Protestant Bibles do not, so ' +
-      'no translation DeepVerse carries has this verse — all three end at Esther 10.',
-  };
+  // No linkified reference in the corpus is missing from all four editions — 34,148 checked, 0
+  // unresolved — so the empty-preview branch below is a guard against a future data change, not a
+  // case that occurs today. It used to hold a hand-written note for the Additions to Esther; those
+  // are now readable, because the KJV Apocrypha carries them at the Vulgate chapter numbers
+  // Tyndale cites. 2 Esdras 7 is the other former case, and it no longer linkifies at all: we hold
+  // no text for that chapter, and an apocryphal reference is only linked when the verse exists.
 
-  // Shown when the preview had to fall back off the NIV. Acts 8:37 is the only one the dictionary
-  // actually links to; the generic line states only what our own data shows, and claims nothing
-  // about manuscripts it hasn't been checked against.
+  // Shown when the preview had to fall back off the NIV.
   const VARIANT = {
     'Acts.8.37': 'The NIV and NLT omit this verse. It is absent from the earliest Greek ' +
       'manuscripts and entered the tradition through the Textus Receptus, which the KJV and NKJV ' +
@@ -78,15 +62,18 @@
 {#snippet previewSnippet()}
   {@const r = open.ref}
   {@const p = getRefPreview(`${r.book}.${r.chapter}.${r.verse}`)}
+  {@const apoc = isApocrypha(r.book)}
   {@const note = p.version === 'NIV' ? null
-    : p.text ? (VARIANT[`${r.book}.${r.chapter}.${r.verse}`]
-        ?? `The NIV does not include this verse; it is shown here from the ${p.version}.`)
-    : (ABSENT[`${r.book}.${r.chapter}`] ?? 'No translation DeepVerse carries has this verse.')}
+    : !p.text ? 'No edition DeepVerse carries has this verse.'
+    : apoc ? `The Apocrypha — not in the NIV, NKJV or NLT. ${KJV_APOCRYPHA}.`
+    : (VARIANT[`${r.book}.${r.chapter}.${r.verse}`]
+        ?? `The NIV does not include this verse; it is shown here from the ${versionLabel(p.version)}.`)}
   <div class="prev" class:absent={!p.text}>
-    <div class="pr">{bookName(r.book)} {r.chapter}:{r.verse}{p.version ? ` · ${p.version}` : ''}</div>
+    <div class="pr">{bookName(r.book)} {r.chapter}:{r.verse}{p.version ? ` · ${versionLabel(p.version)}` : ''}</div>
     {p.text}
     {#if note}<div class="pnote">{note}</div>{/if}
-    {#if p.text}
+    <!-- Study navigates the 66 canonical books only, so an apocryphal verse has nowhere to open -->
+    {#if p.text && !apoc}
       <button class="popen" onclick={() => { goToPassage(r); go('study'); }}>Open in Study →</button>
     {/if}
   </div>

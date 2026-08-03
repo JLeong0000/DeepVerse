@@ -4,8 +4,7 @@
   // so each host can frame it however it needs.
   import { parseArticleBlocks, splitEntryLinks } from '../../lib/display.js';
   import RefText from '../common/RefText.svelte';
-
-  const DICT_SOURCE = 'Tyndale Open Bible Dictionary · © 2023 Tyndale House Publishers · CC BY-SA 4.0';
+  import { TYNDALE_DICTIONARY, TYNDALE_CHANGES } from '../../lib/sources.js';
   let { article, supplements = [], source = null, onnavigate = null,
         xrefs = null, onxref = null, onref = null, openIndex = null, preview = null } = $props();
 
@@ -74,7 +73,8 @@
 
 <div class="src">
   <div class="srclbl">Source</div>
-  {source ?? DICT_SOURCE}
+  {source ?? TYNDALE_DICTIONARY}
+  <div class="chg">{TYNDALE_CHANGES}</div>
 </div>
 
 <style>
@@ -96,6 +96,8 @@
   .src { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--rule);
     font-size: 11px; line-height: 1.5; color: var(--dim); }
   .srclbl { font-variant: small-caps; letter-spacing: .05em; margin-bottom: 2px; }
+  /* CC BY-SA 4.0 requires that adaptations say what was changed */
+  .chg { margin-top: 3px; font-style: italic; }
   .xref { background: none; border: none; font-family: inherit; font-size: inherit; padding: 0;
     color: var(--a); cursor: pointer; border-bottom: 1px dotted var(--a); }
   .xref:hover { border-bottom-style: solid; }

@@ -274,6 +274,39 @@ describe('getRefPreview version fallback', () => {
   });
 });
 
+// The deuterocanon is carried as its own version so Tyndale's 648 apocryphal citations resolve.
+// It is deliberately absent from the three modern translations' book lists.
+describe('deuterocanon (KJVA)', () => {
+  test('KJVA holds the 14 books and no canonical one', () => {
+    const books = db.query("SELECT DISTINCT book FROM verses WHERE version='KJVA'").map((r) => r.book).sort();
+    expect(books).toEqual(['1Esd', '1Macc', '2Esd', '2Macc', 'AddEsth', 'Bar', 'Bel', 'Jdt',
+      'PrAzar', 'PrMan', 'Sir', 'Sus', 'Tob', 'Wis']);
+    expect(db.listBooks('NIV')).toHaveLength(66);
+    expect(db.listBooks('KJVA')).toHaveLength(0);   // BOOKS is the canonical 66; KJVA shares none
+  });
+
+  test('the Additions to Esther resolve at the chapter numbers Tyndale cites', () => {
+    // "Cleopatra" and "Dositheus" both cite Add Est 11:1; "Gabatha" cites Add Est 12:1
+    const p = db.getRefPreview('AddEsth.11.1');
+    expect(p.version).toBe('KJVA');
+    expect(p.text).toMatch(/Ptolemeus and Cleopatra, Dositheus/);
+    expect(db.getRefPreview('AddEsth.12.1').text).toMatch(/Gabatha/);
+  });
+
+  test('a Maccabees citation previews', () => {
+    expect(db.getRefPreview('1Macc.10.57').text).toMatch(/Cleopatra/);
+  });
+
+  // The KJV was made from Latin manuscripts missing 2 Esd 7:36-105, so its chapter 7 renumbers
+  // everything after verse 35 and cannot be matched against the numbering Tyndale quotes. The
+  // chapter is dropped rather than silently shown as the wrong verse.
+  test('2 Esdras 7 is absent, the rest of 2 Esdras is present', () => {
+    expect(db.getChapter('KJVA', '2Esd', 7)).toEqual([]);
+    expect(db.getChapter('KJVA', '2Esd', 8).length).toBeGreaterThan(0);
+    expect(db.getRefPreview('2Esd.7.113')).toEqual({ text: '', version: null });
+  });
+});
+
 describe('study notes', () => {
   test('getChapterStudyNoteCount: annotated chapter vs unknown book', () => {
     expect(db.getChapterStudyNoteCount('Gen', 1)).toBe(19);

@@ -10,7 +10,7 @@
   import ArticleView from '../workbench/ArticleView.svelte';
 
   // themes and profiles ship in the study-notes package, not the dictionary
-  const NOTE_SRC = 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
+  import { TYNDALE_STUDY_NOTES as NOTE_SRC } from '../../lib/sources.js';
 
   let { pkind, title } = $props();
   let passage = $derived(getPassage(pkind, title));

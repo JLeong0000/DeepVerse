@@ -328,15 +328,18 @@ export function getChapterCrossRefStats(book, chapter) {
 // Text of a cross-ref target's first verse (to_ref may be a range like "1John.4.9-1John.4.10"),
 // with the version it came from.
 //
-// NIV first, then NKJV, then NLT. The fallback is not cosmetic: the NKJV follows the Textus
+// NIV, then NKJV, then NLT, then KJVA. The fallback is not cosmetic: the NKJV follows the Textus
 // Receptus and so carries 16 verses the NIV has no row for at all (Acts 8:37, Mark 9:44, Rom 16:24
-// …). Previewing those from the NKJV shows the reader the verse the source article is citing,
-// which is the whole point of the box; returning nothing would hide a real textual difference
-// behind what looks like a rendering bug.
+// …), and KJVA carries the deuterocanon the dictionary cites 648 times and no modern translation
+// here contains. Previewing those shows the reader the verse the source article is citing, which is
+// the whole point of the box; returning nothing would hide a real difference behind what looks like
+// a rendering bug.
 //
 // { text: '', version: null } means no translation here has the verse — see ABSENT in
 // ArticleSurface.svelte, which explains why rather than showing an empty box.
-const PREVIEW_VERSIONS = ['NIV', 'NKJV', 'NLT'];
+// KJVA last: it only holds the deuterocanon, so it is reached exactly when the reference is to a
+// book the three modern translations do not contain.
+const PREVIEW_VERSIONS = ['NIV', 'NKJV', 'NLT', 'KJVA'];
 
 export function getRefPreview(toRef) {
   const first = String(toRef).split('-')[0];

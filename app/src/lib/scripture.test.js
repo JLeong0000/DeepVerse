@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import { tokenizeRefs, lookupRefBook } from './scripture.js';
 
-const refs = (s) => tokenizeRefs(s).filter((x) => x.ref);
+const refs = (s, opts) => tokenizeRefs(s, opts).filter((x) => x.ref);
 const plain = (s) => tokenizeRefs(s).map((x) => (x.ref ? x.text : x.plain)).join('');
 
 describe('lookupRefBook', () => {
@@ -25,9 +25,44 @@ describe('lookupRefBook', () => {
   });
 
   // the whole reason matching is an exact allowlist rather than a prefix match
-  test('apocryphal books never resolve', () => {
-    for (const t of ['Ecclus', 'Jdt', 'Tb', 'Wisd', 'Bar', 'Sir', '1 Macc', '2 Esd'])
+  // The deuterocanon resolves now that KJVA carries it. What must NOT happen is an abbreviation
+  // collapsing into the canonical book it resembles: Ecclus is Ecclesiasticus, never Ecclesiastes,
+  // and Jdt is Judith, never Jude.
+  test('apocryphal abbreviations resolve to the deuterocanon, not their canonical lookalikes', () => {
+    expect(lookupRefBook('Ecclus')).toBe('Sir');
+    expect(lookupRefBook('Eccl')).toBe('Eccl');
+    expect(lookupRefBook('Jdt')).toBe('Jdt');
+    expect(lookupRefBook('Jude')).toBe('Jude');
+    for (const [t, code] of [['Tb', 'Tob'], ['Wisd', 'Wis'], ['Bar', 'Bar'],
+                             ['1 Macc', '1Macc'], ['2 Esd', '2Esd'], ['Bel', 'Bel']])
+      expect(lookupRefBook(t), t).toBe(code);
+  });
+
+  // 3 and 4 Maccabees are cited but absent from the KJV Apocrypha, so they must stay unresolved —
+  // a key with no verses behind it would underline a link to nothing.
+  test('books we hold no text for stay unresolved', () => {
+    for (const t of ['3 Macc', '4 Macc', 'Ecclesiasticus3'])
       expect(lookupRefBook(t), t).toBeNull();
+  });
+
+  // "Add Est 11:1" is the source's own marker for the Greek Additions. Without the two-word form it
+  // read as canonical Esther, whose chapter 11 no Protestant Bible has.
+  test('"Add Est" is the Additions to Esther, not Esther', () => {
+    expect(lookupRefBook('Add Est')).toBe('AddEsth');
+    expect(lookupRefBook('Est')).toBe('Esth');
+    const r = refs('brought this to Egypt (Add Est 11:1).', { exists: () => true });
+    expect(r).toHaveLength(1);
+    expect(r[0].ref.book).toBe('AddEsth');
+    expect(r[0].ref.chapter).toBe(11);
+  });
+
+  // We carry one edition of the deuterocanon and Tyndale cites others, so an apocryphal reference
+  // is only linked when the verse actually exists. "Apoc Bar 14:13" is the Apocalypse of Baruch;
+  // canonical Baruch has 6 chapters and must not absorb it.
+  test('an apocryphal reference outside our text stays plain', () => {
+    const exists = (b, c) => b === 'Bar' && c <= 6;
+    expect(refs('see also Apoc Bar 14:13; 15:7', { exists })).toHaveLength(0);
+    expect(refs('Bar 4:22 says', { exists })).toHaveLength(1);
   });
 
   test('"In" does not resolve — it is an English word before a bare chapter:verse', () => {

@@ -117,7 +117,17 @@ for (const version of ['NIV','NKJV','NLT']) {
     for (const [ch,vs] of Object.entries(b.chapters)) for (const [v,t] of Object.entries(vs)) { insV.run(version,book,+ch,+v,t); nV++; }
   }});
 }
-console.log('verses:', nV);
+// The deuterocanon, as its own version. Tyndale cites it 648 times and none of the three modern
+// translations carries a word of it, so those citations pointed nowhere. Kept OUT of NIV/NKJV/NLT
+// deliberately: every reader-facing list is version-scoped, so the Study navigation stays at the
+// 66 canonical books while a dictionary citation to 1 Maccabees can still be previewed.
+let nA = 0;
+tx(() => {
+  for (const [book, ch, v, t] of JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(SRC, 'apocrypha.json.gz'))))) {
+    insV.run('KJVA', book, ch, v, t); nA++;
+  }
+});
+console.log('verses:', nV, `(+${nA} KJVA deuterocanon)`);
 
 // 2) SOURCE-DERIVED TABLES (from the committed intermediates built once by extract-sources.mjs)
 const readRows = name => JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(SRC, `${name}.json.gz`))));

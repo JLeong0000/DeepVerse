@@ -9,7 +9,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { OSIS_BOOKS } from './lib/books.mjs';
-import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, extractItemLinks, sortTitle, titleTerms }
+import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, extractItemLinks, applyErrata, sortTitle, titleTerms }
   from './lib/tyndale.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -67,6 +67,8 @@ for (const f of fs.readdirSync(`${DICT}/Articles`).sort()) {
   const xml = fs.readFileSync(`${DICT}/Articles/${f}`, 'utf8');
   for (const it of iterItems(xml)) {
     if (it.typename !== 'Article') continue;          // skips the DictionaryLetter TOC items
+    // documented corrections to the source's own links, before anything reads the body
+    it.body = applyErrata(it.name, it.body);
     const refs = extractBrefs(it.body);
     brefTotal += countBrefs(it.body);
     brefKept += refs.length;

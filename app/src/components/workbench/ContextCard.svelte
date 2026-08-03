@@ -11,6 +11,8 @@
   import { articlePreview, parseArticleBlocks } from '../../lib/display.js';
   import ArticleModal from './ArticleModal.svelte';
   import RefText from '../common/RefText.svelte';
+  // themes, profiles and study notes all ship in the study-notes package, not the dictionary
+  import { TYNDALE_STUDY_NOTES as STUDY_NOTES_SOURCE } from '../../lib/sources.js';
 
   const CAP = 4;
   let tab = $state('context'); // 'xrefs' | 'context'; default to the context view.
@@ -73,9 +75,6 @@
     : getDictCountForVerse(study.book, study.chapter, study.verse));
 
   const DICT_CLAMP = 400;
-  // themes, profiles and study notes all ship in the study-notes package, not the dictionary
-  const STUDY_NOTES_SOURCE =
-    'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
   let dictArticles = $derived(study.verse == null ? []
     : getDictForVerse(study.book, study.chapter, study.verse));
   let dictSel = $state(null);      // selected article id

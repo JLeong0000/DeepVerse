@@ -7,7 +7,7 @@
   import { parseArticleBlocks, articlePreview } from '../../lib/display.js';
   import { displayTitle } from '../../lib/titles.js';
 
-  const NOTE_SRC = 'Tyndale Open Study Notes · © 2022 Tyndale House Publishers · CC BY-SA 4.0';
+  import { TYNDALE_STUDY_NOTES as NOTE_SRC } from '../../lib/sources.js';
   const INTRO_CLAMP = 280;
 
   // Same overclaim Task 13 already fixed for search (see SearchSurface's own countLabel): "· 12"

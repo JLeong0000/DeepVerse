@@ -16,7 +16,21 @@ export const BOOKS = [
   ['3John', '3 John'], ['Jude', 'Jude'], ['Rev', 'Revelation'],
 ];
 
-const NAME = new Map(BOOKS.map(([code, name]) => [code, name]));
+// The deuterocanon, stored as the KJVA version. Deliberately NOT in BOOKS: that list is the
+// canonical 66 and drives every reader-facing index, chapter grid and book picker. These books are
+// reachable only as the target of a Tyndale citation, so they need a display name and nothing else.
+export const APOCRYPHA = [
+  ['Tob', 'Tobit'], ['Jdt', 'Judith'], ['AddEsth', 'Additions to Esther'],
+  ['Wis', 'Wisdom of Solomon'], ['Sir', 'Ecclesiasticus (Sirach)'], ['Bar', 'Baruch'],
+  ['PrAzar', 'Prayer of Azariah'], ['Sus', 'Susanna'], ['Bel', 'Bel and the Dragon'],
+  ['1Macc', '1 Maccabees'], ['2Macc', '2 Maccabees'], ['1Esd', '1 Esdras'],
+  ['PrMan', 'Prayer of Manasseh'], ['2Esd', '2 Esdras'],
+];
+
+const APOC = new Map(APOCRYPHA);
+export function isApocrypha(code) { return APOC.has(code); }
+
+const NAME = new Map([...BOOKS, ...APOCRYPHA].map(([code, name]) => [code, name]));
 const ORDER = new Map(BOOKS.map(([code], i) => [code, i]));
 
 // Parse a free-form reference ("John 3:16", "1 John 2", "Ps 23", "gen 1:1", "Genesis") into

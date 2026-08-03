@@ -1,4 +1,5 @@
 // Turns the scripture references inside Tyndale prose into linkable spans.
+import { isApocrypha } from './refs.js';
 //
 // Tyndale's display text mixes three abbreviation systems in the same sentence — its own compact
 // forms ("Gn", "Mt", "1 Sm"), standard ones ("Gen", "Matt", "1Sam") and full names ("Genesis") —
@@ -73,6 +74,27 @@ const REF_BOOKS = {
   '3Jn': '3John', '3John': '3John',
   Jude: 'Jude',
   Rv: 'Rev', Rev: 'Rev', Revelation: 'Rev',
+
+  // The deuterocanon, stored as the KJVA version. Tyndale cites it 648 times and marks every such
+  // link class="apocrypha"; before these entries existed the citations stayed plain text, because
+  // no translation DeepVerse carried had a word of it.
+  //
+  // "Ecclus" is Ecclesiasticus and must never collapse into Ecclesiastes; "Jdt" is Judith, not
+  // Jude. Both are called out as traps in the comment above, and both are now real destinations —
+  // they resolve to Sir and Jdt, never to the canonical book their abbreviation resembles.
+  //
+  // 3 and 4 Maccabees are cited 3 times between them but are absent from the KJV Apocrypha, so
+  // they are deliberately NOT here: a key with no verses behind it would underline a link to
+  // nothing.
+  Tb: 'Tob', Tob: 'Tob', Tobit: 'Tob',
+  Jdt: 'Jdt', Judith: 'Jdt',
+  AddEst: 'AddEsth', AddEsth: 'AddEsth', AddEsther: 'AddEsth',
+  Wisd: 'Wis', Wis: 'Wis', Wisdom: 'Wis',
+  Ecclus: 'Sir', Sir: 'Sir', Ecclesiasticus: 'Sir',
+  Bar: 'Bar', Baruch: 'Bar',
+  Bel: 'Bel',
+  '1Macc': '1Macc', '1Maccabees': '1Macc', '2Macc': '2Macc', '2Maccabees': '2Macc',
+  '1Esd': '1Esd', '1Esdras': '1Esd', '2Esd': '2Esd', '2Esdras': '2Esd',
 };
 
 // A verse spec is everything after "chapter:" that a reader sees as one citation —
@@ -84,8 +106,11 @@ const VERSE_SPEC = String.raw`\d+(?:[-\u2013\u2014]\d+(?::\d+)?)?(?:,[\s\u00a0]*
 // "1 Chr 5:3", "Gn 1:1", "1 Corinthians 11:23-34". The book is OPTIONAL so one scan also finds the
 // bare "3:16" citations; which book those belong to is decided per match below. The non-breaking
 // space alternative is required because Tyndale separates a book's number from its name with one.
+// `Add ` is allowed as a second book word so "Add Est 11:1" reads as the Additions to Esther rather
+// than as canonical Esther. It is the source's own marker and the only two-word book form it uses;
+// without it, three citations pointed at an Esther chapter 11 that no Protestant Bible has.
 const SCAN_RE = new RegExp(
-  String.raw`(?:\b((?:[1-4][\s ]?)?[A-Z][A-Za-z]{1,11})\.?[\s ]+)?(?<![\d:])(\d+):(${VERSE_SPEC})`,
+  String.raw`(?:\b((?:Add[\s ]+)?(?:[1-4][\s ]?)?[A-Z][A-Za-z]{1,11})\.?[\s ]+)?(?<![\d:])(\d+):(${VERSE_SPEC})`,
   'g');
 
 const SEPARATOR_ONLY = /^[;,\s ]*$/;
@@ -144,6 +169,13 @@ export function tokenizeRefs(text, { book: defaultBook = null, exists = null } =
     }
 
     if (!book || !plausible(chapter, verse)) { contBook = null; continue; }
+    // A named canonical book is trusted without checking the verse exists — the 66 are complete and
+    // the source's own occasional bad ref is better shown than silently dropped. The deuterocanon is
+    // NOT: we carry one edition of it (the KJV Apocrypha), Tyndale cites editions that number
+    // differently, and a reference that lands on a real-but-wrong verse is worse than a plain one.
+    // This is what stops "Apoc Bar 14:13" — the Apocalypse of Baruch, which we do not carry —
+    // resolving into canonical Baruch, whose 6 chapters cannot reach 14.
+    if (isApocrypha(book) && exists && !exists(book, chapter, verse)) { contBook = null; continue; }
 
     if (start > last) out.push({ plain: src.slice(last, start) });
     out.push({ ref: { book, chapter, verse }, text: matched });

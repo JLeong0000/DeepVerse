@@ -151,6 +151,49 @@ export function parseRefRange(refs) {
   return { book, start_chapter: sc, start_verse: sv, end_chapter: ec, end_verse: ev, ref };
 }
 
+// Corrections to the source, applied to the raw XML before anything parses it.
+//
+// CC BY-SA 4.0 lets us adapt the work provided we say what we changed; this list IS that statement,
+// and app/src/lib/sources.js repeats it to the reader. Nothing goes in here without evidence from
+// the source's own words — never a guess at what Tyndale "probably meant".
+//
+// `n` is asserted, so if a future release of the dictionary fixes or rewrites one of these, the
+// parse fails loudly instead of silently correcting nothing.
+const ERRATA = [
+  // "Judges, Book of", recounting Judges 1: "They even took Jerusalem … (Jos 1:8), but could not
+  // retain control there (v 21)". Both links point at Joshua. Judges 1:8 is "The men of Judah
+  // attacked Jerusalem also and took it"; Judges 1:21 is "The Benjamites … failed to dislodge the
+  // Jebusites, who were living in Jerusalem". Joshua 1:8 is about meditating on the law, and
+  // Joshua 1 has only 18 verses, so 1:21 does not exist. The visible "Jos" is corrected to "Jgs"
+  // as well, because the app re-derives its in-prose links from the displayed text, not the href —
+  // leaving it would send a reader who clicks "Jos 1:8" to the wrong verse.
+  { id: 'JudgesBookof', n: 2,
+    find: '<a href="?bref=Josh.1.8">Jos 1:8</a>',
+    replace: '<a href="?bref=Judg.1.8">Jgs 1:8</a>' },
+  { id: 'JudgesBookof', n: 1,
+    find: '<a href="?bref=Jos.1.21">21</a>',
+    replace: '<a href="?bref=Judg.1.21">21</a>' },
+  // "Ecclesiastes, Book of": "Koheleth counsels the reader to obey the authorities. The apostle
+  // Paul gave the same advice in Romans 13." The link's own text says Romans 13; only its href says
+  // Ecclesiastes, which has 12 chapters. Display text is already right, so only the href changes.
+  { id: 'EcclesiastesBookof', n: 1,
+    find: '<a href="?bref=Eccl.13.1-14">Romans 13</a>',
+    replace: '<a href="?bref=Rom.13.1-14">Romans 13</a>' },
+];
+
+export function applyErrata(id, bodyXml) {
+  let out = bodyXml;
+  for (const e of ERRATA) {
+    if (e.id !== id) continue;
+    const n = out.split(e.find).length - 1;
+    if (n !== e.n) throw new Error(
+      `tyndale errata: expected ${e.n} occurrence(s) of ${e.find} in ${id}, found ${n}. `
+      + 'The source changed — re-verify the correction in build/lib/tyndale.mjs before removing it.');
+    out = out.split(e.find).join(e.replace);
+  }
+  return out;
+}
+
 // Dictionary articles carry no <refs>; their verse anchors are the ?bref= links in the body.
 // A link may be a single verse, a comma list ("Ps.115.10,12") or a range ("Gen.1.1-2.3") —
 // in every case the start verse is what anchors it. Chapter-only refs have no verse and are skipped.

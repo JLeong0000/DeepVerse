@@ -2,7 +2,7 @@
   // The article body renderer, shared by the Context tab's modal and the library's article
   // surface. Deliberately owns no chrome — no title bar, no scroll container, no positioning —
   // so each host can frame it however it needs.
-  import { parseArticleBlocks, splitSeeClauses } from '../../lib/display.js';
+  import { parseArticleBlocks, splitEntryLinks } from '../../lib/display.js';
   import RefText from '../common/RefText.svelte';
 
   const DICT_SOURCE = 'Tyndale Open Bible Dictionary · © 2023 Tyndale House Publishers · CC BY-SA 4.0';
@@ -11,7 +11,7 @@
 
   let blocks = $derived(parseArticleBlocks(article.body));
 
-  // Linkification is driven entirely by dict_xref — see splitSeeClauses. This component holds no
+  // Linkification is driven entirely by dict_xref — see splitEntryLinks. This component holds no
   // opinion about what a "See …" clause is; it only renders what the build stored, keyed on the
   // source's exact wording. Titles are never matched in loose prose: Calf, Clay, Hour, Evening and
   // Command are all real entries, so that would make every paragraph a minefield.
@@ -41,14 +41,14 @@
     {#if b.kind === 'head'}
       <h3 class="mhead" data-head={b.text}>{b.text}</h3>
     {:else if b.kind === 'item'}
-      <p class="mitem"><RefText text={b.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} /></p>
+      <p class="mitem">{#each splitEntryLinks(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
       {#if preview && openIndex === i}
         {@render preview()}
       {/if}
     {:else}
       <!-- every part is emitted verbatim: the prose runs, the separators and the trailing period
            all come straight out of the source, so its own "; " spacing cannot be lost here -->
-      <p class="mbody">{#each splitSeeClauses(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
+      <p class="mbody">{#each splitEntryLinks(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
       {#if preview && openIndex === i}
         {@render preview()}
       {/if}

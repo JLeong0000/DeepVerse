@@ -3,7 +3,7 @@
 // The source states every cross-reference explicitly — `?item=Plants_Article_…` names the target
 // entry, and its `name` is the id we store — so this module resolves nothing by text. It maps the
 // link's item id to a destination, works out where in that destination the reader should land, and
-// drops the links that are not edges. `extractSeeXrefs` in tyndale.mjs does the parsing.
+// drops the links that are not edges. `extractItemLinks` in tyndale.mjs does the parsing.
 //
 // This replaced a resolver that reconstructed the graph from flattened prose with a clause regex
 // and four tiers of fuzzy title matching. That approach could not see what the markup states: it

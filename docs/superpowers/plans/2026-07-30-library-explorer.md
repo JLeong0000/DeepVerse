@@ -4,7 +4,7 @@
 
 **Goal:** Build a browsable, search-first explorer at `#/library` over the Tyndale corpus already in `bible.db`, where the breadcrumb is the navigation stack and Tyndale's own cross-references are the way through.
 
-**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,152 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
+**Architecture:** Single column, one surface at a time (start → a route's index → an article), under a persistent frame holding the search field and breadcrumb. A new computed `dict_xref` table (5,164 rows) powers the cross-reference doors and the path map. All rendering is Svelte 5 runes; all data is SQL against the in-memory sql.js database.
 
 **Tech Stack:** Svelte 5 (runes), sql.js, Vite, Vitest (app), `node --test` (build), `node:sqlite` (build).
 
@@ -659,7 +659,7 @@ In `build/validate-db.mjs`, inside `validate(db)` and before `return problems;`:
 cd build && npm run build
 ```
 
-Expected: among the output, `dict_xref: {"rows":5152,"anchored":87,"dropped":68}` and `validation OK`.
+Expected: among the output, `dict_xref: {"rows":5164,"anchored":87,"dropped":73}` and `validation OK`.
 
 - [ ] **Step 7: Verify a fresh clone can still build**
 
@@ -684,7 +684,7 @@ Expected: `copy-assets: bible.db version <hash>` with a **new** hash. Confirm `d
 sqlite3 app/public/bible.db "SELECT COUNT(*) FROM dict_xref;"
 ```
 
-Expected: `5152`.
+Expected: `5164`.
 
 - [ ] **Step 9: Run the build suite**
 

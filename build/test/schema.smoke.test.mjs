@@ -28,9 +28,9 @@ test('agapao has a Louw-Nida domain', () => {
   assert.match(r.ln, /^25\./);
 });
 
-test('dict_xref: 5152 rows, every one resolved', () => {
+test('dict_xref: 5164 rows, every one resolved', () => {
   const db = new DatabaseSync('../data/bible.db');
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5152);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM dict_xref').get().c, 5164);
   // dst is NOT NULL by construction: the graph is built from the source's own ?item= links, so a
   // row exists only where a target was found. The old title-matching resolver left 140 unresolved,
   // 139 of which were its own failures rather than gaps in the dictionary.
@@ -76,6 +76,21 @@ test('dict_xref: a link naming two subheads is one edge', () => {
   const rows = db.prepare('SELECT dst, raw, anchor FROM dict_xref WHERE src = ?').all('Brood');
   assert.deepEqual(rows.map((r) => `${r.dst}|${r.raw}|${r.anchor}`),
     ['Birds|Birds (Fowl, Domestic; Partridge)|Fowl, Domestic']);
+  db.close();
+});
+
+// `Bible` ends on a bulleted list of the seven major Bible articles, each one a real link. While
+// extraction was restricted to "See …" clauses it had NO outbound edges, so the article displayed
+// "this article names no other entry" directly beneath seven of them.
+test('dict_xref: links outside a "See …" clause are edges too', () => {
+  const db = new DatabaseSync('../data/bible.db');
+  const rows = db.prepare('SELECT dst FROM dict_xref WHERE src = ? ORDER BY seq').all('Bible');
+  assert.deepEqual(rows.map((r) => r.dst), [
+    'BibleCanonofthe', 'BibleInspirationofthe',
+    'BibleManuscriptsandTextoftheOldTestament', 'BibleManuscriptsandTextoftheNewTestament',
+    'BibleQuotationsoftheOldTestamentintheNewTestament',
+    'BibleVersionsoftheAncient', 'BibleVersionsoftheEnglish',
+  ]);
   db.close();
 });
 

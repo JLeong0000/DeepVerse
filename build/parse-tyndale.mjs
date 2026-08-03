@@ -9,7 +9,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { OSIS_BOOKS } from './lib/books.mjs';
-import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, extractSeeXrefs, sortTitle, titleTerms }
+import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, extractItemLinks, sortTitle, titleTerms }
   from './lib/tyndale.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,7 +73,7 @@ for (const f of fs.readdirSync(`${DICT}/Articles`).sort()) {
     const terms = titleTerms(it.title);
     articles.push([it.name, it.title, sortTitle(it.title), 'article', null,
       structureBody(it.body), 0, refs.length, seq++]);
-    const links = extractSeeXrefs(it.body);
+    const links = extractItemLinks(it.body);
     if (links.length) xrefLinks[it.name] = links;
     for (const r of refs)
       verseRows.push([it.name, r.book, r.chapter, r.verse, lexHit(terms, r.book, r.chapter, r.verse)]);
@@ -95,7 +95,7 @@ for (const [file, kind, isHtml] of [['Textboxes/Textboxes.xml', 'textbox', 0],
     if (!host) orphanSupps++;
     articles.push([it.name, it.title, sortTitle(it.title), kind, host,
       cleanBody(it.body, isHtml === 1), isHtml, 0, seq++]);
-    const links = extractSeeXrefs(it.body);
+    const links = extractItemLinks(it.body);
     if (links.length) xrefLinks[it.name] = links;
   }
 }

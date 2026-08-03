@@ -113,17 +113,25 @@ export function parseArticleBlocks(body) {
       : { kind: line.startsWith('•') ? 'item' : 'para', text: line });
 }
 
-// Splits a body block into the "See …" cross-reference targets the BUILD recorded, and the prose
-// around them.
+// Splits a body block into the cross-reference targets the BUILD recorded, and the prose around
+// them.
 //
 // Which runs are cross-references is decided once, at build time, from Tyndale's own link markup —
-// see build/lib/xref.mjs. This function never re-decides it. It finds a "See …" clause, then looks
-// for the exact strings `byRaw` holds: those are the source's own link texts, and every one of them
-// is guaranteed to occur verbatim in this body. Anything else inside the clause is prose, so a
-// parenthetical aside ("(See also Col 4:16; Rv 1:3.)" — scripture, not an entry) yields nothing.
+// see build/lib/xref.mjs. This function never re-decides it. It looks only for the exact strings
+// `byRaw` holds, which are the source's own link texts and are guaranteed to occur verbatim in this
+// body, and only in the two positions where a match is unambiguous:
 //
-// Targets are found by literal match, NOT by splitting on ';', because one link's text can contain
-// one: "See Birds (Fowl, Domestic; Partridge)." is a single link naming two subheads of Birds, and
+//   1. inside a "See …" clause
+//   2. as the whole of a bulleted item ("• Bible, Canon of the")
+//
+// Both are whole-run matches, so they cannot fire on an ordinary mention: "Jephthah" appears
+// dozens of times in `Judges, Book of`, and underlining every one because the source linked it once
+// would be guessing at which. Those mid-prose links are still doors — see "Where this leads" — they
+// simply carry no inline underline. Exactly 5 of the 5,164 edges are in that position; the other 7
+// prose links point somewhere a See clause in the same article already reaches.
+//
+// Targets are matched literally, NOT by splitting on ';', because one link's text can contain one:
+// "See Birds (Fowl, Domestic; Partridge)." is a single link naming two subheads of Birds, and
 // splitting it produced a broken "Birds (Fowl, Domestic" target plus an orphan "Partridge)".
 // Longest-first, so a raw that is a prefix of another cannot win.
 //
@@ -133,23 +141,32 @@ export function parseArticleBlocks(body) {
 // byRaw: Map<raw, {id,title,anchor}>
 // returns: [{kind:'text',text} | {kind:'link',raw,id,title,anchor}]
 const SEE_CLAUSE = /\bSee(?: also)? ([^.\n]+)\./g;
+const BULLET = /^([•\s]*)(.*?)\s*$/;
 
-export function splitSeeClauses(text, byRaw) {
+export function splitEntryLinks(text, byRaw) {
   const src = String(text ?? '');
   const spans = [];
   if (byRaw?.size) {
     const raws = [...byRaw.keys()].sort((a, b) => b.length - a.length);
+    const find = (from, upTo) => {
+      for (let i = from; i < upTo;) {
+        const raw = raws.find((r) => src.startsWith(r, i) && i + r.length <= upTo);
+        if (!raw) { i++; continue; }
+        spans.push({ start: i, end: i + raw.length, raw, hit: byRaw.get(raw) });
+        i += raw.length;
+      }
+    };
     SEE_CLAUSE.lastIndex = 0;
     let m;
     while ((m = SEE_CLAUSE.exec(src))) {
       const capStart = m.index + m[0].length - 1 - m[1].length;
-      const cap = m[1];
-      for (let i = 0; i < cap.length;) {
-        const raw = raws.find((r) => cap.startsWith(r, i));
-        if (!raw) { i++; continue; }
-        spans.push({ start: capStart + i, end: capStart + i + raw.length, raw, hit: byRaw.get(raw) });
-        i += raw.length;
-      }
+      find(capStart, capStart + m[1].length);
+    }
+    if (!spans.length) {
+      // a bulleted item that IS a link, whole: "• Bible, Canon of the"
+      const b = src.match(BULLET);
+      if (b && byRaw.has(b[2])) spans.push({ start: b[1].length, end: b[1].length + b[2].length,
+        raw: b[2], hit: byRaw.get(b[2]) });
     }
   }
   const out = [];

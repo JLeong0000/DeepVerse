@@ -196,7 +196,7 @@ export function extractIncludes(bodyXml) {
 
 // Cross-references, taken from the source's own link markup rather than reconstructed from prose.
 //
-// Tyndale writes a cross-reference as a "See" clause whose targets are real links:
+// Tyndale marks every cross-reference as a real link:
 //   <span class="ital">See</span> <a href="?item=Plants_Article_...">Plants (Onion)</a>.
 // The href names the target ENTRY unambiguously — `name` there is the same id we store — so the
 // graph never has to be guessed from the display text. That matters: the display text routinely
@@ -209,23 +209,25 @@ export function extractIncludes(bodyXml) {
 //   #Sub    a subhead in THIS article ("Locust (below)") -> not an edge; the reader is already there
 //   ?bref=  scripture           -> handled by extractBrefs
 //
-// The clause ends at the first period that closes it; ANY_SEE deliberately also matches a "See"
-// inside a parenthetical aside ("(See also Col 4:16; Rv 1:3.)"), because those contain no ?item=
-// link and so contribute nothing — no separate rule is needed to exclude them.
-const SEE_CLAUSE = /<span class="ital">See(?: also)?<\/span>(.*?)(?:\.\s*<\/p>|\.\s|\.$)/gs;
+// EVERY ?item= link counts, not only those inside a "See …" clause. 5,220 of the 5,237 sit in a See
+// clause; the other 17 are the ones that made restricting to See clauses wrong. Seven of them are
+// the bulleted list under "Several other major articles on the Bible follow:" in `Bible`, which had
+// no outbound edges at all and so displayed "this article names no other entry" directly beneath
+// seven links. The remaining ten are mid-prose ("see discussion under Jephthah").
+//
+// A parenthetical aside ("(See also Col 4:16; Rv 1:3.)") needs no special rule: it cites scripture,
+// so it holds no ?item= link and contributes nothing.
 const ITEM_LINK = /<a\b[^>]*href="\?item=([A-Za-z0-9]+)_(Article|Textbox|Chart|Map)_[^"]*"[^>]*>(.*?)<\/a>/gs;
 
-export function extractSeeXrefs(bodyXml) {
+export function extractItemLinks(bodyXml) {
   const out = [];
-  for (const clause of String(bodyXml).matchAll(SEE_CLAUSE)) {
-    for (const a of clause[1].matchAll(ITEM_LINK)) {
-      // Run through cleanBody, not a private normaliser: the app matches this string back against
-      // the flattened prose to decide what to underline, so the two must be byte-identical. A
-      // hand-rolled `\s+` collapse is NOT the same — cleanBody collapses only [ \t]+, and the
-      // corpus puts a non-breaking space inside link text ("Chronology of the Bible (Old Testament)").
-      const text = cleanBody(a[3]);
-      if (text) out.push({ item: a[1], kind: a[2], text });
-    }
+  for (const a of String(bodyXml).matchAll(ITEM_LINK)) {
+    // Run through cleanBody, not a private normaliser: the app matches this string back against
+    // the flattened prose to decide what to underline, so the two must be byte-identical. A
+    // hand-rolled `\s+` collapse is NOT the same — cleanBody collapses only [ \t]+, and the
+    // corpus puts a non-breaking space inside link text ("Chronology of the Bible (Old Testament)").
+    const text = cleanBody(a[3]);
+    if (text) out.push({ item: a[1], kind: a[2], text });
   }
   return out;
 }

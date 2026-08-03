@@ -126,7 +126,7 @@
         {/each}
       </div>
     {:else}
-      <!-- 2,632 of the 6,010 articles write no "See …" clause at all; an empty box would read as
+      <!-- 2,628 of the 6,010 articles link to no other entry at all; an empty box would read as
            a bug. There is no third case: every link Tyndale writes resolves, so an article either
            has doors or names nothing. -->
       <div class="deadend">

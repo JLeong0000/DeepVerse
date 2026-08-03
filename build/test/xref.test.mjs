@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildIndex, resolveLink, buildXrefRows } from '../lib/xref.mjs';
-import { extractSeeXrefs } from '../lib/tyndale.mjs';
+import { extractItemLinks } from '../lib/tyndale.mjs';
 
 // Rows carry only what the resolver reads. Bodies matter for their "## " subheads.
 const ARTICLES = [
@@ -97,55 +97,68 @@ test('buildXrefRows: deduplicates two links to the same destination', () => {
   ]);
 });
 
-// --- extractSeeXrefs: reading the links out of the source markup ---
+// --- extractItemLinks: reading the links out of the source markup ---
 
 const SEE = (inner) => `<p class="fl">Prose. <span class="ital">See</span> ${inner}.</p>`;
 const A = (id, text, kind = 'Article') =>
   `<a href="?item=${id}_${kind}_TyndaleOpenBibleDictionary">${text}</a>`;
 
-test('extractSeeXrefs: takes the item id and the display text', () => {
-  assert.deepEqual(extractSeeXrefs(SEE(A('Antichrist', 'Antichrist'))),
+test('extractItemLinks: takes the item id and the display text', () => {
+  assert.deepEqual(extractItemLinks(SEE(A('Antichrist', 'Antichrist'))),
     [{ item: 'Antichrist', kind: 'Article', text: 'Antichrist' }]);
 });
 
-test('extractSeeXrefs: several targets in one clause', () => {
+test('extractItemLinks: several targets in one clause', () => {
   assert.deepEqual(
-    extractSeeXrefs(SEE(`${A('FoodandFoodPreparation', 'Food and Food Preparation')}; ${A('Plants', 'Plants (Onion)')}`)),
+    extractItemLinks(SEE(`${A('FoodandFoodPreparation', 'Food and Food Preparation')}; ${A('Plants', 'Plants (Onion)')}`)),
     [{ item: 'FoodandFoodPreparation', kind: 'Article', text: 'Food and Food Preparation' },
      { item: 'Plants', kind: 'Article', text: 'Plants (Onion)' }]);
 });
 
-test('extractSeeXrefs: "See also" is the same clause', () => {
+test('extractItemLinks: "See also" is the same clause', () => {
   const xml = `<p class="fl">Prose. <span class="ital">See also</span> ${A('Antichrist', 'Antichrist')}.</p>`;
-  assert.deepEqual(extractSeeXrefs(xml), [{ item: 'Antichrist', kind: 'Article', text: 'Antichrist' }]);
+  assert.deepEqual(extractItemLinks(xml), [{ item: 'Antichrist', kind: 'Article', text: 'Antichrist' }]);
 });
 
 // A "#Subhead" href points inside the SAME article ("Locust (below)"). The reader is already there,
 // so it is not an edge — and it must never be reported as a target absent from the corpus.
-test('extractSeeXrefs: an intra-article "#Subhead" link is not a cross-reference', () => {
-  assert.deepEqual(extractSeeXrefs(SEE('<a href="#Locust">Locust (below)</a>')), []);
+test('extractItemLinks: an intra-article "#Subhead" link is not a cross-reference', () => {
+  assert.deepEqual(extractItemLinks(SEE('<a href="#Locust">Locust (below)</a>')), []);
 });
 
-test('extractSeeXrefs: a scripture ?bref= link is not a cross-reference', () => {
-  assert.deepEqual(extractSeeXrefs(SEE('<a href="?bref=Gen.1.1">Gn 1:1</a>')), []);
+test('extractItemLinks: a scripture ?bref= link is not a cross-reference', () => {
+  assert.deepEqual(extractItemLinks(SEE('<a href="?bref=Gen.1.1">Gn 1:1</a>')), []);
 });
 
 // The 7 parenthetical asides in the corpus. They carry no ?item= link, so no separate rule is
 // needed to exclude them — which is why this replaced a regex that had to guess.
-test('extractSeeXrefs: a parenthetical aside contributes nothing', () => {
+test('extractItemLinks: a parenthetical aside contributes nothing', () => {
   const xml = '<p class="fl">Read aloud. (<span class="ital">See also</span> '
     + '<a href="?bref=Col.4.16">Col 4:16</a>; <a href="?bref=Rev.1.3">Rv 1:3</a>.) More prose.</p>';
-  assert.deepEqual(extractSeeXrefs(xml), []);
+  assert.deepEqual(extractItemLinks(xml), []);
 });
 
-test('extractSeeXrefs: link text is normalised exactly as cleanBody normalises the body', () => {
+test('extractItemLinks: link text is normalised exactly as cleanBody normalises the body', () => {
   // a non-breaking space inside link text must survive, because the app matches this string
   // against the flattened body, where cleanBody leaves U+00A0 alone
   const xml = SEE(A('ChronologyoftheBibleOldTestament', 'Chronology of the Bible (Old Testament)'));
-  assert.equal(extractSeeXrefs(xml)[0].text, 'Chronology of the Bible (Old Testament)');
+  assert.equal(extractItemLinks(xml)[0].text, 'Chronology of the Bible (Old Testament)');
 });
 
-test('extractSeeXrefs: inline markup inside the link text is stripped', () => {
-  assert.deepEqual(extractSeeXrefs(SEE(A('Antichrist', '<span class="ital">Antichrist</span>'))),
+test('extractItemLinks: inline markup inside the link text is stripped', () => {
+  assert.deepEqual(extractItemLinks(SEE(A('Antichrist', '<span class="ital">Antichrist</span>'))),
     [{ item: 'Antichrist', kind: 'Article', text: 'Antichrist' }]);
+});
+
+// Not every cross-reference sits in a "See …" clause. `Bible` ends on a bulleted list of the seven
+// major Bible articles, each a real link; restricting extraction to See clauses left that article
+// with no outbound edges and a "names no other entry" notice under seven of them.
+test('extractItemLinks: a link outside a "See …" clause still counts', () => {
+  const xml = '<p class="fl">Several other major articles on the Bible follow:</p>'
+    + `<p class="list">• ${A('BibleCanonofthe', 'Bible, Canon of the')}</p>`
+    + `<p class="list">• ${A('BibleInspirationofthe', 'Bible, Inspiration of the')}</p>`;
+  assert.deepEqual(extractItemLinks(xml), [
+    { item: 'BibleCanonofthe', kind: 'Article', text: 'Bible, Canon of the' },
+    { item: 'BibleInspirationofthe', kind: 'Article', text: 'Bible, Inspiration of the' },
+  ]);
 });

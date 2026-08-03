@@ -74,8 +74,16 @@ Three link kinds appear in these bodies, and only the first is a cross-reference
 | `#Subhead` | a subhead in **this** article (`Locust (below)`) | not an edge — the reader is already there |
 | `?bref=` | scripture | `extractBrefs`, then RefText |
 
-**5,220 `?item=` links sit inside See-clauses. 5,152 become edges;** the 68 dropped are 64 duplicate
-destinations, 3 self-links, and 1 naming a Map (Maps are not ingested). **Every stored edge
+**Item bodies hold 5,237 `?item=` links. 5,164 become edges;** the 73 dropped are 69 duplicate
+destinations, 3 self-links, and 1 naming a Map (Maps are not ingested).
+
+5,220 of those links sit inside a `See …` clause. The other **17 do not** — seven are the bulleted
+list under *"Several other major articles on the Bible follow:"* in `Bible`, which is why restricting
+extraction to See-clauses was wrong: that article had no outbound edges at all and displayed *"this
+article names no other entry"* directly beneath seven links. The remaining ten are mid-prose
+(*"see discussion under Jephthah"*). Those become doors but carry **no inline underline** — the link
+text is an ordinary word that recurs throughout the article, and underlining every occurrence
+because the source linked one would be guessing at which. 5 edges are in that position. **Every stored edge
 resolves — `dst` is NOT NULL** — and every stored `raw` occurs verbatim in its article's body, which
 is what lets the app underline exactly the runs the source marked up.
 
@@ -96,16 +104,16 @@ rendered. Only the 13 supplements with no host resolve to themselves.
 
 | | |
 |---|---|
-| distinct edges | 5,152 (5,144 of them article-to-article) |
-| articles with ≥1 edge | 4,096 (68%) |
-| **isolated articles** | **1,914 (32%)** |
-| connected components of ≥2 | 603 |
-| largest component | 2,518 |
+| distinct edges | 5,164 (5,156 of them article-to-article) |
+| articles with ≥1 edge | 4,097 (68%) |
+| **isolated articles** | **1,913 (32%)** |
+| connected components of ≥2 | 600 |
+| largest component | 2,524 |
 | **second largest** | **15** |
 | median degree | 1 (max 152, `Plants`) |
 
 A whole-corpus graph view was rejected on these numbers: a third of the corpus would render as
-floating dust, and the structure is one hairball plus 602 specks with no legible mid-scale shape.
+floating dust, and the structure is one hairball plus 599 specks with no legible mid-scale shape.
 Local neighbourhoods are the opposite — **1-hop median 2 nodes, p90 5** — which is what the path
 map draws.
 
@@ -270,7 +278,7 @@ Four additions, all running on data already in the corpus:
 
 ### `dict_xref` — a new table, and why the build step is justified
 
-**5,152 rows**, every one resolved — `dst` is NOT NULL. 87 carry a subhead anchor. ~240 KB.
+**5,164 rows**, every one resolved — `dst` is NOT NULL. 87 carry a subhead anchor. ~240 KB.
 
 ```sql
 CREATE TABLE dict_xref (
@@ -378,7 +386,7 @@ its real stack index; expander state resetting on navigation.
 **Path map** — branch click truncating to the correct step; solid/dashed spine classification;
 phantom nodes unclickable; drag suppressing the click that follows it.
 
-**Post-build invariants** — `dict_xref` totals (5,152 rows: 0 unresolved, 87
+**Post-build invariants** — `dict_xref` totals (5,164 rows: 0 unresolved, 87
 anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
 with an empty `raw`.
 

@@ -66,11 +66,13 @@ export const APOCRYPHA_NOTE = {
   PrMan: `The Prayer of Manasseh, a short penitential prayer put in the mouth of the king of 2 Chronicles 33. ${ORTHODOX}`,
   // carried nowhere in DeepVerse — these say what the book is AND why there is no text
   '3Macc': '3 Maccabees, which despite its name is about Ptolemy IV persecuting the Jews of Egypt, '
-    + 'not the Maccabean revolt. Canonical in Eastern Orthodox churches only, and absent from the '
-    + 'KJV Apocrypha — the public-domain edition DeepVerse carries — so there is no text to show.',
-  '4Macc': '4 Maccabees, a philosophical essay on reason and martyrdom. Printed in an appendix to '
-    + 'the Greek Bible rather than as canon, and absent from the KJV Apocrypha — the public-domain '
-    + 'edition DeepVerse carries — so there is no text to show.',
+    + 'not the Maccabean revolt. Canonical in Eastern Orthodox churches only — not in modern '
+    + 'Protestant or Catholic Bibles — and absent from the KJV Apocrypha, the public-domain edition '
+    + 'DeepVerse carries, so there is no text to show.',
+  '4Macc': '4 Maccabees, a philosophical essay on reason and martyrdom. In no modern Protestant or '
+    + 'Catholic Bible, and canonical nowhere — it is printed in an appendix to the Greek Bible. '
+    + 'Absent from the KJV Apocrypha, the public-domain edition DeepVerse carries, so there is no '
+    + 'text to show.',
   ApocBar: 'The Apocalypse of Baruch, usually called 2 Baruch: a Jewish apocalypse written after '
     + 'the destruction of the Temple in AD 70 and attributed to Jeremiah\u2019s scribe. It is a '
     + 'different book from the Baruch of the Apocrypha. Not scripture for Jews or for most Christian '

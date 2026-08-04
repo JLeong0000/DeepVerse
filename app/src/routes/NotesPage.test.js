@@ -46,3 +46,43 @@ describe('NotesPage sorting', () => {
     await waitFor(() => expect(bodies()[0]).toContain('memo new'));
   });
 });
+
+describe('NotesPage date range', () => {
+  beforeEach(async () => {
+    await _clearAllForTest();
+    await seed({ body: 'memo january', created: '2026-01-15T04:00:00.000Z' });
+    await seed({ body: 'memo august', created: '2026-08-04T04:00:00.000Z' });
+  });
+
+  it('keeps only memos on or after the from-date', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByLabelText('from'), { target: { value: '2026-08-01' } });
+    await waitFor(() => expect(bodies().length).toBe(1));
+    expect(bodies()[0]).toContain('memo august');
+  });
+
+  it('keeps only memos on or before the to-date', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByLabelText('to'), { target: { value: '2026-01-31' } });
+    await waitFor(() => expect(bodies().length).toBe(1));
+    expect(bodies()[0]).toContain('memo january');
+  });
+
+  it('says so when the range excludes everything', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByLabelText('from'), { target: { value: '2027-01-01' } });
+    await waitFor(() => expect(screen.getByText('No memos match.')).toBeTruthy());
+  });
+
+  it('restores everything when the range is cleared', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByLabelText('from'), { target: { value: '2026-08-01' } });
+    await waitFor(() => expect(bodies().length).toBe(1));
+    await fireEvent.click(screen.getByTitle('Clear date range'));
+    await waitFor(() => expect(bodies().length).toBe(2));
+  });
+});

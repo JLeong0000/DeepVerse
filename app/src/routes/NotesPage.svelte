@@ -3,6 +3,7 @@
            allGroups, addGroup, renameGroup, deleteGroup } from '../lib/store.js';
   import { formatRef } from '../lib/refs.js';
   import { noteHtml } from '../lib/markdown.js';
+  import { inRange } from '../lib/dates.js';
   import { fade } from 'svelte/transition';
   import GroupFolder from '../components/notes/GroupFolder.svelte';
   import GroupExpanded from '../components/notes/GroupExpanded.svelte';
@@ -13,6 +14,8 @@
   let groups = $state([]);
   let sort = $state('updated_at:desc'); // "<field>:<direction>"
   let filter = $state('');
+  let from = $state('');
+  let to = $state('');
   let boardEl = $state();
   let boardNonce = $state(0);
 
@@ -39,14 +42,18 @@
   }));
 
   const q = $derived(filter.trim().toLowerCase());
+  const filtering = $derived(q !== '' || from !== '' || to !== '');
+  // Text and date narrow together — a memo has to survive both. The range reads whichever field the
+  // page is sorted by, so the sort control is the only place "date" gets defined.
   function matches(n) {
+    if (!inRange(n[sortField], from, to)) return false;
     if (!q) return true;
     if (n.body.toLowerCase().includes(q)) return true;
     return n.ref ? formatRef(n.ref).toLowerCase().includes(q) : false;
   }
   // when filtering, show a flat list of ALL matching notes (loose + grouped), no folders
-  let looseNotes = $derived(q ? notes.filter(matches) : notes.filter(n => !n.group_id));
-  let visibleGroups = $derived(q ? [] : groups);
+  let looseNotes = $derived(filtering ? notes.filter(matches) : notes.filter(n => !n.group_id));
+  let visibleGroups = $derived(filtering ? [] : groups);
   const membersOf = (gid) => notes.filter(n => n.group_id === gid);
   let orderedNoteIds = $derived(looseNotes.map(n => n.id));
 
@@ -154,8 +161,18 @@
     </div>
   </div>
 
+  <div class="range">
+    <label>from <input type="date" bind:value={from} /></label>
+    <label>to <input type="date" bind:value={to} /></label>
+    {#if from || to}
+      <button class="clear" title="Clear date range" onclick={() => { from = ''; to = ''; }}>✕</button>
+    {/if}
+  </div>
+
   {#if notes.length === 0 && groups.length === 0}
     <p class="empty">No memos yet. Add one with “+ Memo”, or jot one against a verse in Study mode.</p>
+  {:else if filtering && looseNotes.length === 0}
+    <p class="empty">No memos match.</p>
   {:else}
     <div class="board" class:expanded={!!openGroup_} bind:this={boardEl}
       onclick={(e) => { if (e.target.classList.contains('board')) clearSelection(); }}
@@ -208,6 +225,11 @@
   .btn { border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 5px; padding: 5px 12px; cursor: pointer; font-family: inherit; font-size: 12.5px; }
   .btn:hover { border-color: var(--a); }
   .empty { color: var(--dim); font-style: italic; margin-top: 20px; }
+  .range { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 12px; color: var(--dim); }
+  .range label { display: inline-flex; align-items: center; gap: 5px; }
+  .range input { font-family: inherit; font-size: 12px; padding: 3px 7px; border: 1px solid var(--rule); border-radius: 5px; background: var(--bg); color: var(--ink); }
+  .clear { border: none; background: transparent; color: var(--dim); cursor: pointer; font-size: 12px; padding: 2px 5px; line-height: 1; }
+  .clear:hover { color: var(--ink); }
 
   .board { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px 18px; margin-top: 22px; align-items: start; }
   /* while a group is open the panel fills the board, so give it a real height to grow into */

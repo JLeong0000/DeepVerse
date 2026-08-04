@@ -74,10 +74,18 @@ field) buys nothing until memos and reader cross timezones.
 ### `localDay(value)` → `Date` at local midnight
 
 Takes an ISO instant, a `YYYY-MM-DD` string, or a `Date`; returns local midnight
-of that calendar day. The one trap it exists to contain: bare
-`new Date('2026-08-05')` parses as **UTC**, so a date-only string must be built
-as `new Date(y, m - 1, d)` (or parsed with an explicit `T00:00:00`) or every
-boundary silently shifts by the viewer's offset.
+of that calendar day.
+
+The trap it exists to contain: bare `new Date('2026-08-05')` parses as **UTC**,
+so it is not local midnight anywhere except Greenwich. Measured under
+`TZ=Asia/Singapore` (UTC+8) it yields **Aug 5 at 08:00 local** — the right date
+at the wrong time, so a `from` bound built that way silently excludes every memo
+written before 8am. West of Greenwich it is worse: the same expression lands on
+the *previous* calendar date, so bounds are off by a whole day.
+
+A date-only string must therefore be built from its parts —
+`new Date(y, m - 1, d)` — or parsed with an explicit `T00:00:00`, which the
+runtime treats as local.
 
 ### `memoDateLabel(note, field)` → `"edited 3 days ago"`
 
@@ -187,12 +195,10 @@ it in `afterAll`. Scoped to the one file deliberately — putting
 `env: { TZ: ... }` in the `test` block of `vite.config.js:120` would re-timezone
 every existing test, which is a larger blast radius than this work earns.
 
-Node honours a runtime `process.env.TZ` change (verified directly), and jsdom
-does not replace the global `Date`, so this should hold under vitest. **Not yet
-confirmed end-to-end** — this worktree has no `node_modules`, so vitest could not
-be run. Confirming it is step one of the plan, before any of the logic is
-written; if it turns out not to hold, the fallback is a `TZ=...` prefix on the
-`test` script in `package.json:13`.
+**Verified end-to-end** (vitest 2.1.9, jsdom, this worktree): a `beforeAll`
+override of `process.env.TZ` takes effect on the global `Date`, and the same
+probe confirmed the `localDay` trap above — `new Date('2026-08-05')` reporting
+`getHours() === 8` under UTC+8.
 
 Then a manual pass: all four sort orders; group folders following the sort; a
 range open at each end; a range matching nothing (expect `No memos match.`); a

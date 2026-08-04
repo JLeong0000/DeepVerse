@@ -2,6 +2,7 @@
   import { notesForRef, addNote, updateNote, deleteNote, allGroups, addGroup } from '../../lib/store.js';
   import { study, selectedRange } from '../../lib/study.svelte.js';
   import { noteHtml, noteIsEmpty } from '../../lib/markdown.js';
+  import { memoDateLabel } from '../../lib/dates.js';
   import NoteEditor from '../notes/NoteEditor.svelte';
 
   // the note attaches to the current selection: a single verse, a verse range, or (if nothing
@@ -63,7 +64,10 @@
   {#each notes as note (note.id)}
     {#if editing?.id !== note.id}
       <div class="note">
-        <div class="body md">{@html noteHtml(note.body)}</div>
+        <div class="col">
+          <div class="body md">{@html noteHtml(note.body)}</div>
+          <div class="d">{memoDateLabel(note)}</div>
+        </div>
         <button class="edit" onclick={() => startEdit(note)}>Edit</button>
       </div>
     {/if}
@@ -98,7 +102,9 @@
   .tgt b { color: var(--ink); } .dim { opacity: .7; }
   .note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--rule);
     border-radius: 6px; background: color-mix(in srgb, var(--panel) 50%, var(--bg)); }
-  .note .body { flex: 1; font-size: 13px; line-height: 1.5; }
+  .note .col { flex: 1; min-width: 0; }
+  .note .body { font-size: 13px; line-height: 1.5; }
+  .note .d { font-size: 10px; opacity: .55; margin-top: 5px; }
   .edit { flex: none; border: 1px solid transparent; background: transparent; color: var(--dim);
     border-radius: 4px; padding: 1px 7px; cursor: pointer; font-family: inherit; font-size: 12px; }
   .edit:hover { border-color: var(--rule); color: var(--ink); }

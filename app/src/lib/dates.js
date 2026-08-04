@@ -15,3 +15,35 @@ export function localDay(value) {
   const d = new Date(value);
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
+
+const DAY_MS = 86400000;
+
+// Whole calendar days between two local midnights. Rounded, not floored: across a DST boundary a
+// local day is 23 or 25 hours, so the difference is not an exact multiple of DAY_MS.
+function daysBetween(iso, nowMs) {
+  return Math.round((localDay(nowMs) - localDay(iso)) / DAY_MS);
+}
+
+// How long ago, in the words a reader uses. Thresholds are the ones the app already shipped.
+function relDay(iso, nowMs) {
+  const days = daysBetween(iso, nowMs);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return 'last week';
+  if (days < 31) return `${Math.floor(days / 7)} weeks ago`;
+  const d = new Date(iso);
+  const opts = { month: 'short', day: 'numeric' };
+  // A bare "Mar 4" reads as this year, so an older memo has to say which year it is.
+  if (d.getFullYear() !== new Date(nowMs).getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('en-US', opts);
+}
+
+// The date a memo carries, as a reader reads it: "edited 3 days ago", "created today". A memo whose
+// two timestamps are identical has never been edited, so it always reads "created" — otherwise an
+// untouched memo would claim an edit that never happened. `now` is injectable for tests.
+export function memoDateLabel(note, field = 'updated_at', now = Date.now()) {
+  const wasEdited = note.created_at !== note.updated_at;
+  const verb = field === 'updated_at' && wasEdited ? 'edited' : 'created';
+  return `${verb} ${relDay(note[field], now)}`;
+}

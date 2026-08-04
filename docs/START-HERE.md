@@ -36,10 +36,25 @@ data) is that there are **two types** of difference:
 | **The data spine** (built v1; v2 is Plan 1) | `data/bible.db` (gitignored artifact) |
 | **Compiled Bible text** (per-book JSON) | `data/bibles/{NIV,NKJV,NLT}/` |
 | **Parsed source intermediates** (committed — the build reads these) | `build/data/sources/*.json.gz` |
-| **Raw sources** (CC-BY, gitignored — local backup only) | `backup-data/STEPBible-Data`, `backup-data/openbible`, `backup-data/macula-greek`, `backup-data/morphhb` |
+| **Raw sources** (gitignored — local backup only, ~2.8 GB, **never rename/move/delete**) | `backup-data/STEPBible-Data`, `backup-data/openbible`, `backup-data/macula-greek`, `backup-data/morphhb`, `backup-data/tyndale`, `backup-data/ebible` |
 | **Build scripts + data pipeline** | `build/` (Node, `node:sqlite`); see `docs/DATA-PIPELINE.md` |
 | **Fresh-clone setup** | `./install.sh` → `./start.sh` |
 | **Context/cultural + geo source research** (for unbuilt features) | `research/bible-context/` (see its `README.md` index) |
+
+> **Read this first — this file describes the Phase-1 handoff and is kept as that record.** Four
+> features have shipped since, and the sections below do not describe them. The current picture is in
+> **`docs/FEATURES-AND-IDEAS.md`**, which is maintained; this file is not:
+>
+> | Shipped | What | Where it is specced |
+> |---|---|---|
+> | 2026-07-16 | **Context tab** — per-chapter recap, who/where/what, Tyndale study notes | `specs/2026-07-15-tyndale-study-notes-display-design.md` |
+> | 2026-07-16 | **AI = Claude Code skills**, not an in-app feature | `specs/2026-07-16-ai-query-skills-design.md` |
+> | 2026-08-02 | **The Library** (`#/library`) — the whole Tyndale corpus, browsable | `specs/2026-07-30-library-explorer-design.md` |
+> | 2026-08-03 | **The Apocrypha** — KJVA text so the dictionary's deuterocanonical citations resolve | `docs/ATTRIBUTIONS.md` |
+>
+> Before trusting any figure anywhere in this project, read
+> `reports/2026-08-02-library-explorer-content-defects.md`. An approved mockup shipped 21 wrong claims
+> out of 137. **Query `bible.db`; do not copy a number out of a doc.**
 
 ## Status: PHASE 1 COMPLETE ✅ (2026-07-07) · OT engine + app polish shipped (2026-07-08)
 
@@ -130,11 +145,18 @@ Next candidates, roughly in priority order:
    frequency in `app/src/lib/db.js`; display-only, no rebuild). This also absorbed the OT-Type-B-density
    concern — the representative you see is now a genuine sense-spread, not the verb-inflection residual, so
    no separate OT-Type-B prune is needed. **Phase-1 polish is effectively complete.** (Run the app: `./start.sh`.)
-3. **Phase 2 — AI prose layer.** Pre-generated, RAG-grounded, human-reviewed Claude explanations ("why the
-   nuance matters") shipped as static data; plus Level-3 context (book/timeline/culture — needs new data).
-   Spec §1 + tracker. No live model in the core.
-4. **Segment 2 — Map / Discover** (OpenBible `ancient.jsonl` + DARE period tiles as PMTiles). Deferred.
-5. **Polish/mobile:** OPFS/`wa-sqlite` if the ~112 MB in-RAM DB strains mobile; further DB slimming.
+3. ~~**Phase 2 — AI prose layer.**~~ ✅ **RESOLVED DIFFERENTLY (2026-07-16).** AI is *not* an in-app
+   feature: it is a set of Claude Code skills in `.claude/skills/` that query `bible.db` from the CLI.
+   No chat, no backend, no prose baked into the DB. See `specs/2026-07-16-ai-query-skills-design.md`.
+4. ~~**The cultural layer** (Tyndale dictionary, themes, profiles, book intros).~~ ✅ **DONE** — in the
+   Context tab (2026-07-29) and as the browsable Library route (2026-08-02).
+5. **Tyndale Maps, then Tyndale Pictures** — both on the build list, both assessed against the
+   source. Maps has no blockers; Pictures is caption-only and must be scoped. Constraints and
+   counts in `docs/FEATURES-AND-IDEAS.md`.
+6. **Segment 2 — Map / Discover** (OpenBible `ancient.jsonl` + DARE period tiles as PMTiles).
+   Deferred, and much larger than Tyndale Maps above — do not conflate the two.
+6. **Polish/mobile:** OPFS/`wa-sqlite` if the in-RAM DB strains mobile; further DB slimming. The DB has
+   grown since this line was written — check the real size before quoting one.
 
 > Git is initialized; `.gitignore` excludes `/backup-data/` (raw source backup), `node_modules/`, `data/*.db`,
 > `app/node_modules/`, `app/dist/`, `app/public/bible.db`, `.superpowers/`. The committed

@@ -14,6 +14,16 @@ verse:
 Alongside the reader and workbench: interlinear, cross-references, per-chapter context (people / places /
 events), Tyndale study notes, and optional Greek/Hebrew audio pronunciation.
 
+**The Library** (`#/library`) is the other half. Where the workbench shows you a dictionary article
+*because the verse you are reading summoned it*, the Library lets you browse the whole Tyndale corpus on
+its own terms — 6,010 dictionary articles, 298 theme articles, 125 profiles and a hub for each of the 66
+books — and follow Tyndale's own cross-references from one entry to the next. A breadcrumb and a
+drag-to-pan path map keep track of how you got where you are, so wandering is recoverable.
+
+Scripture references inside those articles are clickable. That includes the deuterocanon: the dictionary
+cites it several hundred times and no modern translation in the app carries it, so DeepVerse ships the
+public-domain **KJV Apocrypha** purely so those citations resolve.
+
 ## Requirements
 
 - **Node.js ≥ 22** (the build uses the built-in `node:sqlite`).
@@ -84,11 +94,15 @@ committed intermediates, so a fresh clone builds offline. Details:
 
 ## Data & licensing
 
-The original-language texts, lexicons, semantic data, cross-references, chapter context, and study notes are
-open (CC-BY / CC-BY-SA), attributed in `docs/ATTRIBUTIONS.md`. The English Bible texts (NIV, NKJV, NLT) are
-**copyrighted** and included for **personal use only** — do not redistribute them or publish a build. Bible
-Summary chapter recaps are used with attribution and are pending the author's permission for bulk use; keep
-them private until confirmed.
+The original-language texts, lexicons, semantic data, cross-references, chapter context, study notes and the
+Tyndale dictionary are open (CC-BY / CC-BY-SA), attributed in `docs/ATTRIBUTIONS.md`. The KJV Apocrypha is
+public domain. The English Bible texts (NIV, NKJV, NLT) are **copyrighted** and included for **personal use
+only** — do not redistribute them or publish a build. Bible Summary chapter recaps are cleared for bulk use
+with attribution (permission confirmed by the author, 2026-07-17).
+
+The Tyndale material is CC BY-SA, which requires that adaptations state what was changed. That statement
+lives in `docs/ATTRIBUTIONS.md` and is shown in-app; keep it accurate if you change how the source is
+processed.
 
 ## Deploying
 

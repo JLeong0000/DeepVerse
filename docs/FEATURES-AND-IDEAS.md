@@ -2,7 +2,7 @@
 
 > Running capture of what we're building and the ideas/decisions behind it.
 > This is the informal tracker; formal designs live in `docs/superpowers/specs/`.
-> Last updated: 2026-07-16
+> Last updated: 2026-08-04
 
 ## ✅ Phase 1 shipped (2026-07-07)
 
@@ -43,7 +43,7 @@ reading-activity hover, offline PWA, DeepVerse logo. Non-obvious decisions live 
 Built on branch `feat/context-tab`, **merged to main**. Design/validation notes in `research/bible-context/`.
 
 - **Context tab** added to the "Context & cross-references" workbench card. Per chapter, in order:
-  - **Recap** — a plain one-paragraph summary from **Bible Summary** (Chris Juby, biblesummary.info), all 1189 chapters (`chapter_recap`, `source='bible-summary'`). Chosen over Matthew Henry / Adam Clarke commentary, which read as interpretation, not plain recaps. Kept **committed locally** in `build/data/recaps-biblesummary.json`. **Licensing:** bulk-use permission is being sought from the author — don't publish/ship until confirmed; a 14-chapter hand-authored `recaps-editorial.json` fallback is wired in.
+  - **Recap** — a plain one-paragraph summary from **Bible Summary** (Chris Juby, biblesummary.info), all 1189 chapters (`chapter_recap`, `source='bible-summary'`). Chosen over Matthew Henry / Adam Clarke commentary, which read as interpretation, not plain recaps. Kept **committed locally** in `build/data/recaps-biblesummary.json`. **Licensing: CONFIRMED 2026-07-17** — the author granted bulk-use permission, so all 1,189 are quotable and redistributable with attribution. The 14-chapter hand-authored `recaps-editorial.json` fallback was the licensing safeguard and now survives only as a gap-filler.
   - **Who/where/what** — people, places (with coords), events, groups named in the chapter, from **Theographic Bible Metadata** (CC BY-SA 4.0; `chapter_context` + `chapter_entity`). Stored counts are the derived *listable* counts; name-collision + approximate-date caveats disclosed in the tooltip.
   - **Study Notes** — verse-driven **Tyndale Open Study Notes** (CC BY-SA 4.0; 16,913 notes in `study_notes`, committed as `build/data/studynotes.json`). Covering-range model (a note shows on every verse it spans), each labeled with its span; chapter-level count; reader stays clean (no per-verse markers). Spec `specs/2026-07-15-tyndale-study-notes-display-design.md`, plan `plans/2026-07-15-tyndale-study-notes-display.md`.
   - Attribution shown in-app for each source; see `docs/ATTRIBUTIONS.md`.
@@ -68,6 +68,139 @@ query the corpus; the answer lands in the conversation. App stays pure-data/offl
   `plans/2026-07-16-geo-map-skills.md` for the Map/Discover phase — **deferred**, blocked on OpenBible
   geocoding + DARE tiles landing in the DB.
 - Spec `specs/2026-07-16-ai-query-skills-design.md`, plan `plans/2026-07-16-ai-query-skills.md`.
+
+## ✅ The Library — a browsable route for the Tyndale corpus (2026-08-02)
+
+Until now the dictionary only ever appeared *because a verse summoned it* in the Context tab. `#/library`
+makes the whole corpus browsable in its own right: **6,010 dictionary articles, 298 theme articles,
+125 profiles, 66 book introductions**, plus the 131 textboxes and charts they host.
+
+- **Four routes** — Dictionary (A–Z, with a `#` tab for the one title that starts with a curly quote),
+  Themes, Profiles, and per-book hubs. Unified search across all four.
+- **Doors** — Tyndale's own cross-references are a real graph (`dict_xref`), lifted from the source's
+  `?item=` link markup rather than reconstructed from prose. 5,164 edges, every one resolved; 87 land on
+  a named subhead rather than the top of the article.
+- **The path map** — a drag-to-pan diagram of the trail you actually took, with branch jumps. The
+  breadcrumb *is* the navigation stack, so Back walks the real trail rather than rebuilding it from the URL.
+- **Honest about gaps.** 1,913 of the 6,010 articles have no cross-reference edge at all, and the app
+  says so rather than implying a connection. Counts that are capped say they are capped.
+
+Spec `specs/2026-07-30-library-explorer-design.md`, plan `plans/2026-07-30-library-explorer.md`.
+The **content-defect report** `reports/2026-08-02-library-explorer-content-defects.md` is the one to read
+before trusting any figure in this project: an approved mockup shipped **21 wrong claims out of 137**,
+including four invented citation counts. Every number in the docs above is now queried from `bible.db`.
+
+## ✅ The Apocrypha (2026-08-03)
+
+The Tyndale dictionary cites the deuterocanon in **461 linkified references across 13 books**, and none of
+NIV/NKJV/NLT carries any of it — so every one of those was a reference the reader could not follow. The
+**KJV + Apocrypha** (standardized 1769 text, public domain, eBible.org) now supplies them: **5,650 verses
+across 14 books**, `version = 'KJVA'`.
+
+- **456 of the 461 now resolve.** The remaining five name books no KJV ever carried — 3 Maccabees (2) and
+  4 Maccabees (2), both Orthodox-canon, and the Apocalypse of Baruch (1). Each renders an explanation of
+  what the book is instead of sitting inert.
+- **2 Esdras 7 is dropped whole.** The KJV was made from Latin manuscripts missing 2 Esd 7:36–105, a gap
+  not filled until 1875, so its chapter 7 renumbers everything after verse 35 — keeping it would have
+  silently shown the wrong verse for the five citations Tyndale makes into it.
+- Each book is labelled in-app with what it is and whose Bible it is in; 3 and 4 Maccabees are said
+  outright to be in no modern Bible.
+- Licensing: public domain. UK letters patent restrict **printing** the KJV there; no effect on use
+  outside the UK. See `docs/ATTRIBUTIONS.md`.
+
+**Also fixed in the same pass:** three of Tyndale's own scripture links were wrong (two `Judges 1` refs
+pointing at Joshua, one `Romans 13` tagged as Ecclesiastes). CC BY-SA requires the change be stated —
+it is, in `docs/ATTRIBUTIONS.md` and in-app via `TYNDALE_CHANGES`.
+
+## 🗺️ TO BUILD — Maps and Pictures, the two Tyndale content types we do not yet ingest
+
+**Status: both are on the build list (decided 2026-08-04).** Assessed against the source on
+2026-08-04; every figure below was counted, not estimated. Maps is the straightforward one and
+should go first. Pictures is the harder call — the assessment below argued against it and the
+decision was to keep it anyway, so **read the caveats before designing it**: they are the spec.
+
+The dictionary package has five content directories. We carry three (Articles, Textboxes, Charts).
+These are the other two.
+
+### The licensing position, first — it is different for each
+
+`_README.txt` licenses the whole package **CC BY-SA 4.0**, redistributable with attribution and
+ShareAlike. But `CONTENTS.txt` draws a distinction in the publisher's own words:
+
+> *"In order to preserve the rights of the owners of these images, we are unable to include the
+> images themselves in the Tyndale Open Bible Dictionary."*
+
+That sentence is about **Pictures only**. The **map artwork is in the package** — 70 PDFs in
+`Maps/artfiles/`, shipped under the same CC BY-SA 4.0 as the text. So maps are ours to use and
+redistribute with attribution; the photographs were never ours and do not exist locally to use.
+**Do not go looking for the photographs elsewhere — the publisher withheld them deliberately.**
+
+### Maps — BUILD. No blockers found.
+
+`Maps/Maps.xml` holds **80 map items** (not 81 — `CONTENTS.txt` says 80 and the XML agrees),
+referencing **70 distinct PDFs**, all present. Eight PDFs are reused by two or three maps.
+
+- **Placement answers itself.** Article bodies carry **80 `include_items` markers naming Maps,
+  across 70 distinct articles** — the identical mechanism textboxes and charts already use to bind
+  to a host. A map goes in the article that embeds it. No new surface, no new decision.
+- **It closes the last dangling link in the corpus.** `Succoth` → *Key Places in the Exodus* is the
+  one `?item=` link of 5,237 that resolves to nothing, dropped at build time solely because Maps
+  are not ingested. That item exists, with art and a full caption.
+- **The artwork survives conversion well.** Each PDF is a grayscale terrain raster (620–1371 px)
+  with the place labels as **vector** outlines, so rendering the page — not extracting the embedded
+  bitmap — yields crisp text at any size. Measured on a 14-map sample: **≈4.0 MB of WebP at 900 px**
+  for all 70, ≈6.6 MB at 1200 px. That is **+2.6 % on the 151 MB the app already ships**, and it
+  lands as static files, *not* in `bible.db` — so no sql.js memory cost.
+- **No heavy runtime dependency.** Conversion is a maintainer-only step whose output is committed,
+  exactly like every other intermediate, so the converter never has to be portable or shipped.
+  (`pdfjs-dist` is already in `build/package.json`.)
+- **Captions alone are not the answer.** 66 of the 80 have a `caption-text`; the other **14 are a
+  heading only** ("Key Places in 1 Kings"). A caption without its map is a title, not content.
+
+**⚠️ A real bug found while assessing this.** **11 of the 80 `<img src>` values do not match the
+filename on disk by case** — `artfiles/1sam-ovr.pdf` vs `1Sam-Ovr.pdf`, `josh-ovr.pdf` vs
+`Josh-ovr.pdf`, and nine more. Every one resolves on macOS, whose filesystem is case-insensitive,
+and **404s on Linux and on essentially every web server**. Whoever ingests these must normalise the
+reference against the real filename at build time rather than trusting the source's `src` string.
+This is latent today only because we do not read those paths at all.
+
+### Pictures — BUILD, but scope it to the ~51 items that carry their own weight.
+
+`Pictures/Pictures.xml` holds **210 items** (not 211) and the directory contains **no `artfiles/`** —
+just the one XML, and **the images are never coming**: the publisher withheld them to protect their
+owners' rights. **Do not go looking for them elsewhere.** So this feature is captions alone, and the
+assessment found most of those captions are not worth showing:
+
+- **194 of the 210 have a `caption-head` byte-identical to the item's own `<title>`.** For those,
+  the "caption" is the title printed twice.
+- **Only 67 of 210 carry any `caption-text` at all. The other 143 would render as a bare title** —
+  "A Bedouin in Syria", and nothing else.
+- **16 of those 67 are deictic and incoherent without the photograph**: *"…found in caves like
+  these"*, *"Small alabaster containers like this one…"*, *"This replication shows Acts 20:28."*
+- **There are no photo credits in the XML.** Zero items mention one, so "captions and photo
+  credits" overstates what is actually there — it is captions, and mostly not even that.
+
+That leaves **roughly 51 items** whose caption is a sentence that stands on its own, most of them
+manuscript sigla ("Two leaves of Romans in Chester Beatty Papyrus II — P46").
+
+**Design constraints, which follow directly from the counts above:**
+
+1. **Ingest the ~51, not the 210.** The filter is structural and cheap: keep an item only if it has
+   a `caption-text`, that text is not deictic, and the text is not a restatement of the title.
+   Ingesting all 210 would put a caption for a missing photograph on **166 articles**.
+2. **Never render a bare title.** The 143 head-only items have nothing to say; 194 items have a
+   caption-head identical to their own title. Neither is content.
+3. **Say the image is absent, and why.** The reader must not be left thinking the app failed to
+   load a picture. The 3-Maccabees preview is the precedent — it names the thing and explains the
+   absence, and that pattern is already built and tested.
+4. **Do not present these as "Pictures."** With no images, the honest framing is something like
+   *what the print edition illustrated here* — a note, not a gallery.
+5. **There are no photo credits to show.** Zero of the 210 items mention one, so nothing in this
+   feature is an attribution obligation; CC BY-SA on the caption text is the only requirement.
+
+**Recorded dissent:** the assessment recommended against building this at all — ~51 mostly-trivia
+sentences, at the cost of a surface that describes things the reader cannot see. Kept on the list
+by decision. If it is built and the result reads thin, constraint 1 is the dial to turn.
 
 ## The app in two segments
 
@@ -154,7 +287,8 @@ Opens here before Study mode. **Open editorial layout, not boxed cards.** All lo
 
 ## Data foundation — `data/bible.db` (built, validated)
 
-- **verses** — 92,833 (NIV 1984 / NKJV / NLT 2015), keyed `version, book, chapter, verse`.
+- **verses** — 98,785, keyed `version, book, chapter, verse`: NIV 1984 (31,086), NKJV (31,102) and
+  NLT 2015 (30,947) over the 66-book canon, plus KJVA (5,650) over the 14 deuterocanonical books.
 - **words** — 425,437 interlinear (Greek 141,720 + Hebrew/Aramaic 283,717): original, translit, gloss, Strong's, morphology, lemma. Keyed `book, chapter, verse, position`.
 - **lexicon** — 23,746 Strong's entries (91% of tagged words resolve to a definition).
 - **cross_refs** — 344,799 (OpenBible, vote-ranked).
@@ -162,9 +296,12 @@ Opens here before Study mode. **Open editorial layout, not boxed cards.** All lo
 - Raw sources in `backup-data/` (gitignored, STEPBible CC-BY, OpenBible CC-BY); parsed into committed
   `build/data/sources/*.json.gz` intermediates that the builder reads. Parsers + builder in `build/`. See `docs/DATA-PIPELINE.md`.
 
-### Not yet in the DB (deferred)
+### Not yet in the DB — the build list
+- **Tyndale Maps** — 80 maps, 70 PDFs, ~4 MB of WebP. Assessed, no blockers. **Next up.**
+- **Tyndale Pictures** — caption-only, scoped to ~51 items. Assessed; see the constraints above.
 - OpenBible **geocoding** (`ancient.jsonl`) + **DARE map tiles** → the Map/Discover segment.
-- Public-domain versions (WEB / KJV / BSB).
+  Distinct from Tyndale Maps above, which is far smaller and needs none of this.
+- Public-domain versions (WEB / KJV / BSB). Note the KJV **Apocrypha** is already in, as `KJVA`.
 - Level-3 context data (timeline / culture / authorship).
 - `macula-hebrew` syntax trees (needs git-lfs).
 

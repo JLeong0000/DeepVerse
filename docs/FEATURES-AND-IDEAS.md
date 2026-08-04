@@ -346,6 +346,29 @@ As we flesh out the Study Bible workflow, hammer the DB against the real queries
 
 **Language auto-detect verdict:** no per-book metadata to maintain — it's derivable from `words.lang`/`morph`. Coarse (grc/hbo) works today; Aramaic after task #2.
 
+## ✅ Memo dating — sort, date range, dates on the cards (2026-08-05)
+
+Memos always carried `created_at` and `updated_at`; nothing surfaced them outside Home.
+
+- **Sort** the Memo page by created or updated, newest or oldest first. Derived from the loaded
+  notes, so group folders inherit the order and switching does not re-read IndexedDB.
+- **Date range** — optional, inclusive `from`/`to` bounds filtering on whichever field the sort
+  selects, so there is no second which-date control. Composes with the text filter (a memo must
+  survive both), and an over-narrow filter now says "No memos match." instead of emptying the board.
+- **Dates on all three surfaces** — memo tile (following the sorted field, so the sort select is the
+  legend), Study-mode card, Home. Labels carry a created/edited verb and a year once the date leaves
+  the current year.
+- **BUG FIXED — `relDate` counted elapsed hours, not calendar days.** A memo written yesterday at
+  8am read "today" on Home; one from two days ago at 11pm read "yesterday". Every date now routes
+  through one `localDay()` in `app/src/lib/dates.js`, so the labels and the range filter cannot
+  disagree about where a day starts. `dates.test.js` pins `TZ=Asia/Singapore` — under `TZ=UTC` a
+  local day and a UTC day coincide and none of these bugs can fail a test.
+- **Storage unchanged** — memos stay UTC ISO. Offset-bearing strings would stop sorting
+  lexicographically, which is the only reason the `updated_at` IndexedDB index works.
+- Also added a no-op `Element.prototype.animate` to `vitest.setup.js`: jsdom ships no Web Animations
+  API, so rendering anything with a Svelte `in:`/`out:` transition threw.
+- Spec `specs/2026-08-05-memo-dating-design.md`, plan `plans/2026-08-05-memo-dating.md`.
+
 ## 🔎 TO FIX — Memo reference search matches strings, not references
 
 The Memo filter box tests the query as a substring of the **rendered** reference

@@ -47,3 +47,14 @@ export function memoDateLabel(note, field = 'updated_at', now = Date.now()) {
   const verb = field === 'updated_at' && wasEdited ? 'edited' : 'created';
   return `${verb} ${relDay(note[field], now)}`;
 }
+
+// Is `iso` inside the local-calendar-day range [from, to]? Bounds are "YYYY-MM-DD" strings off an
+// <input type="date">; either may be empty for an open end, and both ends are inclusive. Comparing
+// local midnights (rather than the raw instants) is what makes a memo written at 00:30 fall inside
+// its own day.
+export function inRange(iso, from, to) {
+  const day = localDay(iso).getTime();
+  if (from && day < localDay(from).getTime()) return false;
+  if (to && day > localDay(to).getTime()) return false;
+  return true;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { localDay, memoDateLabel } from './dates.js';
+import { localDay, memoDateLabel, inRange } from './dates.js';
 
 // Under TZ=UTC a local day and a UTC day are the same thing, and every bug this module exists to
 // prevent becomes invisible. Pin an explicit eastern zone instead of inheriting the machine's, so
@@ -102,5 +102,40 @@ describe('memoDateLabel', () => {
   it('defaults to updated_at', () => {
     const edited = memo('2026-07-29T04:00:00.000Z', '2026-08-04T16:30:00.000Z');
     expect(memoDateLabel(edited, undefined, NOW)).toBe('edited today');
+  });
+});
+
+describe('inRange', () => {
+  const AUG_5_EARLY = '2026-08-04T16:30:00.000Z'; // 00:30 local on Aug 5
+  const AUG_5_LATE = '2026-08-05T15:00:00.000Z';  // 23:00 local on Aug 5
+
+  it('includes both ends of the range', () => {
+    expect(inRange(AUG_5_EARLY, '2026-08-05', '2026-08-05')).toBe(true);
+    expect(inRange(AUG_5_LATE, '2026-08-05', '2026-08-05')).toBe(true);
+  });
+
+  it('includes a memo written before 8am local on the from-date', () => {
+    // The regression a UTC-parsed bound causes: new Date('2026-08-05') is 08:00 local under UTC+8,
+    // so a 00:30 memo would fall outside its own day.
+    expect(inRange(AUG_5_EARLY, '2026-08-05', '')).toBe(true);
+  });
+
+  it('excludes days outside the range', () => {
+    expect(inRange('2026-08-03T04:00:00.000Z', '2026-08-05', '2026-08-05')).toBe(false);
+    expect(inRange('2026-08-06T04:00:00.000Z', '2026-08-05', '2026-08-05')).toBe(false);
+  });
+
+  it('treats an empty bound as an open end', () => {
+    expect(inRange(AUG_5_EARLY, '', '2026-08-05')).toBe(true);
+    expect(inRange(AUG_5_EARLY, '2026-08-05', '')).toBe(true);
+    expect(inRange(AUG_5_EARLY, '', '')).toBe(true);
+    expect(inRange(AUG_5_EARLY, '', '2026-08-04')).toBe(false);
+  });
+
+  // The point of sharing localDay: two notions of "day" would disagree exactly at the hours a
+  // person is most likely to be writing memos.
+  it('agrees with memoDateLabel about which day it is', () => {
+    expect(memoDateLabel(memo(AUG_5_EARLY), 'created_at', NOW)).toBe('created today');
+    expect(inRange(AUG_5_EARLY, '2026-08-05', '')).toBe(true);
   });
 });

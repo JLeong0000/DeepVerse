@@ -18,17 +18,26 @@ tiles show no date at all, and neither does the Study-mode Memo card
 There is also no way to ask "what did I write in July" — the filter box matches
 body text and the rendered reference, nothing else.
 
+And the one date label that does ship is wrong. `relDate` counts elapsed
+milliseconds rather than calendar days, so a memo written **yesterday at 8am**
+currently reads `today` on Home, and one from **two days ago at 11pm** reads
+`yesterday`.
+
 ## Goals
 
 1. Sort the Memo page by **created** or **updated**, newest or oldest first.
 2. Filter the Memo page to a **date range** (either end open).
 3. Show the date on the memo tile, the Study-mode Memo card, and Home.
 4. One shared date helper instead of a per-component copy.
+5. Every date the user sees or filters on is a **local calendar day**, from one
+   shared definition — so a memo labelled `today` is always inside a range
+   starting today.
 
 ## Non-goals
 
 - **No schema change.** Both fields already exist on every memo; nothing to
-  migrate, no DB version bump.
+  migrate, no DB version bump. Storage stays UTC — see below for why local-time
+  strings would break the `updated_at` index.
 - **No reference-search fix.** The filter's reference matching is broken in both
   directions (see "Deferred" below). Deliberately untouched here.
 - No sorting or filtering on Home or in the workbench — both stay as they are.
@@ -37,15 +46,52 @@ body text and the rendered reference, nothing else.
 
 ## `app/src/lib/dates.js` (new)
 
-Two pure functions. `display.js` is about original-language words and is the
+Three pure functions. `display.js` is about original-language words and is the
 wrong home; these are used by three components, so they get their own module.
+
+### Storage stays UTC; every derivation is local
+
+Memos keep storing `new Date().toISOString()` — a UTC instant. **No change to
+`addNote` / `updateNote`.** Two reasons a local-time string is the wrong trade:
+
+- The `updated_at` IndexedDB index (`store.js:13`) is usable only because
+  ISO-UTC strings sort lexicographically *and* chronologically. Offset-bearing
+  strings break that: `2026-08-05T00:54+08:00` sorts after
+  `2026-08-04T17:00:00Z` as text, yet they are the same instant.
+- Every memo already written is UTC. A format switch means two formats in one
+  store with no migration.
+
+Nothing is lost — an instant renders into any timezone exactly. **The rule is
+that no calendar arithmetic happens on a UTC value.** Every function below
+converts to local first, and `localDay()` is the single place that conversion
+lives.
+
+A memo does **not** record where it was written. It renders in the reader's
+current timezone, so a memo written at 9pm in Singapore reads as 1pm if you open
+it in London. Accepted: correct as an instant, and the alternative (a `tz_offset`
+field) buys nothing until memos and reader cross timezones.
+
+### `localDay(value)` → `Date` at local midnight
+
+Takes an ISO instant, a `YYYY-MM-DD` string, or a `Date`; returns local midnight
+of that calendar day. The one trap it exists to contain: bare
+`new Date('2026-08-05')` parses as **UTC**, so a date-only string must be built
+as `new Date(y, m - 1, d)` (or parsed with an explicit `T00:00:00`) or every
+boundary silently shifts by the viewer's offset.
 
 ### `memoDateLabel(note, field)` → `"edited 3 days ago"`
 
-Lifts `relDate()` out of `RecentNotes.svelte:14` unchanged in its thresholds
-(`today` / `yesterday` / `N days ago` / `last week` / `N weeks ago` / a
-`Mar 4`-style date past a month), with two changes:
+Keeps `relDate()`'s thresholds from `RecentNotes.svelte:14` (`today` /
+`yesterday` / `N days ago` / `last week` / `N weeks ago` / a `Mar 4`-style date
+past a month) and changes three things:
 
+- **BUG — calendar days, not elapsed time.** The shipped version computes
+  `Math.floor((Date.now() - new Date(iso)) / 86400000)`, which counts
+  *durations*. Verified in `TZ=Asia/Singapore`: a memo from **yesterday 8am**
+  renders `today` (16.9h elapsed), and one from **two days ago at 11pm** renders
+  `yesterday` (25.9h elapsed). The fix is
+  `(localDay(now) - localDay(iso)) / 86400000` — floor both to local midnight,
+  then subtract; never divide an elapsed duration.
 - **Year.** Past the current year the label includes it. Today a 2024 memo
   renders a bare "Mar 4", which reads as this year.
 - **Verb.** Prefixed `created` or `edited` depending on `field`, **except** that
@@ -55,18 +101,18 @@ Lifts `relDate()` out of `RecentNotes.svelte:14` unchanged in its thresholds
 ### `inRange(iso, from, to)` → boolean
 
 `from` and `to` are `YYYY-MM-DD` local calendar dates straight off an
-`<input type="date">`. Either may be empty for an open end. Both ends inclusive.
+`<input type="date">`. Either may be empty for an open end. Both ends inclusive,
+compared as local calendar days via `localDay` — `localDay(iso)` must fall
+between `localDay(from)` and `localDay(to)`.
 
-The subtlety that justifies a tested function rather than an inline comparison:
-the bounds must be built as **local** midnight and local end-of-day —
-`new Date(from + 'T00:00:00')` and `new Date(to + 'T23:59:59.999')`. A bare
-`new Date('2026-08-05')` parses as **UTC**, which silently shifts both edges by
-the viewer's timezone offset and drops evening memos out of their own day.
+Sharing `localDay` with `memoDateLabel` is what keeps the two consistent: a memo
+whose tile reads `today` is always inside a range with `from` set to today. Two
+independent notions of "day" would drift apart at exactly the hours a user is
+most likely to be writing memos.
 
 **Rejected:** an `IDBKeyRange` query on the `updated_at` index. It cannot express
-the local-time bounds, `created_at` has no index, and `load()` already holds
-every memo in memory — so the range is an in-memory filter alongside the text
-filter.
+local-day bounds, `created_at` has no index, and `load()` already holds every
+memo in memory — so the range is an in-memory filter alongside the text filter.
 
 ## Memo page — `NotesPage.svelte`
 
@@ -122,10 +168,31 @@ over-narrow filter just empties the page with no explanation.
 `npm test` — new `dates.test.js` plus the existing suite. The tests pin:
 
 - each `memoDateLabel` threshold boundary (0 / 1 / 6 / 7 / 13 / 30 days),
+- **the calendar-day regression** — yesterday 8am reads `yesterday`, not
+  `today`; two days ago at 11pm reads `2 days ago`, not `yesterday`,
 - the year rollover,
 - `created_at === updated_at` reading `created` even when asked for `updated`,
-- `inRange` inclusivity at both edges, both open ends, and a non-UTC timezone
-  (the local-midnight bug is invisible under `TZ=UTC`).
+- `inRange` inclusivity at both edges and both open ends,
+- agreement between the two: a memo `memoDateLabel` calls `today` is inside a
+  range whose `from` is today.
+
+**These tests must run under a non-UTC timezone.** Under `TZ=UTC` local and UTC
+days coincide and every bug in this spec is invisible. `dates.test.js` pins an
+explicit zone rather than inheriting the machine's, so it behaves the same on CI
+as on the dev laptop — `Asia/Singapore` (UTC+8), where the calendar-day bug was
+reproduced.
+
+Mechanism: set `process.env.TZ` in a `beforeAll` in `dates.test.js` and restore
+it in `afterAll`. Scoped to the one file deliberately — putting
+`env: { TZ: ... }` in the `test` block of `vite.config.js:120` would re-timezone
+every existing test, which is a larger blast radius than this work earns.
+
+Node honours a runtime `process.env.TZ` change (verified directly), and jsdom
+does not replace the global `Date`, so this should hold under vitest. **Not yet
+confirmed end-to-end** — this worktree has no `node_modules`, so vitest could not
+be run. Confirming it is step one of the plan, before any of the logic is
+written; if it turns out not to hold, the fallback is a `TZ=...` prefix on the
+`test` script in `package.json:13`.
 
 Then a manual pass: all four sort orders; group folders following the sort; a
 range open at each end; a range matching nothing (expect `No memos match.`); a

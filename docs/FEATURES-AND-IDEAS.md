@@ -2,7 +2,7 @@
 
 > Running capture of what we're building and the ideas/decisions behind it.
 > This is the informal tracker; formal designs live in `docs/superpowers/specs/`.
-> Last updated: 2026-08-04
+> Last updated: 2026-08-05
 
 ## ✅ Phase 1 shipped (2026-07-07)
 
@@ -345,6 +345,27 @@ As we flesh out the Study Bible workflow, hammer the DB against the real queries
 5. **Completeness validation (build gate).** After rebuild, assert nothing was silently dropped: for every book, check chapter count and per-chapter max verse against a canonical versification reference; verify every original-language book+chapter is present (would have caught Dan 4/6); reconcile the English verse set vs the original-language word set and report orphans. **Fail the build on any gap.**
 
 **Language auto-detect verdict:** no per-book metadata to maintain — it's derivable from `words.lang`/`morph`. Coarse (grc/hbo) works today; Aramaic after task #2.
+
+## 🔎 TO FIX — Memo reference search matches strings, not references
+
+The Memo filter box tests the query as a substring of the **rendered** reference
+(`NotesPage.svelte:36`), even though `parseReference` (`refs.js:88`) already exists and is used by
+Home's jump-to-verse box. It fails both ways:
+
+- **False negatives** — `ps 23`, `psalm 23`, `1cor`, `1corinthians` match nothing; `parseReference`
+  resolves all four. 18 of the 66 display names contain a space, so the entire numbered-book family
+  (`1 Corinthians`, `1 John`, `Song of Songs`…) is unreachable by the way people actually type.
+- **False positives** — substrings ignore verse boundaries, so `john 3:1` surfaces a memo on John
+  **3:16**, and `1` matches every memo in 1 Corinthians, Psalms 1, and any verse 1.
+
+**Not a drop-in swap.** `parseReference` is greedy by design (`j` → Joshua 1, `1` → 1 Samuel 1) —
+right for a jump box you watch as you type, wrong for a live filter that would snap to Joshua on the
+way to typing "john". The same box also searches memo **body text**, and `Job`/`Acts`/`Mark` are
+ordinary English words. A fix needs a policy (when does a query count as a reference; does a
+reference hit replace or union with the text hit) plus an abbreviation/alternate-name table, which
+does not exist — `jn`, `mt`, `revelations`, `song of solomon` miss even with the parser. Own design.
+
+Found while specifying `specs/2026-08-05-memo-dating-design.md`, which deliberately leaves it alone.
 
 ## Open questions / to resolve
 - Final form of the Workbench (avoiding overload) — **in progress via mockups.**

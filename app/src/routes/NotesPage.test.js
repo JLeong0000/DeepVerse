@@ -86,3 +86,22 @@ describe('NotesPage date range', () => {
     await waitFor(() => expect(bodies().length).toBe(2));
   });
 });
+
+describe('NotesPage tile date', () => {
+  beforeEach(async () => {
+    await _clearAllForTest();
+    await seed({ body: 'memo edited', created: '2026-01-15T04:00:00.000Z', updated: new Date().toISOString() });
+  });
+
+  it('prints the date on the tile', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(screen.getByText('edited today')).toBeTruthy());
+  });
+
+  it('follows the sorted field, so the sort control is the legend', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(screen.getByText('edited today')).toBeTruthy());
+    await fireEvent.change(screen.getByTitle('Sort memos'), { target: { value: 'created_at:desc' } });
+    await waitFor(() => expect(screen.getByText('created Jan 15')).toBeTruthy());
+  });
+});

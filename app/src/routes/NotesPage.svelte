@@ -3,7 +3,7 @@
            allGroups, addGroup, renameGroup, deleteGroup } from '../lib/store.js';
   import { formatRef } from '../lib/refs.js';
   import { noteHtml } from '../lib/markdown.js';
-  import { inRange } from '../lib/dates.js';
+  import { inRange, memoDateLabel } from '../lib/dates.js';
   import { fade } from 'svelte/transition';
   import GroupFolder from '../components/notes/GroupFolder.svelte';
   import GroupExpanded from '../components/notes/GroupExpanded.svelte';
@@ -141,6 +141,7 @@
     <button class="sq postit" style="background: var(--sy{colorN})"
       onclick={(e) => { if (!noteClick(e, note)) openNote(note); }}>
       <div class="body md">{@html noteHtml(note.body)}</div>
+      <div class="d">{memoDateLabel(note, sortField)}</div>
     </button>
   </div>
 {/snippet}
@@ -240,10 +241,11 @@
   /* uniform tile: square on top, caption below (matches GroupFolder) */
   .tile { display: flex; flex-direction: column; align-items: center; gap: 7px; }
   .sq { width: 100%; aspect-ratio: 1 / 1; border: none; border-radius: 10px; padding: 12px 12px 14px;
-    cursor: pointer; overflow: hidden; text-align: left; display: block; font-family: inherit; }
+    cursor: pointer; overflow: hidden; text-align: left; display: flex; flex-direction: column; font-family: inherit; }
   .tile.sel .sq { outline: 2px solid var(--a); outline-offset: 2px; }
-  .sq .body { font-size: 12.5px; line-height: 1.4; height: 100%; overflow: hidden;
+  .sq .body { font-size: 12.5px; line-height: 1.4; flex: 1; min-height: 0; overflow: hidden;
     -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent); mask-image: linear-gradient(180deg, #000 78%, transparent); }
+  .sq .d { flex: none; font-size: 9.5px; opacity: .55; margin-top: 6px; }
 
   .md :global(p) { margin: 0 0 5px; } .md :global(p:last-child) { margin-bottom: 0; }
   .md :global(ul), .md :global(ol) { margin: 3px 0; padding-left: 18px; } .md :global(li) { margin: 1px 0; }

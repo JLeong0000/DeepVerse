@@ -77,11 +77,20 @@ Three link kinds appear in these bodies, and only the first is a cross-reference
 **Item bodies hold 5,237 `?item=` links. 5,164 become edges;** the 73 dropped are 69 duplicate
 destinations, 3 self-links, and 1 naming a Map (Maps are not ingested).
 
-5,220 of those links sit inside a `See …` clause. The other **17 do not** — seven are the bulleted
-list under *"Several other major articles on the Bible follow:"* in `Bible`, which is why restricting
-extraction to See-clauses was wrong: that article had no outbound edges at all and displayed *"this
-article names no other entry"* directly beneath seven links. The remaining ten are mid-prose
-(*"see discussion under Jephthah"*). Those become doors but carry **no inline underline** — the link
+The large majority of those links sit inside a `See …` clause, but **a residue of roughly a dozen do
+not** — seven are the bulleted list under *"Several other major articles on the Bible follow:"* in
+`Bible`, which is why restricting extraction to See-clauses was wrong: that article had no outbound
+edges at all and displayed *"this article names no other entry"* directly beneath seven links. The
+rest are mid-prose (*"see discussion under Jephthah"*).
+
+> An earlier revision of this section gave the split as "5,220 in a clause, 17 outside". **Treat that
+> as approximate, not a queryable fact.** It depends on the clause regex that the `?item=` rebuild
+> deleted, so nothing in the shipped code reproduces it; re-deriving it against the flattened bodies
+> now yields 5,224 / 13. The seven `Bible` bullets are exact and verified. The load-bearing figures —
+> 5,237 links in, 5,164 edges out, 69 + 3 + 1 dropped — are exact and reproduce from
+> `build/data/sources/tyndale-dictionary.json.gz` against `dict_xref`.
+
+Links outside a clause become doors but carry **no inline underline** — the link
 text is an ordinary word that recurs throughout the article, and underlining every occurrence
 because the source linked one would be guessing at which. 5 edges are in that position. **Every stored edge
 resolves — `dst` is NOT NULL** — and every stored `raw` occurs verbatim in its article's body, which
@@ -353,7 +362,7 @@ Three numbers are **ours, not the data's**. Each is a tunable and must be named 
 | constant | value | rationale |
 |---|---|---|
 | `SUBSTANTIAL_CHARS` | 500 | the `✦ Wander in` pool boundary; yields 1,839 of 6,010 |
-| `MAX_BRANCHES` | 7 | branches drawn per path-map step; `Plants` has 150 and would bury the spine |
+| `MAX_BRANCHES` | 7 | branches drawn per path-map step; `Plants` has 152 and would bury the spine |
 | `MAX_CRUMBS` | 6 | breadcrumb slots before middle truncation |
 
 ## Theming
@@ -390,12 +399,14 @@ phantom nodes unclickable; drag suppressing the click that follows it.
 anchored); every `src` and every non-null `dst` present in `dict_articles`; no self-edges; no row
 with an empty `raw`.
 
-**Regression** — `build/` and `app/` suites green; rebuild with `backup-data/` renamed away; check
-live in the browser in both themes.
+**Regression** — `build/` and `app/` suites green; check live in the browser in both themes; confirm
+the fresh-clone build still holds by the grep in `docs/DATA-PIPELINE.md`. **Do not test that by
+renaming `backup-data/` away**, as an earlier revision of this line said — it is ~2.8 GB of
+gitignored, unrecoverable local backup.
 
 ## Non-goals
 
-- **A whole-corpus graph view** — see finding 5. 1,937 isolated nodes and a 2,509-node hairball.
+- **A whole-corpus graph view** — see finding 5. 1,913 isolated nodes and a 2,524-node hairball.
 - **Inbound "what links here" as a UI surface** — `dict_xref` makes it possible, but it is trivia,
   not a route. The path map already exposes what matters.
 - **General title de-inversion** — see above; unsafe.

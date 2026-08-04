@@ -114,9 +114,12 @@ Typing `revelation` pushed **nine** entries. Backing out of a search meant scrub
 
 ## Not fixed — deliberately
 
-1. **The build-side regex gap, 5 articles.** `BibleManuscriptsandTextoftheOldTestament` and `Brood` have a door with no matching inline link; `Garlic`, `Jerubbesheth`, `Jezaniah` fire the UI's clause regex where the build's does not, so `dict_xref` holds no rows for them. Fixing it means another database rebuild plus re-deriving every pinned total across plan, spec, tests and ledger. I softened the user-facing wording instead (§1.3, §1.4) so nothing false is displayed. **The data is still incomplete for these five.**
+> **Both of the first two were resolved after this report was written (2026-08-03). Kept, struck
+> through, because the reasons they were deferred are the useful part.**
 
-2. **Four verses absent from the NIV** (`Est 11:1`, `Est 12:1`, `Acts 8:37`) render an empty preview box — header and button, no text.
+1. ~~**The build-side regex gap, 5 articles.**~~ ✅ **RESOLVED.** `BibleManuscriptsandTextoftheOldTestament` and `Brood` had a door with no matching inline link; `Garlic`, `Jerubbesheth`, `Jezaniah` fired the UI's clause regex where the build's did not, so `dict_xref` held no rows for them. The deferral reasoned that fixing it meant another rebuild plus re-deriving every pinned total. That is what happened — but for a different reason: the resolver was rebuilt on the source's own `?item=` link markup, and the clause regex that caused the gap was deleted rather than widened. All five now have edges (`Garlic` 2, the others 1 each). **The class of defect is gone, not just these five instances** — there is no longer a prose-level regex that can disagree with the markup.
+
+2. ~~**Four verses absent from the NIV**~~ ✅ **MOSTLY RESOLVED**, and the item was miscounted: it says four and lists three. `Est 11:1` and `Est 12:1` are not Esther at all — they are the Additions to Esther, and now render as `AddEsth 11:1` / `12:1` from the KJVA text. `Acts 8:37` has NKJV text and is absent from the NIV as a genuine textual-variant omission, not a data gap; the reader sees the other versions.
 
 3. **Five of the mockup's ten demo article bodies are paraphrased**, not corpus text, which cascades into its illustrative cross-reference graph. I ruled against rewriting them — hand-editing prose to match a source is itself a way to introduce errors — and instead scoped the mockup's "nothing is invented" claim to what is now true: counts, figures and titles are queried; demo bodies are abridged and their `See` clauses illustrative.
 

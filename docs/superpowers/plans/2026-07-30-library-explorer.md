@@ -70,6 +70,15 @@ copy, and `data/bible.db` for any figure.
 
 ### Task 1: Cross-reference resolver
 
+> ⚠️ **SUPERSEDED (2026-08-03) — do not implement this task as written.** It resolves the graph by
+> reading *flattened prose* with a clause regex and four tiers of fuzzy title matching. The source
+> states every cross-reference as a real `<a href="?item=…">` link, and the shipped `build/lib/xref.mjs`
+> uses that instead. The approach below got 89 edges wrong in one direction and 33 in the other, and
+> the figures in its code comment are artefacts of it: **"5,240 edges, 5,100 resolved (97.33%)" and the
+> claim that "Jesus Christ, Life and Teachings of" does not exist are both false.** That article has
+> been in the corpus all along as `JesusChristTeachingsof`; the link points straight at it. The real
+> table is 5,164 rows with `dst` NOT NULL — **zero** unresolved. Read the module, not this task.
+
 Pure functions that turn Tyndale's `See …` prose into resolved edges. No database, no I/O — fully unit-testable.
 
 **Files:**
@@ -3234,4 +3243,4 @@ git commit -m "feat(app): sync the library route to the URL so back walks the tr
 
 ## Follow-on, not in this plan
 
-The **agent skill** that traverses `dict_xref` (shortest path between entries, most central articles, neighbourhood queries) gets its own spec. It lives outside the app, joins the five existing CLI skills that query `bible.db`, and is unblocked the moment Task 2 lands. When writing it, note the honest boundary: `dict_xref` grounds *how Tyndale connects topics*, not whether a claim is true — it is one publisher's citation graph, covers dictionary↔dictionary only, and 33% of articles are isolated within it.
+The **agent skill** that traverses `dict_xref` (shortest path between entries, most central articles, neighbourhood queries) gets its own spec. It lives outside the app, joins the five existing CLI skills that query `bible.db`, and is unblocked the moment Task 2 lands. When writing it, note the honest boundary: `dict_xref` grounds *how Tyndale connects topics*, not whether a claim is true — it is one publisher's citation graph, covers dictionary↔dictionary only, and 32% of articles (1,913 of 6,010) are isolated within it.

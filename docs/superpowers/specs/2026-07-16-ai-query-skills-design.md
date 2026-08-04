@@ -61,7 +61,7 @@ Versions: `NIV` (1984 — see caveats), `NKJV`, `NLT` (2015).
 | `differences` (205,548) | book+ch+v+position | `type` A/B, `strongs`, `detail` (JSON — see below) |
 | `chapter_context` | book+ch | `osis_ref, writer, people_count, place_count` (Theographic) |
 | `chapter_entity` | book+ch+type+id | people/places/events/groups: `name, latitude, longitude, feature_type, blurb, approx_year` |
-| `chapter_recap` (1,189) | book+ch | one-paragraph `recap` + `source` (`bible-summary` licensing-pending; `editorial` fallback) |
+| `chapter_recap` (1,189) | book+ch | one-paragraph `recap` + `source` (`bible-summary` — licensed, confirmed 2026-07-17, quotable with attribution; `editorial` fallback) |
 | `study_notes` (16,913) | covering range | Tyndale notes: `ref, osis_ref, body, seq`, covering `start/end chapter/verse` |
 
 ### `differences.detail` JSON shape (the signature feature)

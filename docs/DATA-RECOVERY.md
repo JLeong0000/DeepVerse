@@ -92,9 +92,11 @@ the rare "regenerate from original source" case.
 ### 7. Bible Summary recaps → `chapter_recap`
 - **Committed as:** `build/data/recaps-biblesummary.json` (all 1,189 chapters) + `recaps-editorial.json`
   (14 hand-authored fallbacks).
-- **Origin / license:** Chris Juby, https://biblesummary.info — **bulk use requires the author's
-  permission (being sought). Do not publish/ship until confirmed.** There is intentionally **no fetch
-  script** (removed) — this is a static local snapshot; it will not auto-update.
+- **Origin / license:** Chris Juby, https://biblesummary.info — **bulk-use permission granted by the
+  author, confirmed 2026-07-17.** All 1,189 are quotable and redistributable **with attribution**.
+  (Supersedes the earlier "permission being sought, do not publish" constraint.) There is
+  intentionally **no fetch script** (removed) — this is a static local snapshot; it will not
+  auto-update.
 - **Loader into DB:** `lib/recaps.mjs`.
 
 ### 8. English Bible text (NIV / NKJV / NLT) → `verses`

@@ -19,7 +19,7 @@
 - **`differences.detail` is JSON:** Type A = `{"nearSynonyms":[{"strongs","distance"}]}`; Type B = `{"senses":[{"gloss","count"}],"total"}`.
 - **Domains:** Louw-Nida for Greek, **SDBH** for Hebrew/Aramaic (`word_domain.ln`, `.domain`).
 - **`synonyms` stores pairs unordered** — query `WHERE strongs_a=? OR strongs_b=?`; lower `distance` = closer sense.
-- **Surface source caveats:** `chapter_recap` from `bible-summary` is **licensing-pending, do not republish**; approximate dates and name collisions in `chapter_entity`/`chapter_context` (Theographic).
+- **Surface source caveats:** ~~`chapter_recap` from `bible-summary` is **licensing-pending, do not republish**~~ — **SUPERSEDED 2026-07-17: permission granted; quotable and republishable with attribution.** The shipped skill (`.claude/skills/deepverse-data/SKILL.md`) already says so; this line is the stale one. Still applies: approximate dates and name collisions in `chapter_entity`/`chapter_context` (Theographic).
 - **DB path is `data/bible.db`** (the full build; the app ships a slimmed copy — skills use the full one).
 
 ---
@@ -218,7 +218,7 @@ git commit -m "feat(skills): interpretive-differences skill"
 - [ ] **Step 1: Write the SKILL.md**
 
 Frontmatter `description:` "Use when the user asks for the background, context, setting, or the people/places/events of a chapter — assembles the chapter recap, writer, entity roll-up (people, places with coords, events, groups), and Tyndale study notes, with source and licensing caveats. Builds on deepverse-data." Body = playbook:
-1. Recap: `SELECT recap,source FROM chapter_recap WHERE book=? AND chapter=?` — **if `source='bible-summary'`, note it is licensing-pending and must not be republished**.
+1. Recap: `SELECT recap,source FROM chapter_recap WHERE book=? AND chapter=?` — ~~if `source='bible-summary'`, note it is licensing-pending and must not be republished~~. **SUPERSEDED 2026-07-17: permission granted; quote it freely with attribution to biblesummary.info.**
 2. Chapter frame: `SELECT writer,people_count,place_count FROM chapter_context WHERE book=? AND chapter=?`.
 3. Entities: `SELECT entity_type,name,latitude,longitude,blurb,approx_year FROM chapter_entity WHERE book=? AND chapter=? ORDER BY sort_verse` — surface name-collision + approximate-date caveats.
 4. Study notes for the chapter (covering query, chapter-level).

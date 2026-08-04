@@ -9,8 +9,9 @@
   import ContextMenu from '../components/notes/ContextMenu.svelte';
   import NoteOverlay from '../components/notes/NoteOverlay.svelte';
 
-  let notes = $state([]);
+  let rawNotes = $state([]);
   let groups = $state([]);
+  let sort = $state('updated_at:desc'); // "<field>:<direction>"
   let filter = $state('');
   let boardEl = $state();
   let boardNonce = $state(0);
@@ -24,10 +25,18 @@
   let overlay = $state(null);     // { note, initialGroupId } — note null ⇒ creating
 
   async function load() {
-    notes = (await allNotes()).reverse(); // newest first
+    rawNotes = await allNotes();
     groups = allGroups();
   }
   $effect(() => { load(); });
+
+  const sortField = $derived(sort.split(':')[0]);   // created_at | updated_at
+  const sortDir = $derived(sort.split(':')[1]);     // desc | asc
+  // Timestamps are ISO-UTC, which sorts lexicographically and chronologically at once.
+  let notes = $derived([...rawNotes].sort((a, b) => {
+    const order = a[sortField] < b[sortField] ? -1 : a[sortField] > b[sortField] ? 1 : 0;
+    return sortDir === 'desc' ? -order : order;
+  }));
 
   const q = $derived(filter.trim().toLowerCase());
   function matches(n) {
@@ -134,6 +143,12 @@
     <h1>Memo</h1>
     <div class="actions">
       <input class="filter" placeholder="Filter memos…" bind:value={filter} />
+      <select class="sort" bind:value={sort} title="Sort memos">
+        <option value="updated_at:desc">Updated · newest first</option>
+        <option value="updated_at:asc">Updated · oldest first</option>
+        <option value="created_at:desc">Created · newest first</option>
+        <option value="created_at:asc">Created · oldest first</option>
+      </select>
       <button class="btn" onclick={openNewNote}>+ Memo</button>
       <button class="btn" onclick={async () => { addGroup(); await load(); }}>+ Group</button>
     </div>
@@ -189,6 +204,7 @@
   h1 { font-size: 26px; font-weight: normal; margin: 0; }
   .actions { display: flex; gap: 8px; align-items: center; }
   .filter { font-family: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--bg); color: var(--ink); }
+  .sort { font-family: inherit; font-size: 12.5px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 5px; background: var(--bg); color: var(--ink); }
   .btn { border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 5px; padding: 5px 12px; cursor: pointer; font-family: inherit; font-size: 12.5px; }
   .btn:hover { border-color: var(--a); }
   .empty { color: var(--dim); font-style: italic; margin-top: 20px; }

@@ -305,28 +305,32 @@ export function titleTerms(title) {
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'sources');
 const read = (name) => JSON.parse(zlib.gunzipSync(fs.readFileSync(`${SRC}/${name}.json.gz`)));
 
-// Loads the four Tyndale cultural-layer tables (dictionary + themes/profiles + book intros)
-// from the intermediates built once by parse-tyndale.mjs. host_id is populated from
-// include_items markers in article bodies; 118 of 131 supplements have it, 13 keep it NULL.
+// Loads the five Tyndale cultural-layer tables (dictionary + themes/profiles + the links study
+// notes write into them + book intros) from the intermediates built once by parse-tyndale.mjs.
+// host_id is populated from include_items markers in article bodies; 118 of 131 supplements have
+// it, 13 keep it NULL.
 export function loadTyndale(db) {
   const dict = read('tyndale-dictionary');
   const passages = read('tyndale-passages');
+  const noteLinks = read('tyndale-note-links');
   const intros = read('tyndale-bookintros');
 
   const insA = db.prepare('INSERT INTO dict_articles VALUES (?,?,?,?,?,?,?,?,?)');
   const insV = db.prepare('INSERT INTO dict_verse VALUES (?,?,?,?,?)');
   const insP = db.prepare('INSERT INTO tyndale_passages VALUES (?,?,?,?,?,?,?,?,?,?)');
+  const insN = db.prepare('INSERT INTO study_note_xref VALUES (?,?,?,?,?,?)');
   const insI = db.prepare('INSERT INTO book_intros VALUES (?,?,?)');
 
   db.exec('BEGIN');
   for (const r of dict.articles) insA.run(...r);
   for (const r of dict.verses) insV.run(...r);
   for (const r of passages) insP.run(...r);
+  for (const r of noteLinks) insN.run(...r);
   for (const r of intros) insI.run(...r);
   db.exec('COMMIT');
 
   return { articles: dict.articles.length, verses: dict.verses.length,
-    passages: passages.length, intros: intros.length,
+    passages: passages.length, noteLinks: noteLinks.length, intros: intros.length,
     rows: dict.articles, xrefLinks: dict.xrefLinks };
 }
 

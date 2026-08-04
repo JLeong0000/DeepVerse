@@ -6,7 +6,8 @@
   // chart with the whole article still above it to scroll back through.
   import ArticleView from './ArticleView.svelte';
 
-  let { article, supplements = [], focusId = null, source = null, onclose } = $props();
+  let { article, supplements = [], focusId = null, source = null, onclose,
+        noteLinks = null, onnotelink = null } = $props();
 
   let bodyEl = $state(null);
   // the target is looked up by data-sid rather than bound: Svelte 5 rejects a conditional
@@ -28,7 +29,7 @@
   </div>
 
   <div class="scroll" bind:this={bodyEl}>
-    <ArticleView {article} {supplements} {source} onnavigate={() => onclose?.()} />
+    <ArticleView {article} {supplements} {source} {noteLinks} {onnotelink} onnavigate={() => onclose?.()} />
   </div>
 </div>
 

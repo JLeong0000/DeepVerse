@@ -1,12 +1,14 @@
 <script>
   // A theme or profile: Tyndale's own essay, anchored to a passage. Rendered through the same
   // ArticleView as a dictionary article — these are prose in the same block format. No xrefs: a
-  // passage cites no other library entry, so the "See …" clause and its doors never apply here.
-  import { getPassage } from '../../lib/db.js';
+  // passage writes no "See …" clause, so in-prose linkification never applies here. Its doors come
+  // from its anchor instead — see getPassageLinks.
+  import { getPassage, getPassageLinks } from '../../lib/db.js';
   import { goToPassage } from '../../lib/study.svelte.js';
   import { go } from '../../lib/router.svelte.js';
   import { bookName } from '../../lib/refs.js';
-  import { lib } from '../../lib/library.svelte.js';
+  import { displayTitle } from '../../lib/titles.js';
+  import { lib, pushNode } from '../../lib/library.svelte.js';
   import ArticleView from '../workbench/ArticleView.svelte';
 
   // themes and profiles ship in the study-notes package, not the dictionary
@@ -14,6 +16,7 @@
 
   let { pkind, title } = $props();
   let passage = $derived(getPassage(pkind, title));
+  let links = $derived(getPassageLinks(pkind, title));
 
   // A node restored from a URL (App.svelte's applyHash) has no `book` — it isn't knowable
   // synchronously there, since applyHash can run before the db loads — while PassageIndex and
@@ -42,6 +45,36 @@
     <ArticleView article={{ title: passage.title, body: passage.body, book: passage.book }}
       source={NOTE_SRC} onnavigate={() => go('study')} />
   </div>
+
+  <div class="leads">
+    <div class="ll">Where this leads</div>
+    {#if links.passages.length || links.article}
+      <div class="doors">
+        {#each links.passages as p (p.kind + p.title)}
+          <button class="door" onclick={() => pushNode({ kind: 'passage', pkind: p.kind, title: p.title, book: p.book })}>
+            {p.title}<span class="tag">{p.kind === 'theme' ? 'Theme' : 'Profile'} · {p.ref}</span>
+          </button>
+        {/each}
+        {#if links.article}
+          <button class="door" onclick={() => pushNode({ kind: 'article', id: links.article.id, title: links.article.title })}>
+            {displayTitle(links.article.title)}<span class="tag">Dictionary</span>
+          </button>
+        {/if}
+      </div>
+      <p class="lnote">
+        Anchored, not matched: these are the other themes and profiles Tyndale placed over
+        {bookName(passage.book)} {passage.ref}{links.article ? ', and the dictionary article of the same name' : ''}.
+      </p>
+    {:else}
+      <!-- 171 of the 423 passages are anchored where nothing else is and have no same-title
+           article. Tyndale writes no theme-to-theme links at all, so an empty box here is the
+           corpus, not a gap in the extraction. -->
+      <div class="deadend">
+        A dead end — nothing else in the corpus is anchored here. Open it in Study, search, or
+        ✦ Wander in.
+      </div>
+    {/if}
+  </div>
 {:else}
   <p class="missing">That {pkind} is not in the corpus.</p>
 {/if}
@@ -52,6 +85,17 @@
   .jump { background: none; border: none; padding: 0; font-family: inherit; font-size: 11.5px;
     color: var(--a); cursor: pointer; }
   .jump:hover { text-decoration: underline; }
-  .body { max-width: 74ch; }
+  /* the doors box is ArticleSurface's, down to the wording of its label — a theme and an article
+     are the same kind of destination, so they must not look like two different mechanisms */
+  .leads { margin-top: 26px; padding: 14px 16px 15px; border: 1px solid var(--rule);
+    border-radius: 8px; background: var(--panel); }
+  .ll { font-variant: small-caps; letter-spacing: .07em; font-size: 11px; color: var(--dim); margin-bottom: 9px; }
+  .doors { display: flex; flex-wrap: wrap; gap: 6px; }
+  .door { background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 11px;
+    font-family: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer; text-align: left; }
+  .door:hover { border-color: var(--a); color: var(--a); }
+  .tag { color: var(--dim); font-size: 10px; margin-left: 6px; }
+  .lnote { font-size: 11px; color: var(--dim); line-height: 1.55; margin: 9px 0 0; font-style: italic; }
+  .deadend { font-size: 12px; color: var(--dim); font-style: italic; line-height: 1.55; }
   .missing { font-size: 12px; color: var(--dim); font-style: italic; }
 </style>

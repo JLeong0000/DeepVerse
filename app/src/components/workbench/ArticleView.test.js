@@ -145,4 +145,23 @@ describe('ArticleView', () => {
     expect(onnavigateCalls).toHaveLength(1);
     expect(onrefCalls).toHaveLength(1); // unchanged — the supplement click never reached onref
   });
+  // A study note reaches ArticleView through the Context card's overlay, and writes its links in a
+  // shape no dictionary article uses: a quoted “Title”, not a "See …" clause. Same underline, same
+  // button, different splitter — and the note's own callback, so a passage door can never be
+  // mistaken for a dict_xref id.
+  it('renders a study note\u2019s quoted target as a door, and hands the passage back whole', () => {
+    const note = { id: 'passage:Gen 1:22', title: 'Genesis 1:22', book: 'Gen',
+      body: 'God\u2019s blessing commissions (see \u201cBlessing\u201d Theme Note). \u2022 The birds are fertile.' };
+    const noteLinks = [{ raw: 'Blessing', pkind: 'theme', ptitle: 'Blessing', pbook: 'Gen' }];
+    const opened = [];
+    const { getByRole, queryByRole } = render(ArticleView, {
+      article: note, noteLinks, onnotelink: (p) => opened.push(p),
+      onxref: () => opened.push('WRONG CALLBACK'),
+    });
+
+    getByRole('button', { name: '\u201cBlessing\u201d' }).click();
+    expect(opened).toEqual([expect.objectContaining({ pkind: 'theme', ptitle: 'Blessing', pbook: 'Gen' })]);
+    // the bare word later in the same sentence is prose, not a second door
+    expect(queryByRole('button', { name: 'blessing' })).toBeNull();
+  });
 });

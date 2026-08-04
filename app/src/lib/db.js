@@ -381,6 +381,16 @@ export function getStudyNotes(book, chapter, verse) {
      ORDER BY (start_chapter*1000 + start_verse), seq`,
     [book, key, key]);
 }
+// The themes and profiles a study note links to in its own prose — "(see “Blessing” Theme Note)".
+// 117 edges over 111 of the 16,913 notes, so this returns nothing for 99% of them; the ones it
+// does return are the corpus's only author-written links into a theme or profile. Every row
+// resolves (build/validate-db.mjs fails the build otherwise), and `raw` is guaranteed to occur in
+// the note's body, which is what splitNoteLinks matches on.
+export function getStudyNoteLinks(osisRef) {
+  return query(`SELECT raw, pkind, ptitle, pbook FROM study_note_xref
+    WHERE osis_ref = ? ORDER BY seq`, [osisRef]);
+}
+
 export function getChapterStudyNoteCount(book, chapter) {
   return query(
     `SELECT COUNT(*) AS n FROM study_notes
@@ -607,6 +617,41 @@ export function getArticle(id) {
 export function getPassage(kind, title) {
   return query(`SELECT kind, title, book, ref, body, start_chapter, start_verse FROM tyndale_passages
     WHERE kind = ? AND title = ?`, [kind, title])[0] || null;
+}
+
+// What a theme or profile legitimately links to. There is no edge table for it to read: the
+// dictionary's 11,242 ?item= links all point at other dictionary entries, so `dict_xref` names no
+// passage at either end, and the only author-written links to a theme or profile in the whole
+// corpus are the 118 that study notes write (73 of the 423 passages) — an id the passage rows do
+// not carry. So both links here are anchors, not text matching:
+//
+//   `passages` — every other theme or profile whose verse span intersects this one's, in the same
+//     book. Exact, and the publisher's own anchoring on both sides: Lot resolves to Abraham,
+//     Melchizedek to Abraham, Rahab to Joshua, The Creation to Blessing, Human Sexuality,
+//     Biblical Marriage and Adam and Eve. 149 of 298 themes and 78 of 125 profiles have at least
+//     one; 147 of those 227 have exactly one and the most any has is 14, so this is not capped.
+//   `article` — the same-title dictionary article, for the 84 of 125 profiles that have one. The
+//     "(Person)" tie-break is getProfileIndex's, for the same reason: sort_title collides for 131
+//     groups, and an unordered LIMIT 1 hands back Rahab the sea monster instead of the woman.
+//
+// PROFILES ONLY on that second one. The same match fires for 15 themes and cannot be trusted
+// there: the theme "Shechem" is the altar at Josh 8:30-35, and preferring "(Person)" — right for a
+// profile, which is always a person, people or place — points it at the wrong Shechem entirely.
+//
+// chapter*1000 + verse is getThemeIndex's own sort key, safe because the longest chapter in the
+// canon is Ps 119 at 176 verses.
+export function getPassageLinks(kind, title) {
+  const passages = query(`SELECT q.kind, q.title, q.book, q.ref
+    FROM tyndale_passages p JOIN tyndale_passages q
+      ON q.book = p.book AND NOT (q.kind = p.kind AND q.title = p.title)
+     AND (q.start_chapter * 1000 + q.start_verse) <= (p.end_chapter * 1000 + p.end_verse)
+     AND (q.end_chapter * 1000 + q.end_verse) >= (p.start_chapter * 1000 + p.start_verse)
+    WHERE p.kind = ? AND p.title = ?
+    ORDER BY q.start_chapter, q.start_verse, q.seq`, [kind, title]);
+  const article = kind !== 'profile' ? null
+    : query(`SELECT id, title FROM dict_articles WHERE kind='article' AND sort_title = lower(?)
+        ORDER BY title LIKE '%(Person)%' DESC, seq LIMIT 1`, [title])[0] || null;
+  return { passages, article };
 }
 
 // Both directions. Outbound feeds the doors row; inbound is what the path map can reveal and

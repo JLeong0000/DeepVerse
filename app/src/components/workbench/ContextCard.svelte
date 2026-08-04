@@ -2,13 +2,15 @@
   import { onMount } from 'svelte';
   import { getCrossRefs, getChapterCrossRefStats, getRefPreview,
     getChapterContext, getChapterEntities, getChapterRecap,
-    getStudyNotes, getChapterStudyNoteCount,
+    getStudyNotes, getChapterStudyNoteCount, getStudyNoteLinks,
     getBookIntro, getTyndalePassages, getDictCountForVerse,
     getDictForVerse, getArticleSupplements } from '../../lib/db.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
   import { getPref, setPref } from '../../lib/store.js';
-  import { articlePreview, parseArticleBlocks } from '../../lib/display.js';
+  import { articlePreview, parseArticleBlocks, splitNoteLinks } from '../../lib/display.js';
+  import { pushNode } from '../../lib/library.svelte.js';
+  import { go } from '../../lib/router.svelte.js';
   import ArticleModal from './ArticleModal.svelte';
   import RefText from '../common/RefText.svelte';
   // themes, profiles and study notes all ship in the study-notes package, not the dictionary
@@ -80,6 +82,17 @@
   let dictSel = $state(null);      // selected article id
   let dictEl = $state(null);
   let modal = $state(null);        // { article, focusId } — the full-article overlay
+
+  // A study note's "(see “Blessing” Theme Note)" opens that theme in the Library, which is the one
+  // place a theme is readable whole — this card only ever shows the ones anchored on the verse in
+  // view, and 101 of the 117 links point somewhere else entirely, often another book. Pushed onto
+  // the library trail rather than replacing it, so the breadcrumb still leads back to wherever the
+  // reader was browsing before.
+  function openPassage(p) {
+    modal = null;
+    pushNode({ kind: 'passage', pkind: p.pkind, title: p.ptitle, book: p.pbook });
+    go('library');
+  }
   // selection is meaningless once the verse changes
   $effect(() => { study.book; study.chapter; study.verse; dictSel = null; });
   let dictDetail = $derived(dictArticles.find(a => a.id === dictSel) || null);
@@ -156,14 +169,19 @@
   {:else}{RECAP_SRC[recap?.source] || recap?.source}{/if}
 {/snippet}
 <!-- Prose that is too long for the card: show an opening and send the rest to the overlay.
-     Themes and profiles ALWAYS exceed the clamp (avg ~2,000 chars), and 2,649 study notes do. -->
-{#snippet clamped(title, body, subject = null)}
+     Themes and profiles ALWAYS exceed the clamp (avg ~2,000 chars), and 2,649 study notes do.
+     `links` are a study note's own doors into a theme or profile; the overlay gets them too,
+     because 10 of the 117 sit past the clamp and would otherwise be written but unreachable. -->
+{#snippet clamped(title, body, subject = null, links = [])}
   {@const long = body.length > DICT_CLAMP}
-  <p class="snbody"><RefText text={long ? articlePreview(body, DICT_CLAMP) : body} book={subject} /></p>
+  {@const shown = long ? articlePreview(body, DICT_CLAMP) : body}
+  <p class="snbody">{#each splitNoteLinks(shown, links) as p}{#if p.kind === 'link'}<button
+      class="notelink" onclick={() => openPassage(p)}>{p.raw}</button>{:else}<RefText
+      text={p.text} book={subject} />{/if}{/each}</p>
   {#if long}
     <button class="seemore" onclick={() => (modal = {
       article: { id: `passage:${title}`, title, body, book: subject }, focusId: null,
-      supplements: [], source: STUDY_NOTES_SOURCE,
+      supplements: [], source: STUDY_NOTES_SOURCE, noteLinks: links,
     })}>Read more</button>
   {/if}
 {/snippet}
@@ -320,7 +338,8 @@
         {#each studyNotes as n}
           <div class="snote">
             <div class="snref">{n.ref}</div>
-            {@render clamped(`${bookName(study.book)} ${n.ref}`, n.body, study.book)}
+            {@render clamped(`${bookName(study.book)} ${n.ref}`, n.body, study.book,
+              getStudyNoteLinks(n.osis_ref))}
           </div>
         {/each}
       {/if}
@@ -392,7 +411,8 @@
 
 {#if modal}
   <ArticleModal article={modal.article} supplements={modal.source ? [] : getArticleSupplements(modal.article.id)}
-    focusId={modal.focusId} source={modal.source} onclose={() => (modal = null)} />
+    focusId={modal.focusId} source={modal.source} noteLinks={modal.noteLinks ?? null}
+    onnotelink={openPassage} onclose={() => (modal = null)} />
 {/if}
 
 <style>
@@ -451,6 +471,10 @@
   .snote { margin: 6px 0; }
   .snref { font-size: 11px; color: var(--b); font-weight: 600; }
   .snbody { font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; margin: 2px 0 0; }
+  /* the dotted underline ArticleView gives a dictionary xref — the same gesture, so the same mark */
+  .notelink { background: none; border: none; font-family: inherit; font-size: inherit; padding: 0;
+    color: var(--a); cursor: pointer; border-bottom: 1px dotted var(--a); }
+  .notelink:hover { border-bottom-style: solid; }
   /* collapsible section headers */
   .sechd { display: flex; align-items: baseline; gap: 5px; width: 100%; text-align: left;
     background: transparent; border: none; border-top: 1px solid var(--rule);

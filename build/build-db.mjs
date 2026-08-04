@@ -100,6 +100,16 @@ db.exec(`
     end_chapter INTEGER NOT NULL, end_verse INTEGER NOT NULL,
     ref TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL
   );
+  -- The links study notes write into themes and profiles: "(see “Blessing” Theme Note)". The only
+  -- author-written edges the corpus has in that direction — the dictionary's ?item= links never
+  -- leave the dictionary. Resolved at build time, so a row exists only where the target is a
+  -- passage we hold; raw is the link text exactly as the note wrote it, which is what the app
+  -- matches back against the flattened prose.
+  CREATE TABLE study_note_xref (
+    osis_ref TEXT NOT NULL,     -- study_notes.osis_ref, the citing note
+    raw TEXT NOT NULL,          -- the target as written, without its “ ” quotes
+    pkind TEXT NOT NULL, ptitle TEXT NOT NULL, pbook TEXT NOT NULL,   -- tyndale_passages identity
+    seq INTEGER NOT NULL);      -- order of appearance in the note
   CREATE TABLE book_intros (
     book TEXT PRIMARY KEY, summary TEXT NOT NULL, intro TEXT NOT NULL
   );
@@ -158,7 +168,7 @@ console.log('chapter_recap:', recaps.count, JSON.stringify(recaps.bySource));
 const studyNotes = loadStudyNotes(db);
 console.log('study_notes:', studyNotes.count);
 
-// 6) TYNDALE CULTURAL LAYER: dictionary + themes/profiles + book intros
+// 6) TYNDALE CULTURAL LAYER: dictionary + themes/profiles + note links + book intros
 const tyndale = loadTyndale(db);
 // `rows` carries all 6,141 parsed articles and `xrefLinks` the source's own "See …" link targets,
 // both for loadXrefs to reuse; logging either would dump megabytes
@@ -183,6 +193,7 @@ db.exec(`
   CREATE INDEX idx_dict_xref_src ON dict_xref(src);
   CREATE INDEX idx_dict_xref_dst ON dict_xref(dst);
   CREATE INDEX idx_tyndale_passages ON tyndale_passages(book, start_chapter, end_chapter);
+  CREATE INDEX idx_study_note_xref ON study_note_xref(osis_ref);
 `);
 db.close();
 console.log('bible.db v2 built at', DB);

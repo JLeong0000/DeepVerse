@@ -128,7 +128,6 @@
 <style>
   .stitle { font-size: 22px; margin: 0 0 4px; }
   .smeta { font-size: 11.5px; color: var(--dim); margin-bottom: 14px; }
-  .body { max-width: 74ch; }
   .leads { margin-top: 26px; padding: 14px 16px 15px; border: 1px solid var(--rule);
     border-radius: 8px; background: var(--panel); }
   .ll { font-variant: small-caps; letter-spacing: .07em; font-size: 11px; color: var(--dim); margin-bottom: 9px; }
@@ -139,7 +138,7 @@
   .anch { color: var(--dim); font-size: 10px; margin-left: 5px; }
   .deadend { font-size: 12px; color: var(--dim); font-style: italic; line-height: 1.55; }
   .prev { margin: 8px 0 13px; padding: 9px 12px; border-left: 2px solid var(--b);
-    background: var(--panel); font-size: 13px; line-height: 1.6; border-radius: 0 5px 5px 0; max-width: 74ch; }
+    background: var(--panel); font-size: 13px; line-height: 1.6; border-radius: 0 5px 5px 0; }
   .pr { font-size: 10.5px; color: var(--b); font-variant: small-caps; letter-spacing: .05em; }
   /* an absence is content here, not an error state — same box, no alarm colour */
   .prev.absent { border-left-style: dotted; }

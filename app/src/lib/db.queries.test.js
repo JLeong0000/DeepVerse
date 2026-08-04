@@ -575,6 +575,61 @@ describe('library explorer', () => {
     expect(p.body.length).toBeGreaterThan(200);
   });
 
+  test('getStudyNoteLinks returns the passages a note names, and nothing for the 16,802 that name none', () => {
+    const [blessing] = db.getStudyNoteLinks('Gen.1.22');
+    expect(blessing).toMatchObject({ raw: 'Blessing', pkind: 'theme', ptitle: 'Blessing', pbook: 'Gen' });
+    // keyed by osis_ref, which is the source's item name — NOT the <refs> value, which differs for
+    // every numbered book ("ISam.4.1" vs "1Sam.4.1")
+    expect(db.getStudyNoteLinks('ISam.15.3')[0]).toMatchObject({ ptitle: 'Complete Dedication' });
+    expect(db.getStudyNoteLinks('1Sam.15.3')).toEqual([]);
+    expect(db.getStudyNoteLinks('Gen.1.1')).toEqual([]);
+  });
+
+  test('every study note link resolves to a passage, and its raw text is in the note that wrote it', () => {
+    // the same two invariants build/validate-db.mjs enforces, checked here against the shipped db:
+    // an unresolvable target would render as a door to nothing, and a raw that has drifted from
+    // the body would silently underline nothing at all
+    const rows = db.query(`SELECT x.osis_ref, x.raw, x.pkind, x.ptitle FROM study_note_xref x`);
+    expect(rows).toHaveLength(117);
+    for (const r of rows) {
+      expect(db.getPassage(r.pkind, r.ptitle)).not.toBeNull();
+      const note = db.query('SELECT body FROM study_notes WHERE osis_ref=?', [r.osis_ref])[0];
+      expect(note.body).toContain(`“${r.raw}”`);
+    }
+  });
+
+  test('getPassageLinks returns the passages anchored over the same verses, in reading order', () => {
+    const { passages } = db.getPassageLinks('theme', 'The Creation');   // Gen 1:1–2:25
+    expect(passages.map((p) => p.title)).toEqual(
+      ['Blessing', 'Human Sexuality', 'Adam and Eve', 'Biblical Marriage']);
+    expect(passages.find((p) => p.title === 'Adam and Eve').kind).toBe('profile');
+    // the anchor is the whole span, not its first verse: Lot sits at Gen 19, inside Abraham's
+    // 11:26–25:11, and neither starts where the other does
+    expect(db.getPassageLinks('profile', 'Lot').passages.map((p) => p.title)).toEqual(['Abraham']);
+  });
+
+  test('getPassageLinks never returns the passage itself, even when the other kind shares its title', () => {
+    // "The Son of Man" is the one title that exists as both a theme and a profile
+    for (const kind of ['theme', 'profile']) {
+      const { passages } = db.getPassageLinks(kind, 'The Son of Man');
+      expect(passages.filter((p) => p.kind === kind && p.title === 'The Son of Man')).toEqual([]);
+    }
+  });
+
+  test('getPassageLinks resolves a profile to its dictionary twin, preferring the person', () => {
+    // an unordered LIMIT 1 hands back RahabMonster — the sea monster, not the woman of Jericho
+    expect(db.getPassageLinks('profile', 'Rahab').article.id).toBe('RahabPerson');
+    expect(db.getPassageLinks('profile', 'Melchizedek').article.id).toBe('Melchizedek');
+    expect(db.getPassageLinks('profile', 'Adam and Eve').article).toBeNull();   // 41 of 125 have none
+  });
+
+  test('getPassageLinks matches no article for a theme, however exact the title', () => {
+    // 15 theme titles match an article. The theme "Shechem" is the altar at Josh 8:30-35, and the
+    // profile tie-break would point it at Shechem (Person) — right rule, wrong corpus.
+    expect(db.getPassageLinks('theme', 'Shechem').article).toBeNull();
+    expect(db.getPassageLinks('theme', 'Zion').article).toBeNull();
+  });
+
   test('every theme and profile in the index is retrievable', () => {
     for (const t of db.getThemeIndex()) expect(db.getPassage('theme', t.title)).not.toBeNull();
     for (const p of db.getProfileIndex()) expect(db.getPassage('profile', p.title)).not.toBeNull();

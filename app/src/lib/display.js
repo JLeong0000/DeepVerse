@@ -180,6 +180,40 @@ export function splitEntryLinks(text, byRaw) {
   return out;
 }
 
+// The same idea for a study note, which writes its links in one fixed shape instead of a See
+// clause: (see “Blessing” Theme Note). The quotes are the disambiguator and are part of the match —
+// "Blessing" as a bare word occurs in prose that means nothing of the sort, while the quoted form
+// occurs exactly once per link in all 117 cases and never anywhere else. They are included in the
+// underlined span too: a reader aiming at a two-character gap between quote and word is a reader
+// who misses. Every occurrence is linked, not just the first — a note that quotes its target twice
+// means the same passage both times.
+//
+// links: [{ raw, pkind, ptitle, pbook }] — build/parse-tyndale.mjs resolved every one of them
+// returns: [{kind:'text',text} | {kind:'link',raw,pkind,ptitle,pbook}]
+export function splitNoteLinks(text, links) {
+  const src = String(text ?? '');
+  if (!links?.length) return [{ kind: 'text', text: src }];
+  const spans = [];
+  for (const l of links) {
+    const quoted = `“${l.raw}”`;
+    for (let i = src.indexOf(quoted); i >= 0; i = src.indexOf(quoted, i + quoted.length))
+      spans.push({ start: i, end: i + quoted.length, raw: quoted, hit: l });
+  }
+  spans.sort((a, b) => a.start - b.start);
+  const out = [];
+  let last = 0;
+  for (const s of spans) {
+    if (s.start < last) continue;   // a longer span already covered this one
+    if (s.start > last) out.push({ kind: 'text', text: src.slice(last, s.start) });
+    // hit's own `raw` is the bare title; the span that gets underlined is the quoted form, so it
+    // wins here — spreading it the other way round would drop the quotes out of the prose
+    out.push({ kind: 'link', ...s.hit, raw: s.raw });
+    last = s.end;
+  }
+  if (last < src.length) out.push({ kind: 'text', text: src.slice(last) });
+  return out;
+}
+
 // A one-line preview for the card: headings and bullets are structural, so drop them and run the
 // prose together. Used where only the opening of an article is shown.
 export function articlePreview(body, max) {

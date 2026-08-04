@@ -2,6 +2,7 @@
   import { recentNotes, allGroups, addGroup, updateNote, deleteNote } from '../../lib/store.js';
   import { formatRef } from '../../lib/refs.js';
   import { noteHtml } from '../../lib/markdown.js';
+  import { memoDateLabel } from '../../lib/dates.js';
   import NoteOverlay from '../notes/NoteOverlay.svelte';
 
   let notes = $state([]);
@@ -11,15 +12,6 @@
   async function load() { notes = await recentNotes(8); groups = allGroups(); }
   $effect(() => { load(); });
 
-  function relDate(iso) {
-    const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
-    if (days <= 0) return 'today';
-    if (days === 1) return 'yesterday';
-    if (days < 7) return `${days} days ago`;
-    if (days < 14) return 'last week';
-    if (days < 31) return `${Math.floor(days / 7)} weeks ago`;
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }
   async function saveOverlay(body, groupId, color) {
     if (groupId === '__new') { const g = addGroup(); groupId = g.id; }
     await updateNote(overlayNote.id, body, { group_id: groupId, color });
@@ -38,7 +30,7 @@
         onclick={() => (overlayNote = note)} role="button" tabindex="0">
         <div class="r">{note.ref ? formatRef(note.ref) : 'Memo'}{note.ref && note.target_type === 'chapter' ? ' · ch' : ''}</div>
         <div class="t md">{@html noteHtml(note.body)}</div>
-        <div class="d">{relDate(note.updated_at)}</div>
+        <div class="d">{memoDateLabel(note)}</div>
       </div>
     {/each}
   </div>

@@ -4,9 +4,14 @@
 // which is all build-db.mjs ever reads. Run only when the raw source changes:
 //   node extract-apocrypha.mjs
 //
-// Why these books exist in DeepVerse at all: the Tyndale dictionary cites the Apocrypha 648 times
-// across 13 books, and none of NIV/NKJV/NLT carries any of it, so every one of those citations was
-// a reference the reader could not follow. This closes 645 of them (see UNCOVERED below).
+// Why these books exist in DeepVerse at all: the Tyndale dictionary cites the Apocrypha constantly and
+// none of NIV/NKJV/NLT carries any of it, so every one of those citations was a reference the reader
+// could not follow. Two ways to count, both re-derivable:
+//   641  raw ?bref= links in the raw Articles XML naming one of 12 apocryphal book codes
+//   461  references the app actually linkifies in the stored bodies, across 13 books
+//        (tokenizeRefs over dict_articles.body — 4 Maccabees and the Apocalypse of Baruch appear
+//        only as display text, never as a ?bref= link, which is why this count spans one more book)
+// The second is what a reader meets. 456 of those 461 now resolve; the 5 that do not are UNCOVERED.
 //
 // Source (gitignored): backup-data/ebible/eng-kjv_vpl.zip
 //   King James Version + Apocrypha, standardized 1769 text — Public Domain.
@@ -36,8 +41,11 @@ const BOOKS = new Map([
   ['1MA', '1Macc'], ['2MA', '2Macc'], ['1ES', '1Esd'], ['PRM', 'PrMan'], ['4ES', '2Esd'],
 ]);
 
-// Cited by Tyndale but absent from the KJV Apocrypha, so still unreachable: 3 Maccabees (2
-// citations) and 4 Maccabees (1). Both are Orthodox-canon books; the KJV never carried them.
+// Cited by Tyndale but absent from the KJV Apocrypha, so still unreachable: 3 Maccabees (2 verse
+// citations) and 4 Maccabees (2). Both are Orthodox-canon books; the KJV never carried them. The
+// Apocalypse of Baruch (1 citation, in `Apocrypha`) is a third such book, in no modern Bible at all;
+// it is not listed here because it was never a candidate for this extract. app/src/lib/refs.js
+// carries all three so the preview can name the book and say why it is empty.
 const UNCOVERED = ['3Macc', '4Macc'];
 
 const txt = execFileSync('unzip', ['-p', ZIP, 'eng-kjv_vpl.txt'], { encoding: 'utf8', maxBuffer: 1 << 28 });
@@ -58,7 +66,8 @@ for (const line of txt.split('\n')) {
   // a gap only filled in 1875, so its chapter 7 renumbers everything after verse 35: KJV 7:50 is
   // "there is promised us an everlasting hope", while every modern edition — and Tyndale, which
   // quotes it — has 7:50 as "The Most High has made not one age but two". Keeping the chapter would
-  // silently show the wrong verse for 6 citations; dropping it shows an explanation instead.
+  // silently show the wrong verse for the 5 links Tyndale makes into it (?bref=2Esd.7.36 twice,
+  // .50, .70, .113); dropping it shows an explanation instead.
   if (book === '2Esd' && +m[2] === 7) continue;
   rows.push([book, +m[2], +m[3], text]);
   perBook.set(book, (perBook.get(book) ?? 0) + 1);

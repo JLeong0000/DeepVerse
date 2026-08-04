@@ -252,11 +252,13 @@ export function extractIncludes(bodyXml) {
 //   #Sub    a subhead in THIS article ("Locust (below)") -> not an edge; the reader is already there
 //   ?bref=  scripture           -> handled by extractBrefs
 //
-// EVERY ?item= link counts, not only those inside a "See …" clause. 5,220 of the 5,237 sit in a See
-// clause; the other 17 are the ones that made restricting to See clauses wrong. Seven of them are
-// the bulleted list under "Several other major articles on the Bible follow:" in `Bible`, which had
-// no outbound edges at all and so displayed "this article names no other entry" directly beneath
-// seven links. The remaining ten are mid-prose ("see discussion under Jephthah").
+// EVERY ?item= link counts, not only those inside a "See …" clause. There are 5,237 of them, and the
+// great majority do sit in a See clause — but roughly a dozen do not, and those are what made
+// restricting to See clauses wrong. Seven are the bulleted list under "Several other major articles
+// on the Bible follow:" in `Bible`, which had no outbound edges at all and so displayed "this article
+// names no other entry" directly beneath seven links. The rest are mid-prose ("see discussion under
+// Jephthah"). The exact in/out split is deliberately not stated here: it is a property of the clause
+// regex this rewrite deleted, so no code reproduces it. 5,237 in and 5,164 edges out ARE exact.
 //
 // A parenthetical aside ("(See also Col 4:16; Rv 1:3.)") needs no special rule: it cites scripture,
 // so it holds no ?item= link and contributes nothing.

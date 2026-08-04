@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseStudyNoteRef, extractRef, cleanNoteBody } from '../lib/studynotes.mjs';
+import { parseStudyNoteRef, extractRef, cleanNoteBody, extractPassageLinks } from '../lib/studynotes.mjs';
 
 test('parseStudyNoteRef: single verse', () => {
   assert.deepEqual(parseStudyNoteRef('Gen.1.16'),
@@ -34,4 +34,28 @@ test('extractRef pulls the display span', () => {
 test('cleanNoteBody: strips markup, unwraps links, decodes entities, drops sn-ref', () => {
   assert.equal(cleanNoteBody(SAMPLE),
     'to pick up the stalks: Harvesters were to leave grain (see Lev 19:9-10). & God provided.');
+});
+
+// The note-side half of the ?item= graph: 118 links in StudyNotes.xml name a theme or profile,
+// and cleanNoteBody unwraps the <a> that carries the target, so they have to be lifted out first.
+test('extractPassageLinks: lifts a theme link, normalised the way cleanNoteBody normalises prose', () => {
+  const body = '<p>God’s blessing commissions (see “<a href="?item=Blessing_ThemeNote_Filament">Blessing</a>” Theme Note).</p>';
+  assert.deepEqual(extractPassageLinks(body), [{ item: 'Blessing', kind: 'theme', text: 'Blessing' }]);
+  // the text must survive into the flattened body byte-identically, or the app underlines nothing
+  assert.ok(cleanNoteBody(body).includes('“Blessing”'));
+});
+
+test('extractPassageLinks: routes a Profile to its own kind, and keeps hyphenated item names', () => {
+  const body = '<p>See “<a href="?item=TheSadducees_Profile_Filament">The Sadducees</a>” Profile.</p>'
+    + '<p>(see “<a href="?item=Clean-Unclean-AndHoly_ThemeNote_Filament">Clean, Unclean, and Holy</a>” Theme Note)</p>';
+  assert.deepEqual(extractPassageLinks(body), [
+    { item: 'TheSadducees', kind: 'profile', text: 'The Sadducees' },
+    { item: 'Clean-Unclean-AndHoly', kind: 'theme', text: 'Clean, Unclean, and Holy' },
+  ]);
+});
+
+test('extractPassageLinks: ignores the other three link kinds a note writes', () => {
+  const body = '<p>a <a href="?bref=Gen.1.1">verse</a>, a <a href="?item=Gen.4.1_StudyNote_Filament">note</a>'
+    + ' and a <a href="?item=Deut_BookIntro_Filament">book intro</a>.</p>';
+  assert.deepEqual(extractPassageLinks(body), []);
 });

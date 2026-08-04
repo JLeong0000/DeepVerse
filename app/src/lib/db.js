@@ -381,6 +381,16 @@ export function getStudyNotes(book, chapter, verse) {
      ORDER BY (start_chapter*1000 + start_verse), seq`,
     [book, key, key]);
 }
+// The themes and profiles a study note links to in its own prose — "(see “Blessing” Theme Note)".
+// 117 edges over 111 of the 16,913 notes, so this returns nothing for 99% of them; the ones it
+// does return are the corpus's only author-written links into a theme or profile. Every row
+// resolves (build/validate-db.mjs fails the build otherwise), and `raw` is guaranteed to occur in
+// the note's body, which is what splitNoteLinks matches on.
+export function getStudyNoteLinks(osisRef) {
+  return query(`SELECT raw, pkind, ptitle, pbook FROM study_note_xref
+    WHERE osis_ref = ? ORDER BY seq`, [osisRef]);
+}
+
 export function getChapterStudyNoteCount(book, chapter) {
   return query(
     `SELECT COUNT(*) AS n FROM study_notes

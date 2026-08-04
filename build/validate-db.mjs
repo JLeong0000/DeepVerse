@@ -26,6 +26,21 @@ export function validate(db) {
   const noRaw = db.prepare("SELECT COUNT(*) c FROM dict_xref WHERE raw IS NULL OR raw = ''").get().c;
   if (noRaw) problems.push(`dict_xref: ${noRaw} rows with no raw target text`);
 
+  // Both endpoints of a note link must exist, and `raw` must occur in the note that wrote it —
+  // the app underlines by matching that string back against the flattened prose, so a row whose
+  // raw has drifted from the body renders as nothing at all rather than as a visible error.
+  const noteEdges = db.prepare('SELECT COUNT(*) c FROM study_note_xref').get().c;
+  if (noteEdges < 110) problems.push(`study_note_xref: ${noteEdges} edges, expected 117`);
+  const danglingNote = db.prepare(`SELECT COUNT(*) c FROM study_note_xref x
+    LEFT JOIN study_notes n ON n.osis_ref = x.osis_ref
+    LEFT JOIN tyndale_passages p ON p.kind = x.pkind AND p.title = x.ptitle
+    WHERE n.osis_ref IS NULL OR p.title IS NULL`).get().c;
+  if (danglingNote) problems.push(`study_note_xref: ${danglingNote} edges reference a missing note or passage`);
+  const unmatched = db.prepare(`SELECT COUNT(*) c FROM study_note_xref x
+    JOIN study_notes n ON n.osis_ref = x.osis_ref
+    WHERE instr(n.body, '“' || x.raw || '”') = 0`).get().c;
+  if (unmatched) problems.push(`study_note_xref: ${unmatched} rows whose raw text is not in the note body`);
+
   return problems;
 }
 

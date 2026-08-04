@@ -2,11 +2,12 @@
   // The article body renderer, shared by the Context tab's modal and the library's article
   // surface. Deliberately owns no chrome — no title bar, no scroll container, no positioning —
   // so each host can frame it however it needs.
-  import { parseArticleBlocks, splitEntryLinks } from '../../lib/display.js';
+  import { parseArticleBlocks, splitEntryLinks, splitNoteLinks } from '../../lib/display.js';
   import RefText from '../common/RefText.svelte';
   import { TYNDALE_DICTIONARY, TYNDALE_CHANGES } from '../../lib/sources.js';
   let { article, supplements = [], source = null, onnavigate = null,
-        xrefs = null, onxref = null, onref = null, openIndex = null, preview = null } = $props();
+        xrefs = null, onxref = null, onref = null, openIndex = null, preview = null,
+        noteLinks = null, onnotelink = null } = $props();
 
   let blocks = $derived(parseArticleBlocks(article.body));
 
@@ -28,6 +29,13 @@
   function refOnref(i) {
     return onref ? (ref) => onref(ref, i) : null;
   }
+
+  // A body is either a dictionary article or a study note, never both, and the two write their
+  // links in different shapes — a "See …" clause against dict_xref, or a quoted “Title” against
+  // study_note_xref. Branching says that; composing the two splitters would imply a body where
+  // both can occur, which no row in the corpus is.
+  const linkParts = (text) =>
+    (noteLinks?.length ? splitNoteLinks(text, noteLinks) : splitEntryLinks(text, byRaw));
 </script>
 
 {#if article.is_html}
@@ -40,14 +48,14 @@
     {#if b.kind === 'head'}
       <h3 class="mhead" data-head={b.text}>{b.text}</h3>
     {:else if b.kind === 'item'}
-      <p class="mitem">{#each splitEntryLinks(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
+      <p class="mitem">{#each linkParts(b.text) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => (p.ptitle ? onnotelink?.(p) : onxref?.(p.id))}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
       {#if preview && openIndex === i}
         {@render preview()}
       {/if}
     {:else}
       <!-- every part is emitted verbatim: the prose runs, the separators and the trailing period
            all come straight out of the source, so its own "; " spacing cannot be lost here -->
-      <p class="mbody">{#each splitEntryLinks(b.text, byRaw) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => onxref?.(p.id)}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
+      <p class="mbody">{#each linkParts(b.text) as p}{#if p.kind === 'link'}<button class="xref" onclick={() => (p.ptitle ? onnotelink?.(p) : onxref?.(p.id))}>{p.raw}</button>{:else}<RefText text={p.text} book={article.book ?? null} onnavigate={onnavigate} onref={refOnref(i)} />{/if}{/each}</p>
       {#if preview && openIndex === i}
         {@render preview()}
       {/if}

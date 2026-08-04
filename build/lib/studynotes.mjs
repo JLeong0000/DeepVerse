@@ -40,6 +40,25 @@ export function cleanNoteBody(bodyXml) {
   return b.replace(/\s+/g, ' ').trim();
 }
 
+// A study note's own links to a theme or profile: 118 of them, written into the prose as
+// (see “Blessing” Theme Note). cleanNoteBody unwraps the <a> and keeps only its text, so the
+// target is lost the moment a body is flattened — these have to be lifted out beforehand, the
+// same way extractItemLinks does it for the dictionary.
+//
+// `text` is normalised by cleanNoteBody's own rules, not a private collapse: the app matches this
+// string back against the flattened prose to decide what to underline, so the two must be
+// byte-identical. All 118 land as an unambiguous “text” occurrence in the note that wrote them.
+const PASSAGE_LINK = /<a\b[^>]*href="\?item=([A-Za-z0-9-]+)_(ThemeNote|Profile)_[^"]*"[^>]*>(.*?)<\/a>/gs;
+
+export function extractPassageLinks(bodyXml) {
+  const out = [];
+  for (const a of String(bodyXml).matchAll(PASSAGE_LINK)) {
+    const text = decodeEntities(a[3].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+    if (text) out.push({ item: a[1], kind: a[2] === 'ThemeNote' ? 'theme' : 'profile', text });
+  }
+  return out;
+}
+
 const NOTES_FILE = new URL('../data/studynotes.json', import.meta.url);
 
 export function loadStudyNotes(db) {

@@ -575,6 +575,29 @@ describe('library explorer', () => {
     expect(p.body.length).toBeGreaterThan(200);
   });
 
+  test('getStudyNoteLinks returns the passages a note names, and nothing for the 16,802 that name none', () => {
+    const [blessing] = db.getStudyNoteLinks('Gen.1.22');
+    expect(blessing).toMatchObject({ raw: 'Blessing', pkind: 'theme', ptitle: 'Blessing', pbook: 'Gen' });
+    // keyed by osis_ref, which is the source's item name — NOT the <refs> value, which differs for
+    // every numbered book ("ISam.4.1" vs "1Sam.4.1")
+    expect(db.getStudyNoteLinks('ISam.15.3')[0]).toMatchObject({ ptitle: 'Complete Dedication' });
+    expect(db.getStudyNoteLinks('1Sam.15.3')).toEqual([]);
+    expect(db.getStudyNoteLinks('Gen.1.1')).toEqual([]);
+  });
+
+  test('every study note link resolves to a passage, and its raw text is in the note that wrote it', () => {
+    // the same two invariants build/validate-db.mjs enforces, checked here against the shipped db:
+    // an unresolvable target would render as a door to nothing, and a raw that has drifted from
+    // the body would silently underline nothing at all
+    const rows = db.query(`SELECT x.osis_ref, x.raw, x.pkind, x.ptitle FROM study_note_xref x`);
+    expect(rows).toHaveLength(117);
+    for (const r of rows) {
+      expect(db.getPassage(r.pkind, r.ptitle)).not.toBeNull();
+      const note = db.query('SELECT body FROM study_notes WHERE osis_ref=?', [r.osis_ref])[0];
+      expect(note.body).toContain(`“${r.raw}”`);
+    }
+  });
+
   test('getPassageLinks returns the passages anchored over the same verses, in reading order', () => {
     const { passages } = db.getPassageLinks('theme', 'The Creation');   // Gen 1:1–2:25
     expect(passages.map((p) => p.title)).toEqual(

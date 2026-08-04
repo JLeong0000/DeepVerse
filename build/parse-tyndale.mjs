@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { OSIS_BOOKS } from './lib/books.mjs';
 import { iterItems, cleanBody, structureBody, parseRefRange, extractBrefs, countBrefs, extractIncludes, extractItemLinks, applyErrata, sortTitle, titleTerms }
   from './lib/tyndale.mjs';
+import { extractPassageLinks } from './lib/studynotes.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYN = `${ROOT}/backup-data/tyndale`;
@@ -104,6 +105,7 @@ for (const [file, kind, isHtml] of [['Textboxes/Textboxes.xml', 'textbox', 0],
 
 // --- 3. theme articles + profiles (verse-ranged) ---
 const passages = [];
+const passageByItem = new Map();   // item name -> the identity a study note's link resolves to
 let pseq = 0;
 for (const file of ['ThemeNotes.xml', 'Profiles.xml']) {
   const xml = fs.readFileSync(`${NOTES}/${file}`, 'utf8');
@@ -116,6 +118,29 @@ for (const file of ['ThemeNotes.xml', 'Profiles.xml']) {
     if (!r) { console.warn(`parse-tyndale: unparseable refs for ${it.name}`); continue; }
     passages.push([kind, it.title, r.book, r.start_chapter, r.start_verse,
       r.end_chapter, r.end_verse, r.ref, structureBody(it.body), pseq++]);
+    passageByItem.set(it.name, { kind, title: it.title, book: r.book });
+  }
+}
+
+// --- 3b. the links study notes write INTO those passages ---
+// The one direction the corpus has: 118 notes say (see “Blessing” Theme Note) and mean it as a
+// link. Nothing points the other way — the dictionary's 11,242 ?item= links all stay inside the
+// dictionary, and a theme links out only to study notes and book intros.
+//
+// Keyed by the note's item name, which IS study_notes.osis_ref (parse-studynotes.mjs stores the
+// name, not the <refs> — they differ: name="ISam.4.1", refs="1Sam.4.1"). Resolved here rather
+// than at query time so an unresolvable target is dropped at build, exactly like a dictionary
+// xref: the note at Luke 22:29-30 cites a "TheMessiahsBanquet" theme note that is in no Tyndale
+// file, and a door to nothing is worse than prose.
+const noteLinks = [];
+let unresolved = 0;
+for (const it of iterItems(fs.readFileSync(`${NOTES}/StudyNotes.xml`, 'utf8'))) {
+  if (it.typename !== 'StudyNote') continue;
+  let seq = 0;
+  for (const l of extractPassageLinks(it.body)) {
+    const p = passageByItem.get(l.item);
+    if (!p || p.kind !== l.kind) { unresolved++; continue; }
+    noteLinks.push([it.name, l.text, p.kind, p.title, p.book, seq++]);
   }
 }
 
@@ -136,6 +161,7 @@ const introRows = OSIS_BOOKS.filter((b) => intros.has(b))
 
 write('tyndale-dictionary', { articles, verses: verseRows, xrefLinks });
 write('tyndale-passages', passages);
+write('tyndale-note-links', noteLinks);
 write('tyndale-bookintros', introRows);
 
 console.log('dictionary articles:', articleCount);
@@ -146,6 +172,9 @@ console.log('verse index rows:', verseRows.length,
 console.log('passages (theme+profile):', passages.length,
   JSON.stringify({ theme: passages.filter((p) => p[0] === 'theme').length,
                    profile: passages.filter((p) => p[0] === 'profile').length }));
+console.log('study note -> passage links:', noteLinks.length,
+  `(${new Set(noteLinks.map((r) => r[3])).size} passages reached,`,
+  `${unresolved} dropped as unresolvable)`);
 console.log('book intros:', introRows.length);
 console.log('bref links:', brefTotal, 'seen,', brefKept, 'kept,',
   brefTotal - brefKept, 'dropped (apocrypha + chapter-only + deduplicated within articles)');

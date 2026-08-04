@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'vitest';
-import { langLabel, testamentLabel, cleanGloss, parseDefinition, shortDefinition, readTranslit } from './display.js';
+import { langLabel, testamentLabel, cleanGloss, parseDefinition, shortDefinition, readTranslit, splitNoteLinks } from './display.js';
 
 describe('readTranslit', () => {
   test('renders the "/" morpheme boundary as a hyphen, keeps syllable dots', () => {
@@ -86,5 +86,43 @@ describe('shortDefinition', () => {
   });
   test('empty definition -> empty string', () => {
     expect(shortDefinition('')).toBe('');
+  });
+});
+
+describe('splitNoteLinks', () => {
+  const blessing = { raw: 'Blessing', pkind: 'theme', ptitle: 'Blessing', pbook: 'Gen' };
+  const body = 'God’s blessing commissions and enables the fulfillment of what God has spoken '
+    + '(see “Blessing” Theme Note). • Let the fish . . . let the birds: These directives define '
+    + 'the blessing.';
+
+  test('links the quoted target and passes every other character through verbatim', () => {
+    const parts = splitNoteLinks(body, [blessing]);
+    expect(parts.map(p => p.kind)).toEqual(['text', 'link', 'text']);
+    expect(parts[1]).toMatchObject({ raw: '“Blessing”', pkind: 'theme', ptitle: 'Blessing', pbook: 'Gen' });
+    expect(parts.map(p => p.text ?? p.raw).join('')).toBe(body);
+  });
+
+  test('never fires on the bare word, which the same note uses to mean something else', () => {
+    // "blessing" appears three more times here as ordinary prose; only the quoted one is a link
+    const parts = splitNoteLinks(body, [blessing]);
+    expect(parts.filter(p => p.kind === 'link')).toHaveLength(1);
+  });
+
+  test('a note with no links is one text run, not a rebuilt string', () => {
+    expect(splitNoteLinks(body, [])).toEqual([{ kind: 'text', text: body }]);
+    expect(splitNoteLinks(body, null)).toEqual([{ kind: 'text', text: body }]);
+  });
+
+  test('links every occurrence, in reading order, when a note quotes its target twice', () => {
+    const twice = 'See “Lot” Profile. Later, see “Lot” Profile again.';
+    const lot = { raw: 'Lot', pkind: 'profile', ptitle: 'Lot', pbook: 'Gen' };
+    const parts = splitNoteLinks(twice, [lot]);
+    expect(parts.filter(p => p.kind === 'link')).toHaveLength(2);
+    expect(parts.map(p => p.text ?? p.raw).join('')).toBe(twice);
+  });
+
+  test('a target the clamp cut off contributes no link and no stray text', () => {
+    const cut = 'God’s blessing commissions and enables…';
+    expect(splitNoteLinks(cut, [blessing])).toEqual([{ kind: 'text', text: cut }]);
   });
 });

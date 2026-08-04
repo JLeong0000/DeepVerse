@@ -53,7 +53,12 @@
     {#each profiles as p (p.title)}
       <div class="entry">
         <button class="et" onclick={() => openPassage('profile', p)}>{p.title}</button>
-        {#if p.alsoArticle}<span class="also">also a dictionary article</span>{/if}
+        <!-- the id is right there in the row, so the badge announcing a second door opens it -->
+        {#if p.alsoArticle}
+          <button class="also" onclick={() => pushNode({ kind: 'article', id: p.alsoArticle, title: p.title })}>
+            also a dictionary article
+          </button>
+        {/if}
         <span class="ref">{bookName(p.book)} {p.ref}</span>
       </div>
     {/each}
@@ -79,6 +84,7 @@
   .et:hover { color: var(--a); }
   .ref { font-size: 10.5px; color: var(--b); display: block; margin-top: 1px; }
   .also { font-size: 9px; color: var(--b); border: 1px solid var(--rule); border-radius: 3px;
-    padding: 0 3px; margin-left: 5px; }
+    padding: 0 3px; margin-left: 5px; background: none; font-family: inherit; cursor: pointer; }
+  .also:hover { border-color: var(--a); color: var(--a); }
   .note { font-size: 11px; color: var(--dim); line-height: 1.55; margin-top: 12px; font-style: italic; max-width: 74ch; }
 </style>

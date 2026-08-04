@@ -22,6 +22,7 @@ vi.mock('../lib/db.js', () => ({
   getRandomArticle: () => null,
   getPassage: () => ({ kind: 'theme', title: 'T1', book: 'Gen', ref: '1:1', body: '',
     start_chapter: 1, start_verse: 1 }),
+  getPassageLinks: () => ({ passages: [], article: null }),
   verseExists: () => true,
 }));
 

@@ -609,6 +609,41 @@ export function getPassage(kind, title) {
     WHERE kind = ? AND title = ?`, [kind, title])[0] || null;
 }
 
+// What a theme or profile legitimately links to. There is no edge table for it to read: the
+// dictionary's 11,242 ?item= links all point at other dictionary entries, so `dict_xref` names no
+// passage at either end, and the only author-written links to a theme or profile in the whole
+// corpus are the 118 that study notes write (73 of the 423 passages) — an id the passage rows do
+// not carry. So both links here are anchors, not text matching:
+//
+//   `passages` — every other theme or profile whose verse span intersects this one's, in the same
+//     book. Exact, and the publisher's own anchoring on both sides: Lot resolves to Abraham,
+//     Melchizedek to Abraham, Rahab to Joshua, The Creation to Blessing, Human Sexuality,
+//     Biblical Marriage and Adam and Eve. 149 of 298 themes and 78 of 125 profiles have at least
+//     one; 147 of those 227 have exactly one and the most any has is 14, so this is not capped.
+//   `article` — the same-title dictionary article, for the 84 of 125 profiles that have one. The
+//     "(Person)" tie-break is getProfileIndex's, for the same reason: sort_title collides for 131
+//     groups, and an unordered LIMIT 1 hands back Rahab the sea monster instead of the woman.
+//
+// PROFILES ONLY on that second one. The same match fires for 15 themes and cannot be trusted
+// there: the theme "Shechem" is the altar at Josh 8:30-35, and preferring "(Person)" — right for a
+// profile, which is always a person, people or place — points it at the wrong Shechem entirely.
+//
+// chapter*1000 + verse is getThemeIndex's own sort key, safe because the longest chapter in the
+// canon is Ps 119 at 176 verses.
+export function getPassageLinks(kind, title) {
+  const passages = query(`SELECT q.kind, q.title, q.book, q.ref
+    FROM tyndale_passages p JOIN tyndale_passages q
+      ON q.book = p.book AND NOT (q.kind = p.kind AND q.title = p.title)
+     AND (q.start_chapter * 1000 + q.start_verse) <= (p.end_chapter * 1000 + p.end_verse)
+     AND (q.end_chapter * 1000 + q.end_verse) >= (p.start_chapter * 1000 + p.start_verse)
+    WHERE p.kind = ? AND p.title = ?
+    ORDER BY q.start_chapter, q.start_verse, q.seq`, [kind, title]);
+  const article = kind !== 'profile' ? null
+    : query(`SELECT id, title FROM dict_articles WHERE kind='article' AND sort_title = lower(?)
+        ORDER BY title LIKE '%(Person)%' DESC, seq LIMIT 1`, [title])[0] || null;
+  return { passages, article };
+}
+
 // Both directions. Outbound feeds the doors row; inbound is what the path map can reveal and
 // nothing else in the UI can. Every edge resolves — `dst` is NOT NULL — because the graph is built
 // from the source's own ?item= links rather than matched by title.

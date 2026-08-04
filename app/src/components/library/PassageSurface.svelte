@@ -52,6 +52,5 @@
   .jump { background: none; border: none; padding: 0; font-family: inherit; font-size: 11.5px;
     color: var(--a); cursor: pointer; }
   .jump:hover { text-decoration: underline; }
-  .body { max-width: 74ch; }
   .missing { font-size: 12px; color: var(--dim); font-style: italic; }
 </style>

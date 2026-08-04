@@ -29,10 +29,10 @@
     for (const s of steps) {
       if (!s.id) { s.branches = []; s.hidden = 0; continue; }
       const x = getXrefs(s.id);
-      // both directions: inbound is what nothing else in the UI can show. Phantom targets ride
-      // along as unclickable nodes — hiding them would overstate how complete the graph is.
-      const phantoms = x.missing.map((raw) => ({ id: `x:${raw}`, title: raw, phantom: true }));
-      const all = [...x.out, ...x.in, ...phantoms].filter((n, k, arr) =>
+      // both directions: inbound is what nothing else in the UI can show. Every neighbour resolves
+      // to a real article — loadXrefs drops a link it cannot resolve rather than storing a null
+      // dst — so there is no unresolved-target case to draw.
+      const all = [...x.out, ...x.in].filter((n, k, arr) =>
         arr.findIndex((m) => m.id === n.id) === k && !claimed.has(n.id));
       neighbours.set(s.id, new Set([...x.out, ...x.in].map((n) => n.id)));
       s.branches = all.slice(0, MAX_BRANCHES);
@@ -58,10 +58,9 @@
       s.branches.forEach((b, k) => {
         const side = k % 2 ? -1 : 1, row = Math.floor(k / 2);
         const by = cy + side * (54 + row * 42);
-        links.push({ x1: x, y1: cy, x2: x, y2: by, cls: b.phantom ? 'gone' : '' });
+        links.push({ x1: x, y1: cy, x2: x, y2: by, cls: '' });
         const full = displayTitle(b.title);
-        nodes.push({ kind: 'branch', x, y: by, side, step: s.i, id: b.id,
-          phantom: !!b.phantom, label: short(full), full });
+        nodes.push({ kind: 'branch', x, y: by, side, step: s.i, id: b.id, label: short(full), full });
       });
       const last = s.i === steps.length - 1;
       nodes.push({ kind: 'step', x, y: cy, i: s.i, last, isArticle: !!s.id,
@@ -139,13 +138,10 @@
         {#if n.kind === 'branch'}
           {@const jump = () => jumpFrom(n.step, { kind: 'article', id: n.id, title: n.full })}
           <g>
-            <title>{n.full}{n.phantom ? ' — named by the source, but no such article exists' : ''}</title>
-            <circle class="nd" class:gone={n.phantom} cx={n.x} cy={n.y} r="5"
-              role="button" tabindex={n.phantom ? -1 : 0} aria-disabled={n.phantom ? 'true' : undefined}
-              onclick={n.phantom ? undefined : guard(jump)}
-              onkeydown={n.phantom ? undefined : onEnter(jump)} />
-            <text class={n.phantom ? 'gone' : ''} x={n.x} y={n.y + (n.side < 0 ? -11 : 17)}
-              text-anchor="middle">{n.label}</text>
+            <title>{n.full}</title>
+            <circle class="nd" cx={n.x} cy={n.y} r="5"
+              role="button" tabindex="0" onclick={guard(jump)} onkeydown={onEnter(jump)} />
+            <text x={n.x} y={n.y + (n.side < 0 ? -11 : 17)} text-anchor="middle">{n.label}</text>
           </g>
         {:else}
           {@const activate = () => truncateTo(n.i)}
@@ -169,7 +165,6 @@
     <span><i class="path"></i> the step followed a cross-reference</span>
     <span><i class="jumped"></i> arrived another way — search, a route, or ✦ Wander in</span>
     <span><i></i> a branch not taken</span>
-    <span><i class="jumped"></i> named by the source, absent from the corpus</span>
     {#if pannable}<span>drag to pan</span>{/if}
   </div>
 </div>
@@ -195,12 +190,8 @@
   .lnk { stroke: var(--rule); stroke-width: 1.2; }
   .lnk.path { stroke: var(--a); stroke-width: 2; }
   .lnk.jumped { stroke: var(--dim); stroke-width: 1.2; stroke-dasharray: 4 4; }
-  .lnk.gone { stroke: var(--dim); stroke-dasharray: 2 3; opacity: .55; }
   .nd { fill: var(--bg); stroke: var(--dim); stroke-width: 1.3; cursor: pointer; }
   .nd:hover { stroke: var(--a); stroke-width: 2.2; }
-  .nd.gone { fill: none; stroke: var(--dim); stroke-dasharray: 2 2; cursor: not-allowed; opacity: .6; }
-  .nd.gone:hover { stroke: var(--dim); stroke-width: 1.3; }
-  text.gone { fill: var(--dim); font-style: italic; }
   .nd.on { fill: var(--a); stroke: var(--a); }
   .nd.spine { fill: var(--panel); stroke: var(--a); stroke-width: 1.8; }
   .nd.step { fill: var(--panel); stroke: var(--dim); stroke-dasharray: 3 2; }

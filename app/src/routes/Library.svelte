@@ -93,7 +93,10 @@
 </div>
 
 <div class="surface">
-  <div class="inner">
+  <!-- An article and a passage are one column of prose; the indexes are three columns of links.
+       The prose surfaces carry their own measure, so the frame centres it rather than leaving it
+       pinned to the left of a 1100px grid it never fills. -->
+  <div class="inner" class:reading={current.kind === 'article' || current.kind === 'passage'}>
     <!-- surfaces land here in Tasks 8–13 -->
     {#if current.kind === 'start'}
       <StartSurface />
@@ -135,6 +138,10 @@
   /* content centres at 1100px, matching Home.svelte's .page — a 74ch measure left-aligned in a
      full-width pane leaves the right half empty and reads as broken */
   .inner { max-width: 1100px; margin: 0 auto; }
+  /* 74ch is the reading measure the article body already used; holding it here instead centres the
+     title, the prose, the doors and the source together, rather than centring a 1100px box whose
+     text only occupies the left 60% of it. */
+  .inner.reading { max-width: 74ch; }
   .frame :global(.navrow) { max-width: 1100px; margin-left: auto; margin-right: auto; }
   .searchrow { max-width: 1100px; margin-left: auto; margin-right: auto; }
   .stub { color: var(--dim); font-style: italic; }

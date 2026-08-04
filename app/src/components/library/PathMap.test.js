@@ -4,11 +4,13 @@ import { render, fireEvent } from '@testing-library/svelte';
 import { resetLibrary, lib, pushNode, truncateTo } from '../../lib/library.svelte.js';
 import PathMap from './PathMap.svelte';
 
-// getXrefs is looked up per test from this map; anything not registered comes back empty, same
-// shape as the real db.js function returns for an article with no cross-references.
+// getXrefs is looked up per test from this map; anything not registered comes back empty. The
+// shape here must stay exactly what db.js returns — { out, in } and nothing else. A third key
+// once lived in this stub and in no real result, so the map threw on every article step while
+// these tests passed.
 const { xrefs } = vi.hoisted(() => ({ xrefs: new Map() }));
 vi.mock('../../lib/db.js', () => ({
-  getXrefs: (id) => xrefs.get(id) ?? { out: [], in: [], missing: [] },
+  getXrefs: (id) => xrefs.get(id) ?? { out: [], in: [] },
 }));
 
 const art = (id, title = id) => ({ kind: 'article', id, title });
@@ -30,7 +32,7 @@ function ptr(type, x, y) {
 
 describe('PathMap', () => {
   it('marks a spine link solid only when the two steps are actually cross-referenced', () => {
-    xrefs.set('Beast', { out: [nbr('Antichrist')], in: [], missing: [] });
+    xrefs.set('Beast', { out: [nbr('Antichrist')], in: [] });
     pushNode({ kind: 'route', route: 'dict', letter: 'B' });
     pushNode(art('Beast'));
     pushNode(art('Antichrist'));
@@ -44,7 +46,7 @@ describe('PathMap', () => {
 
   it('caps branches at MAX_BRANCHES and reports the remainder as hidden, inside the viewBox', () => {
     const many = Array.from({ length: 9 }, (_, i) => nbr(`N${i}`));
-    xrefs.set('Beast', { out: many, in: [], missing: [] });
+    xrefs.set('Beast', { out: many, in: [] });
     pushNode(art('Beast'));
     const { container, getByText } = render(PathMap);
     const branchCircles = container.querySelectorAll('circle.nd:not(.on):not(.spine):not(.step)');
@@ -58,8 +60,8 @@ describe('PathMap', () => {
   });
 
   it('draws a neighbour shared by two steps once, attached to the earliest step (not merely once)', () => {
-    xrefs.set('Beast', { out: [nbr('Armageddon')], in: [], missing: [] });
-    xrefs.set('Antichrist', { out: [nbr('Armageddon')], in: [], missing: [] });
+    xrefs.set('Beast', { out: [nbr('Armageddon')], in: [] });
+    xrefs.set('Antichrist', { out: [nbr('Armageddon')], in: [] });
     pushNode(art('Beast'));      // stack: [start, Beast]      — step index 1, x = 120+1*208 = 328
     pushNode(art('Antichrist')); // stack: [start, Beast, ...] — step index 2, x = 120+2*208 = 536
     const { container } = render(PathMap);
@@ -79,8 +81,8 @@ describe('PathMap', () => {
   // step over MAX_BRANCHES sharing a single candidate with the next step is enough.
   it('claims overflow candidates too, so a hidden one stays behind its earliest step instead of migrating to the next', () => {
     const many = Array.from({ length: 8 }, (_, i) => nbr(`N${i}`));
-    xrefs.set('Beast', { out: [...many, nbr('Shared')], in: [], missing: [] });   // 9 candidates
-    xrefs.set('Antichrist', { out: [nbr('Shared')], in: [], missing: [] });
+    xrefs.set('Beast', { out: [...many, nbr('Shared')], in: [] });   // 9 candidates
+    xrefs.set('Antichrist', { out: [nbr('Shared')], in: [] });
     pushNode(art('Beast'));
     pushNode(art('Antichrist'));
     const { container, getByText } = render(PathMap);
@@ -89,19 +91,8 @@ describe('PathMap', () => {
     expect(titles).not.toContain('Shared');   // claimed-but-hidden at Beast, not drawn at Antichrist
   });
 
-  it('draws a phantom (unresolved) target as a genuinely unclickable node', async () => {
-    xrefs.set('Beast', { out: [], in: [], missing: ['GhostEntry'] });
-    pushNode(art('Beast'));
-    const { container } = render(PathMap);
-    const phantom = container.querySelector('circle.gone');
-    expect(phantom).toBeTruthy();
-    const before = lib.stack.length;
-    await fireEvent.click(phantom);
-    expect(lib.stack).toHaveLength(before);   // no navigation happened
-  });
-
   it('clicking a branch off a middle step rewinds the trail to that step and appends the branch', async () => {
-    xrefs.set('Beast', { out: [nbr('Armageddon')], in: [], missing: [] });
+    xrefs.set('Beast', { out: [nbr('Armageddon')], in: [] });
     pushNode({ kind: 'route', route: 'dict' });
     pushNode(art('Beast'));
     pushNode(art('Antichrist'));

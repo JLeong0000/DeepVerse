@@ -116,9 +116,12 @@ Third-party data sources bundled or processed into DeepVerse, with their license
 - **Still uncovered:** 3 Maccabees and 4 Maccabees (three verse citations each) and the Apocalypse
   of Baruch (one). None appears in the KJV Apocrypha — 3 and 4 Maccabees are Orthodox-canon books
   and the Apocalypse of Baruch is in no modern Bible.
-- **Not presented at all (decided 2026-08-05):** every Maccabees citation — 1 and 2 Maccabees
-  included, though we hold 1,479 verses of them — and the Apocalypse of Baruch. `isUnreadBook` in
-  `app/src/lib/refs.js` keeps all 345 of those citations as prose: no jump, no preview, with the
-  book's `APOCRYPHA_NOTE` explanation on hover. They are books from canons this reader does not
-  present. The rest of the deuterocanon is unaffected — Tobit, Judith, Sirach, 1–2 Esdras and the
-  others still preview their KJVA text, 171 citations of them.
+- **Not presented at all (decided 2026-08-05):** the Maccabees, the Apocalypse of Baruch, Tobit,
+  Judith and Sirach — books from canons this reader does not present. `isUnreadBook` in
+  `app/src/lib/refs.js` keeps all **448** of those citations as prose: no jump, no preview, with the
+  book's `APOCRYPHA_NOTE` explanation on hover. Five of the eight are books we do hold text for
+  (1–2 Maccabees 1,479 verses, Tobit 244, Judith 339, Sirach 1,393); the verses stay in `verses` and
+  simply go unreferenced, because the reason is the canon rather than the availability.
+- **Still presented:** 1–2 Esdras, Baruch, the Additions to Esther and Bel and the Dragon — 68
+  citations, which still preview their KJVA text. The line between these and the eight above is a
+  set of decisions, not a rule the data draws.

@@ -27,12 +27,12 @@
 
   const KIND_LABEL = { chart: 'Chart', textbox: 'Textbox' };
 
-  // The empty-preview branch below is a guard, not a case that occurs: of the 33,663 references
+  // The empty-preview branch below is a guard, not a case that occurs: of the 33,563 references
   // this surface still links, 0 preview empty. The five that used to fire it — "Apoc Bar 14:13",
   // "4 Macc 16:13", "3 Macc 1:3", "3 Macc 7:16", "4 Maccabees 13:17" — are no longer links at all,
-  // because the Maccabees and Apoc Bar are in isUnreadBook and stay prose everywhere (292 of this
-  // surface's citations went that way). Keep the branch: a future edition change is exactly what it
-  // is for, and an absence rendered as an explanation is this surface's own convention.
+  // because they are in isUnreadBook and stay prose everywhere (392 of this surface's citations went
+  // that way). Keep the branch: a future edition change is exactly what it is for, and an absence
+  // rendered as an explanation is this surface's own convention.
   //
   // It used to hold a hand-written note for the Additions to Esther; those are now readable,
   // because the KJV Apocrypha carries them at the Vulgate chapter numbers Tyndale cites. 2 Esdras 7

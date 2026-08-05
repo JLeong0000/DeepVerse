@@ -27,16 +27,17 @@ describe('RefText', () => {
   // profiles could reach it — every host that renders prose without a preview surface.
   it('does not offer a jump to a book Study cannot navigate', () => {
     const { queryByRole, getByTitle } = render(RefText,
-      { text: 'Tobit 4:15 says the same.' });
-    expect(queryByRole('button', { name: /Tobit/ })).toBeNull();
-    expect(getByTitle(/Tobit is in the KJV Apocrypha/)).toBeTruthy();
+      { text: '1 Esdras 2:13 says the same.' });
+    expect(queryByRole('button', { name: /Esdras/ })).toBeNull();
+    expect(getByTitle(/1 Esdras is in the KJV Apocrypha/)).toBeTruthy();
     expect(study.book).toBe('Gen');   // nothing moved
   });
 
   // The Maccabees and Apoc Bar are never links, in any host — they come from canons DeepVerse
   // does not present. The citation keeps the words and the explanation it already carried.
   it.each([['Compare 3 Macc 1:3 here.', '3Macc'], ['See 1 Maccabees 1:10-63.', '1Macc'],
-           ['As Apoc Bar 14:13 has it.', 'ApocBar']])(
+           ['As Apoc Bar 14:13 has it.', 'ApocBar'], ['Tobit 4:15 says so.', 'Tob'],
+           ['Judith 8:1 opens it.', 'Jdt']])(
     'never links %s, and keeps its explanation on hover', (text, code) => {
       const { queryByRole, getByTitle } = render(RefText, { text });
       expect(queryByRole('button')).toBeNull();
@@ -58,9 +59,9 @@ describe('RefText', () => {
   it('keeps the citation clickable when the host has a preview surface', async () => {
     const seen = [];
     const { getByRole } = render(RefText,
-      { text: 'See Tobit 4:15.', onref: (r) => seen.push(r) });
-    await fireEvent.click(getByRole('button', { name: 'Tobit 4:15' }));
-    expect(seen).toEqual([{ book: 'Tob', chapter: 4, verse: 15 }]);
+      { text: 'See 1 Esdras 2:13.', onref: (r) => seen.push(r) });
+    await fireEvent.click(getByRole('button', { name: '1 Esdras 2:13' }));
+    expect(seen).toEqual([{ book: '1Esd', chapter: 2, verse: 13 }]);
     expect(study.book).toBe('Gen');   // a preview, not a jump
   });
 

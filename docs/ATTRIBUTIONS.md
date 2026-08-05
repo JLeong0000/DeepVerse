@@ -26,19 +26,43 @@ Third-party data sources bundled or processed into DeepVerse, with their license
 - Author: © 2022 Tyndale House Publishers
 - License: CC BY-SA 4.0 (no NonCommercial restriction)
 - Source: https://tyndaleopenresources.com
-- Used for: per-verse study notes shown in the Context tab (`study_notes` table). Source XML is
-  gitignored; the parsed notes are committed in `build/data/studynotes.json`. ShareAlike applies to
-  the derived note data (attribute + keep BY-SA); it does not affect the app code. The app shows a
-  "Tyndale Open Study Notes · CC BY-SA 4.0" label on the section.
+- Used for: **four** of the app's texts, all shipped in this package and none of them in the
+  dictionary — per-verse study notes in the Context tab (`study_notes`), plus the theme articles and
+  profiles (`tyndale_passages`) and the book introductions (`book_intros`) shown in the Context tab
+  and the **Library** route. Source XML is gitignored; the parsed notes are committed in
+  `build/data/studynotes.json` and the rest in `build/data/sources/tyndale-{passages,note-links,
+  bookintros}.json.gz`. ShareAlike applies to the derived data (attribute + keep BY-SA); it does not
+  affect the app code. The app shows a "Tyndale Open Study Notes · © 2022 Tyndale House Publishers ·
+  CC BY-SA 4.0" label wherever any of the four appears.
+- Changes made (required by the source README). The reader-facing summary is
+  `TYNDALE_NOTES_CHANGES` in `app/src/lib/sources.js`, which `changesFor()` pairs to this source so
+  it cannot be shown under the other one:
+  1. **XML flattened to plain text.** Notes lose their markup entirely (`cleanNoteBody`); themes,
+     profiles and book intros keep their subheadings marked so the app can render them as headings
+     (`structureBody`). The source's own links are unwrapped to their text in both.
+  2. **Scripture references re-keyed** from Tyndale's own book codes to OSIS — including the Roman
+     numerals its item names use (`ISam.4.1` → book `1Sam`).
+  3. **Ten of the 16,923 study notes are dropped**, the only content this project discards: seven
+     anchored to a psalm superscription (`Ps.7.title` and six more), one to a whole psalm
+     (`Ps.142`), and two to halves of a single verse (`IIPet.2.10a`, `IIPet.2.10b`). None names a
+     verse number, and the app anchors notes to verses. 16,913 are shown.
+  4. **A note's links to a theme or profile are lifted into a graph** (`study_note_xref`) from the
+     source's own `?item=` markup, so the sentence that says *(see “Blessing” Theme Note)* is a
+     working link rather than flattened prose. 117 of the 118 resolve; the one dropped names a
+     theme note (`TheMessiahsBanquet`, cited at Luke 22:29-30) that is in no file of this package.
+  5. **No link corrections apply to this source.** The three corrected scripture links listed under
+     the dictionary below are in dictionary articles only; none of this package's text is altered
+     that way.
 
 ## Tyndale Open Bible Dictionary
 
 - Author: © 2023 Tyndale House Publishers
 - License: CC BY-SA 4.0
 - Source: https://tyndaleopenresources.com
-- Used for: verse-driven dictionary articles, theme articles, profiles, and book introductions —
-  shown both in the Context tab and as the browsable **Library** route (`#/library`). Tables:
-  `dict_articles`, `dict_verse`, `dict_xref`, `tyndale_passages`, `book_intros`.
+- Used for: verse-driven dictionary articles, their textboxes and charts — shown both in the Context
+  tab and as the browsable **Library** route (`#/library`). Tables: `dict_articles`, `dict_verse`,
+  `dict_xref`. Themes, profiles and book introductions are **not** from this package; they ship in
+  the study notes above, under a different copyright year, and carry that source's label.
 - Changes made (required by the source README). The reader-facing summary of this list is
   `TYNDALE_CHANGES` in `app/src/lib/sources.js`; if a change here alters what a reader sees,
   update that string too:

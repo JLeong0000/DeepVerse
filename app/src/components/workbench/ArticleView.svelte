@@ -4,12 +4,17 @@
   // so each host can frame it however it needs.
   import { parseArticleBlocks, splitEntryLinks, splitNoteLinks } from '../../lib/display.js';
   import RefText from '../common/RefText.svelte';
-  import { TYNDALE_DICTIONARY, TYNDALE_CHANGES } from '../../lib/sources.js';
+  import { TYNDALE_DICTIONARY, changesFor } from '../../lib/sources.js';
   let { article, supplements = [], source = null, onnavigate = null,
         xrefs = null, onxref = null, onref = null, openIndex = null, preview = null,
         noteLinks = null, onnotelink = null } = $props();
 
   let blocks = $derived(parseArticleBlocks(article.body));
+
+  // The dictionary is the default because it is what an unlabelled caller renders — the library's
+  // article surface and the Context card's dictionary overlay both leave `source` unset.
+  let credit = $derived(source ?? TYNDALE_DICTIONARY);
+  let changes = $derived(changesFor(credit));
 
   // Linkification is driven entirely by dict_xref — see splitEntryLinks. This component holds no
   // opinion about what a "See …" clause is; it only renders what the build stored, keyed on the
@@ -81,8 +86,8 @@
 
 <div class="src">
   <div class="srclbl">Source</div>
-  {source ?? TYNDALE_DICTIONARY}
-  <div class="chg">{TYNDALE_CHANGES}</div>
+  {credit}
+  {#if changes}<div class="chg">{changes}</div>{/if}
 </div>
 
 <style>

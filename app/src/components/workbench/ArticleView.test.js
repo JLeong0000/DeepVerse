@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import ArticleView from './ArticleView.svelte';
+import { TYNDALE_DICTIONARY, TYNDALE_STUDY_NOTES, TYNDALE_CHANGES, TYNDALE_NOTES_CHANGES }
+  from '../../lib/sources.js';
 
 const article = {
   id: 'Beast', title: 'Beast', n_refs: 3,
@@ -163,5 +165,22 @@ describe('ArticleView', () => {
     expect(opened).toEqual([expect.objectContaining({ pkind: 'theme', ptitle: 'Blessing', pbook: 'Gen' })]);
     // the bare word later in the same sentence is prose, not a second door
     expect(queryByRole('button', { name: 'blessing' })).toBeNull();
+  });
+  // CC BY-SA obliges the changes statement to be true of the work it sits under. It used to be
+  // rendered unconditionally, so all 423 themes and profiles carried the dictionary's corrections
+  // — three fixes to scripture links in articles none of them contain.
+  it('states the changes of the source it was actually given, not the dictionary\u2019s', () => {
+    const passage = { title: 'The Creation', body: 'A theme, from the study-notes package.', book: 'Gen' };
+    const { getByText, queryByText } = render(ArticleView, { article: passage, source: TYNDALE_STUDY_NOTES });
+    expect(getByText(TYNDALE_STUDY_NOTES)).toBeTruthy();
+    expect(getByText(TYNDALE_NOTES_CHANGES)).toBeTruthy();
+    expect(queryByText(TYNDALE_CHANGES)).toBeNull();
+  });
+
+  it('falls back to the dictionary and its changes when no source is named', () => {
+    const article = { id: 'Beast', title: 'Beast', n_refs: 0, body: 'A dictionary article.' };
+    const { getByText } = render(ArticleView, { article });
+    expect(getByText(TYNDALE_DICTIONARY)).toBeTruthy();
+    expect(getByText(TYNDALE_CHANGES)).toBeTruthy();
   });
 });

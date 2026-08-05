@@ -16,6 +16,23 @@ export const TYNDALE_CHANGES =
   + 'source’s own scripture links are corrected — two references to Judges 1 that pointed at '
   + 'Joshua, and one to Romans 13 tagged as Ecclesiastes.';
 
+// The study-notes package is a different work under a different copyright, and we change it
+// differently: no link corrections apply to it, and it is the only source where we drop content.
+export const TYNDALE_NOTES_CHANGES =
+  'Adapted: note, theme and profile text is stored as plain text with its subheadings marked. '
+  + 'Ten of the 16,923 study notes are not shown — seven anchored to a psalm superscription, one '
+  + 'to a whole psalm, and two to halves of a single verse, none of which name a verse number.';
+
+// A changes statement is only true of the work it describes, so it is looked up from the source
+// rather than passed in beside it: a caller that names its source and forgets its changes note is
+// how a theme page came to carry the dictionary's corrections, which apply to none of its text.
+// An unlisted source gets no statement at all — silence beats a false one.
+const CHANGES = new Map([
+  [TYNDALE_DICTIONARY, TYNDALE_CHANGES],
+  [TYNDALE_STUDY_NOTES, TYNDALE_NOTES_CHANGES],
+]);
+export function changesFor(source) { return CHANGES.get(source) ?? null; }
+
 // The deuterocanon. Public domain, so no attribution is legally required; it is shown anyway
 // because a reader seeing 17th-century English beside three modern translations is owed the reason.
 export const KJV_APOCRYPHA =

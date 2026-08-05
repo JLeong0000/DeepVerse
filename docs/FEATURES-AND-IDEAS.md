@@ -369,26 +369,30 @@ Memos always carried `created_at` and `updated_at`; nothing surfaced them outsid
   API, so rendering anything with a Svelte `in:`/`out:` transition threw.
 - Spec `specs/2026-08-05-memo-dating-design.md`, plan `plans/2026-08-05-memo-dating.md`.
 
-## 🔎 TO FIX — Memo reference search matches strings, not references
+## ✅ Memo reference search — match references, not substrings (2026-08-05)
 
-The Memo filter box tests the query as a substring of the **rendered** reference
-(`NotesPage.svelte:36`), even though `parseReference` (`refs.js:88`) already exists and is used by
-Home's jump-to-verse box. It fails both ways:
+The filter compared the query against the **whole rendered** reference, which fails on a book the
+user spelled correctly: **`Psalm` is in `Psalms`, but `Psalm 23` is not in `Psalms 23:1`** — the `s`
+lands between the book and the number. It also ignored verse boundaries, so `john 3:1` surfaced a
+memo on John **3:16**. Separating the book from the numbers fixes both.
 
-- **False negatives** — `ps 23`, `psalm 23`, `1cor`, `1corinthians` match nothing; `parseReference`
-  resolves all four. 18 of the 66 display names contain a space, so the entire numbered-book family
-  (`1 Corinthians`, `1 John`, `Song of Songs`…) is unreachable by the way people actually type.
-- **False positives** — substrings ignore verse boundaries, so `john 3:1` surfaces a memo on John
-  **3:16**, and `1` matches every memo in 1 Corinthians, Psalms 1, and any verse 1.
-
-**Not a drop-in swap.** `parseReference` is greedy by design (`j` → Joshua 1, `1` → 1 Samuel 1) —
-right for a jump box you watch as you type, wrong for a live filter that would snap to Joshua on the
-way to typing "john". The same box also searches memo **body text**, and `Job`/`Acts`/`Mark` are
-ordinary English words. A fix needs a policy (when does a query count as a reference; does a
-reference hit replace or union with the text hit) plus an abbreviation/alternate-name table, which
-does not exist — `jn`, `mt`, `revelations`, `song of solomon` miss even with the parser. Own design.
-
-Found while specifying `specs/2026-08-05-memo-dating-design.md`, which deliberately leaves it alone.
+- **Book text matches by containment** against display names, **spaces significant** — `1 Cor` finds
+  1 Corinthians, `1Cor` deliberately finds nothing, `psalm` finds Psalms, `ohn` finds John and the
+  three numbered Johns. **No OSIS codes are consulted and no abbreviation table exists**: `ps` and
+  `gen` work only because they are containments of `Psalms` and `Genesis`; `jn` and `mt` match
+  nothing, by choice.
+- **Chapter and verse compare as numbers**, and a query matches any memo whose reference **overlaps**
+  it: `john 3:5` finds a memo on the range John 3:1-8, and a chapter memo covers every verse in it.
+- **`parseReference` is untouched.** It resolves to *one* book and reads a bare book as chapter 1 —
+  both correct for the jump box it drives, both wrong for a filter, where `john` must mean every John
+  memo and `j` legitimately means 12 books. New `matchBooks` / `parseRefQuery` / `refOverlaps` in
+  `refs.js` instead, so the jump box carries zero risk.
+- Body and reference stay a **union**, so a half-typed `Joh` still searches bodies rather than
+  emptying the board.
+- **Accepted consequences:** `john 3` also matches 1 John 3 / 2 John 3 / 3 John 3 (a direct result of
+  containment — narrow with `1 john 3`); and a bookless `3:16`, which used to find John 3:16 and
+  Romans 3:16 together, now survives only via body-text search.
+- Spec `specs/2026-08-05-memo-reference-search-design.md`. App 328/328, build 152/152.
 
 ## Open questions / to resolve
 - Final form of the Workbench (avoiding overload) — **in progress via mockups.**

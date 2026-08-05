@@ -90,7 +90,18 @@ The **content-defect report** `reports/2026-08-02-library-explorer-content-defec
 before trusting any figure in this project: an approved mockup shipped **21 wrong claims out of 137**,
 including four invented citation counts. Every number in the docs above is now queried from `bible.db`.
 
-## ✅ The Apocrypha (2026-08-03)
+## ✅ The Apocrypha (2026-08-03) — ⛔ display reversed (2026-08-05)
+
+**Read this first: the feature below shipped and was then withdrawn.** DeepVerse reads the 66 canonical
+books and nothing else. All **516** deuterocanonical citations across the corpus render as prose carrying
+the book's `APOCRYPHA_NOTE` on hover — no jump, no preview, in any host. The rule is `isApocrypha` itself;
+there is no second list. The 5,650 KJVA verses **stay in `bible.db`**, unread by any reader-facing surface,
+doing one job: giving the linkifier real chapter/verse bounds so a citation cannot land on a
+real-but-wrong verse. Removing them would be a rebuild and would take that guard with it.
+The reason is the canon, not availability. Full statement in `docs/ATTRIBUTIONS.md`.
+
+The rest of this section is the 2026-08-03 record of how the text got in, kept because the data is still
+there and the licensing still applies.
 
 The Tyndale dictionary cites the deuterocanon in **461 linkified references across 13 books**, and none of
 NIV/NKJV/NLT carries any of it — so every one of those was a reference the reader could not follow. The
@@ -191,8 +202,10 @@ manuscript sigla ("Two leaves of Romans in Chester Beatty Papyrus II — P46").
 2. **Never render a bare title.** The 143 head-only items have nothing to say; 194 items have a
    caption-head identical to their own title. Neither is content.
 3. **Say the image is absent, and why.** The reader must not be left thinking the app failed to
-   load a picture. The 3-Maccabees preview is the precedent — it names the thing and explains the
-   absence, and that pattern is already built and tested.
+   load a picture. The precedent is `RefText`'s apocryphal citation — it renders as prose and names on
+   hover what the book is and why there is nothing to open. (The 3-Maccabees *preview* that used to be
+   the precedent here went with the 2026-08-05 canon decision; the pattern of naming an absence
+   survived it.)
 4. **Do not present these as "Pictures."** With no images, the honest framing is something like
    *what the print edition illustrated here* — a note, not a gallery.
 5. **There are no photo credits to show.** Zero of the 210 items mention one, so nothing in this

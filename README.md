@@ -20,9 +20,11 @@ its own terms — 6,010 dictionary articles, 298 theme articles, 125 profiles an
 books — and follow Tyndale's own cross-references from one entry to the next. A breadcrumb and a
 drag-to-pan path map keep track of how you got where you are, so wandering is recoverable.
 
-Scripture references inside those articles are clickable. That includes the deuterocanon: the dictionary
-cites it several hundred times and no modern translation in the app carries it, so DeepVerse ships the
-public-domain **KJV Apocrypha** purely so those citations resolve.
+Scripture references inside those articles are clickable — for the 66 canonical books, which are the ones
+DeepVerse reads. The dictionary also cites the deuterocanon several hundred times; since 2026-08-05 those
+citations render as prose naming the book on hover, with no jump and no preview. The public-domain **KJV
+Apocrypha** stays in `bible.db` unread by any surface, supplying the chapter/verse bounds that stop a
+citation landing on a real-but-wrong verse. See `docs/ATTRIBUTIONS.md`.
 
 ## Requirements
 

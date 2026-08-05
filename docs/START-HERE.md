@@ -51,6 +51,7 @@ data) is that there are **two types** of difference:
 > | 2026-07-16 | **AI = Claude Code skills**, not an in-app feature | `specs/2026-07-16-ai-query-skills-design.md` |
 > | 2026-08-02 | **The Library** (`#/library`) — the whole Tyndale corpus, browsable | `specs/2026-07-30-library-explorer-design.md` |
 > | 2026-08-03 | **The Apocrypha** — KJVA text so the dictionary's deuterocanonical citations resolve | `docs/ATTRIBUTIONS.md` |
+> | 2026-08-05 | **That display decision reversed** — DeepVerse reads the 66 canonical books; deuterocanonical citations are prose, not links. The KJVA rows stay in `bible.db` as the reference gate's bounds | `docs/ATTRIBUTIONS.md` |
 >
 > Before trusting any figure anywhere in this project, read
 > `reports/2026-08-02-library-explorer-content-defects.md`. An approved mockup shipped 21 wrong claims

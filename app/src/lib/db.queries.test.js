@@ -274,8 +274,9 @@ describe('getRefPreview version fallback', () => {
   });
 });
 
-// The deuterocanon is carried as its own version so Tyndale's 648 apocryphal citations resolve.
-// It is deliberately absent from the three modern translations' book lists.
+// The deuterocanon is carried as its own version, kept out of every reader-facing list, and since
+// 2026-08-05 out of every reader-facing surface too: its only remaining job is to give verseExists
+// real bounds, so an apocryphal citation cannot land on a real-but-wrong verse.
 describe('deuterocanon (KJVA)', () => {
   test('KJVA holds the 14 books and no canonical one', () => {
     const books = db.query("SELECT DISTINCT book FROM verses WHERE version='KJVA'").map((r) => r.book).sort();
@@ -285,16 +286,16 @@ describe('deuterocanon (KJVA)', () => {
     expect(db.listBooks('KJVA')).toHaveLength(0);   // BOOKS is the canonical 66; KJVA shares none
   });
 
-  test('the Additions to Esther resolve at the chapter numbers Tyndale cites', () => {
-    // "Cleopatra" and "Dositheus" both cite Add Est 11:1; "Gabatha" cites Add Est 12:1
-    const p = db.getRefPreview('AddEsth.11.1');
-    expect(p.version).toBe('KJVA');
-    expect(p.text).toMatch(/Ptolemeus and Cleopatra, Dositheus/);
-    expect(db.getRefPreview('AddEsth.12.1').text).toMatch(/Gabatha/);
-  });
-
-  test('a Maccabees citation previews', () => {
-    expect(db.getRefPreview('1Macc.10.57').text).toMatch(/Cleopatra/);
+  // DeepVerse reads the 66 canonical books, so no surface may show this text (2026-08-05).
+  // getRefPreview is the one function that could hand it to one, and KJVA is no longer in its
+  // fallback chain — the rows are still there, and it still must not return them.
+  test('no deuterocanonical verse previews, though the rows exist', () => {
+    for (const ref of ['AddEsth.11.1', 'AddEsth.12.1', '1Macc.10.57', 'Tob.1.2', 'Sir.3.1']) {
+      expect(db.getRefPreview(ref)).toEqual({ text: '', version: null });
+      const [, book, ch, v] = ref.match(/^(\w+)\.(\d+)\.(\d+)$/);
+      expect(db.query('SELECT text FROM verses WHERE version=? AND book=? AND chapter=? AND verse=?',
+        ['KJVA', book, +ch, +v])[0].text.length).toBeGreaterThan(0);   // the row is there
+    }
   });
 
   // The KJV was made from Latin manuscripts missing 2 Esd 7:36-105, so its chapter 7 renumbers

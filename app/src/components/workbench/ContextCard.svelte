@@ -9,7 +9,7 @@
   import { formatRef, formatCrossRef, bookName, bookOrder } from '../../lib/refs.js';
   import { getPref, setPref } from '../../lib/store.js';
   import { articlePreview, parseArticleBlocks, splitNoteLinks } from '../../lib/display.js';
-  import { pushNode } from '../../lib/library.svelte.js';
+  import { jumpFrom } from '../../lib/library.svelte.js';
   import { go } from '../../lib/router.svelte.js';
   import ArticleModal from './ArticleModal.svelte';
   import RefText from '../common/RefText.svelte';
@@ -85,12 +85,16 @@
 
   // A study note's "(see “Blessing” Theme Note)" opens that theme in the Library, which is the one
   // place a theme is readable whole — this card only ever shows the ones anchored on the verse in
-  // view, and 101 of the 117 links point somewhere else entirely, often another book. Pushed onto
-  // the library trail rather than replacing it, so the breadcrumb still leads back to wherever the
-  // reader was browsing before.
+  // view, and 101 of the 117 links point somewhere else entirely, often another book.
+  //
+  // jumpFrom(0, …) rather than pushNode: arriving from Study is a new trail, not a step in an old
+  // one, and the breadcrumb IS the account of the route taken. Appending would have produced
+  // "Start › Rahab › Deformity › Blessing" for a reader who came from a verse and never saw the
+  // first two. It rewinds to Start and starts there — visited/deepest are session counters and
+  // survive, which is why this is not resetLibrary().
   function openPassage(p) {
     modal = null;
-    pushNode({ kind: 'passage', pkind: p.pkind, title: p.ptitle, book: p.pbook });
+    jumpFrom(0, { kind: 'passage', pkind: p.pkind, title: p.ptitle, book: p.pbook });
     go('library');
   }
   // selection is meaningless once the verse changes

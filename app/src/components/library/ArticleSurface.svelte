@@ -6,8 +6,8 @@
   import { displayTitle } from '../../lib/titles.js';
   import { goToPassage } from '../../lib/study.svelte.js';
   import { go } from '../../lib/router.svelte.js';
-  import { bookName, isApocrypha, APOCRYPHA_NOTE } from '../../lib/refs.js';
-  import { KJV_APOCRYPHA, versionLabel } from '../../lib/sources.js';
+  import { bookName } from '../../lib/refs.js';
+  import { versionLabel } from '../../lib/sources.js';
   import ArticleView from '../workbench/ArticleView.svelte';
 
   let { id, anchor = null } = $props();
@@ -27,17 +27,16 @@
 
   const KIND_LABEL = { chart: 'Chart', textbox: 'Textbox' };
 
-  // The empty-preview branch below is a guard, not a case that occurs: of the 33,563 references
-  // this surface still links, 0 preview empty. The five that used to fire it — "Apoc Bar 14:13",
-  // "4 Macc 16:13", "3 Macc 1:3", "3 Macc 7:16", "4 Maccabees 13:17" — are no longer links at all,
-  // because they are in isUnreadBook and stay prose everywhere (392 of this surface's citations went
-  // that way). Keep the branch: a future edition change is exactly what it is for, and an absence
-  // rendered as an explanation is this surface's own convention.
+  // Every reference this surface previews is now canonical: DeepVerse reads the 66 books, so the
+  // 458 deuterocanonical citations here render as prose instead (see RefText). Of the 33,497 that
+  // remain, 0 preview empty — so the empty branch below is a guard against an edition change, not a
+  // case that occurs. It has been both at different times today; the count is what decides, and it
+  // is re-derived rather than carried forward.
   //
-  // It used to hold a hand-written note for the Additions to Esther; those are now readable,
-  // because the KJV Apocrypha carries them at the Vulgate chapter numbers Tyndale cites. 2 Esdras 7
-  // is the other former case, and it no longer linkifies at all: we hold no text for that chapter,
-  // and a reference to a deuterocanonical book we DO carry is only linked when the verse exists.
+  // The apocryphal preview it used to hold is gone with them: the KJVA text, the per-book note, and
+  // the suppressed "Open in Study" (Study cannot navigate those books either). The verses stay in
+  // the database — the linkifier reads their bounds so a citation cannot land on a real-but-wrong
+  // verse, which is what keeps "Apoc Bar 14:13" out of canonical Baruch.
 
   // Shown when the preview had to fall back off the NIV.
   const VARIANT = {
@@ -67,9 +66,7 @@
 {#snippet previewSnippet()}
   {@const r = open.ref}
   {@const p = getRefPreview(`${r.book}.${r.chapter}.${r.verse}`)}
-  {@const apoc = isApocrypha(r.book)}
   {@const note = p.version === 'NIV' ? null
-    : apoc ? APOCRYPHA_NOTE[r.book] + (p.text ? ` Shown from the ${KJV_APOCRYPHA}.` : '')
     : !p.text ? 'No edition DeepVerse carries has this verse.'
     : (VARIANT[`${r.book}.${r.chapter}.${r.verse}`]
         ?? `The NIV does not include this verse; it is shown here from the ${versionLabel(p.version)}.`)}
@@ -77,8 +74,7 @@
     <div class="pr">{bookName(r.book)} {r.chapter}:{r.verse}{p.version ? ` · ${versionLabel(p.version)}` : ''}</div>
     {p.text}
     {#if note}<div class="pnote">{note}</div>{/if}
-    <!-- Study navigates the 66 canonical books only, so an apocryphal verse has nowhere to open -->
-    {#if p.text && !apoc}
+    {#if p.text}
       <button class="popen" onclick={() => { goToPassage(r); go('study'); }}>Open in Study →</button>
     {/if}
   </div>

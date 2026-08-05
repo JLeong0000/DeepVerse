@@ -55,22 +55,23 @@ describe('ArticleSurface — verse preview when the NIV lacks the verse', () => 
     expect(getByRole('button', { name: /Open in Study/ })).toBeTruthy();
   });
 
-  it('shows an apocryphal verse, credits the edition, and offers no Open in Study', async () => {
-    // "Gabatha" links Add Est 12:1 — the Greek Additions, which only the KJV Apocrypha carries.
-    // Study navigates the 66 canonical books, so there is nowhere for it to open.
+  // DeepVerse reads the 66 canonical books, so a deuterocanonical citation opens nothing here at
+  // all — it is prose with the book's own note on hover (see RefText.test.js). This surface used to
+  // preview it from the KJV Apocrypha; that is what the decision of 2026-08-05 withdrew, and the
+  // preview must not come back for it.
+  it('does not preview an apocryphal citation, because it is no longer a link', async () => {
+    // "Gabatha" cites Add Est 12:1 — the Greek Additions, carried only by the KJV Apocrypha
     current.article = { id: 'Gabatha', title: 'Gabatha', n_refs: 1, kind: 'article',
       body: 'Alternate name for Bigthan (Add Est 12:1).' };
     current.preview = { text: 'And Mardocheus took his rest in the court with Gabatha…', version: 'KJVA' };
-    const { getByRole, queryByRole, container, queryByText } = render(ArticleSurface, { id: 'Gabatha' });
-    await fireEvent.click(getByRole('button', { name: 'Add Est 12:1' }));
-    expect(container.querySelector('.pr').textContent).toContain('Additions to Esther 12:1');
-    expect(container.querySelector('.pr').textContent).toContain('KJV Apocrypha');
-    expect(queryByText(/King James Version \+ Apocrypha/)).toBeTruthy();
-    expect(queryByRole('button', { name: /Open in Study/ })).toBeNull();
+    const { queryByRole, container, getByTitle } = render(ArticleSurface, { id: 'Gabatha' });
+    expect(queryByRole('button', { name: 'Add Est 12:1' })).toBeNull();
+    expect(getByTitle(/Greek Additions to Esther/)).toBeTruthy();   // the explanation survives
+    expect(container.querySelector('.prev')).toBeNull();            // and no preview box exists
   });
 
-  // A guard, not a live case: no reference in the corpus is missing from all four editions
-  // (34,148 checked, 0 unresolved). This pins what the box does if a future data change breaks that.
+  // A guard, not a live case: of the 33,497 references this surface still links, 0 are missing from
+  // every edition. This pins what the box does if a future data change breaks that.
   it('explains an absence rather than rendering an empty box', async () => {
     current.preview = { text: '', version: null };
     const { getByRole, queryByRole, queryByText } = render(ArticleSurface, { id: 'Host' });

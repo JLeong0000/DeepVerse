@@ -85,8 +85,9 @@ Third-party data sources bundled or processed into DeepVerse, with their license
      visible in the data: the single `?item=` link naming a Map (`Succoth` → *Key Places in the
      Exodus*) has no destination and is dropped at build time.
 
-  Apocryphal references are **not** dropped: the deuterocanon is carried as KJVA text (see below),
-  so those citations resolve. Raw source XML is gitignored; the parsed intermediates are committed
+  Apocryphal references are **not** dropped from the text: they are kept exactly as Tyndale wrote
+  them, and since 2026-08-05 they are shown as prose rather than as links, because DeepVerse reads
+  the 66 canonical books (see the KJVA section below). Raw source XML is gitignored; the parsed intermediates are committed
   in `build/data/sources/tyndale-*.json.gz`. ShareAlike applies to the derived dictionary data
   (attribute + keep BY-SA); it does not affect the app code. Like the study notes above, the
   dictionary's perspective is evangelical/conservative, disclosed in-app via the source label.
@@ -98,9 +99,10 @@ Third-party data sources bundled or processed into DeepVerse, with their license
 - Source: eBible.org — https://ebible.org/find/details.php?id=eng-kjv
 - Used for: the deuterocanonical books in `verses` (`version = 'KJVA'`) — 5,650 verses across 14
   books (Tobit, Judith, Additions to Esther, Wisdom, Sirach, Baruch, the Prayer of Azariah,
-  Susanna, Bel and the Dragon, 1–2 Maccabees, 1–2 Esdras and the Prayer of Manasseh). NIV, NKJV and
-  NLT carry 66 books each and none of the deuterocanon, so before this every apocryphal citation in
-  the Tyndale dictionary was a reference the reader could not follow.
+  Susanna, Bel and the Dragon, 1–2 Maccabees, 1–2 Esdras and the Prayer of Manasseh). Added
+  2026-08-03 so that Tyndale's apocryphal citations could be followed; **that display decision was
+  reversed 2026-08-05** — see "Not presented at all" below. The rows remain and are still what the
+  reference gate reads.
 - **UK caveat:** letters patent give Cambridge University Press, Oxford University Press and
   Collins the exclusive right to **print** the KJV in the United Kingdom. The decree is a printing
   privilege only and has no effect on use outside the UK. The text itself is public domain.
@@ -116,12 +118,11 @@ Third-party data sources bundled or processed into DeepVerse, with their license
 - **Still uncovered:** 3 Maccabees and 4 Maccabees (three verse citations each) and the Apocalypse
   of Baruch (one). None appears in the KJV Apocrypha — 3 and 4 Maccabees are Orthodox-canon books
   and the Apocalypse of Baruch is in no modern Bible.
-- **Not presented at all (decided 2026-08-05):** the Maccabees, the Apocalypse of Baruch, Tobit,
-  Judith and Sirach — books from canons this reader does not present. `isUnreadBook` in
-  `app/src/lib/refs.js` keeps all **448** of those citations as prose: no jump, no preview, with the
-  book's `APOCRYPHA_NOTE` explanation on hover. Five of the eight are books we do hold text for
-  (1–2 Maccabees 1,479 verses, Tobit 244, Judith 339, Sirach 1,393); the verses stay in `verses` and
-  simply go unreferenced, because the reason is the canon rather than the availability.
-- **Still presented:** 1–2 Esdras, Baruch, the Additions to Esther and Bel and the Dragon — 68
-  citations, which still preview their KJVA text. The line between these and the eight above is a
-  set of decisions, not a rule the data draws.
+- **Not presented at all (decided 2026-08-05):** nothing outside the 66 canonical books is shown as
+  text. All **516** deuterocanonical citations across the corpus — every book in this section —
+  render as prose carrying the book's `APOCRYPHA_NOTE` on hover: no jump (Study navigates the 66)
+  and no preview. The rule is `isApocrypha` itself; there is no second list.
+- The 5,650 verses **stay in the database** and go unreferenced by any reader-facing surface. They
+  still do one job: the linkifier reads their chapter/verse bounds so a citation cannot land on a
+  real-but-wrong verse, which is what keeps "Apoc Bar 14:13" out of canonical Baruch. Removing them
+  would be a rebuild and would take that guard with it.

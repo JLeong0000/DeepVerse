@@ -4,7 +4,7 @@
   import { tokenizeRefs } from '../../lib/scripture.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { verseExists } from '../../lib/db.js';
-  import { bookName, isApocrypha, apocryphaHasText, isUnreadBook, APOCRYPHA_NOTE } from '../../lib/refs.js';
+  import { bookName, isApocrypha, APOCRYPHA_NOTE } from '../../lib/refs.js';
 
   // onnavigate lets an overlay close itself once a reference has been followed —
   // otherwise the modal stays over the verse it just sent you to.
@@ -20,24 +20,15 @@
   const isHere = (r) =>
     r.book === study.book && r.chapter === study.chapter && r.verse === study.verse;
 
-  // Same rule, two more cases.
-  //
-  // The Maccabees and Apoc Bar are never links anywhere — see isUnreadBook. The rest of the
-  // deuterocanon is a link only where the host can answer with a preview: with no `onref` the only
-  // thing a click can do is jump, and Study navigates the 66 canonical books, deliberately, which
-  // is why KJVA is kept out of every version-scoped list. Jumping anyway left the reader on
-  // `#/study/1Macc/1/10` with a blank pane and an empty book selector.
-  const isUnreachable = (r) => isUnreadBook(r.book) || (!onref && isApocrypha(r.book));
+  // Same rule, second case: DeepVerse reads the 66 canonical books, so a citation outside them has
+  // nowhere to go. It was a jump before, which landed the reader on `#/study/1Macc/1/10` — blank
+  // pane, empty book selector — and in the library a preview, which promised text for books this
+  // reader does not present. Now it is prose that explains itself on hover.
+  const isUnreachable = (r) => isApocrypha(r.book);
 
-  // The reasons differ and the tooltip must not blur them: a book we do not present at all, a book
-  // the library can show but Study cannot, and the verse already on screen.
-  const deadTitle = (r) => {
-    if (isHere(r)) return 'You are reading this verse';
-    if (isUnreadBook(r.book)) return APOCRYPHA_NOTE[r.book];
-    return apocryphaHasText(r.book)
-      ? `${bookName(r.book)} is in the KJV Apocrypha, which Study does not read — open it from the Library`
-      : `${bookName(r.book)} is in no edition DeepVerse carries`;
-  };
+  const deadTitle = (r) => isHere(r)
+    ? 'You are reading this verse'
+    : APOCRYPHA_NOTE[r.book] ?? `${bookName(r.book)} is not one of the 66 books DeepVerse reads`;
 </script>
 
 {#each segs as s}{#if s.ref && !isHere(s.ref) && !isUnreachable(s.ref)}<button

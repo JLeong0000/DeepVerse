@@ -79,18 +79,16 @@ export const APOCRYPHA_NOTE = {
     + 'churches — it survives in the Syriac Peshitta tradition — so DeepVerse carries no text for it.',
 };
 
-// Books DeepVerse names but never opens: their citations stay prose everywhere — not a jump (Study
-// reads the 66), and not a preview either. The reader still gets APOCRYPHA_NOTE on hover, which is
-// what those citations already explained; only the promise of text goes.
+// DeepVerse reads the 66 canonical books and nothing else. Every citation outside them — all 516 of
+// them, across all 17 deuterocanonical books — stays prose: not a jump (Study navigates the 66), and
+// not a preview either. The reader still gets APOCRYPHA_NOTE on hover, so the citation says what the
+// book is; only the promise of text goes. That rule is exactly `isApocrypha`, so there is no second
+// list to keep in step with this one.
 //
-// Grown twice on 2026-08-05, first the Maccabees and the Apocalypse of Baruch, then Tobit, Judith
-// and Sirach. 3 and 4 Maccabees and Apoc Bar are in no edition we hold at all; the other five are
-// in the KJV Apocrypha, which no reader-facing list offers. Still not the whole deuterocanon —
-// 1–2 Esdras, Baruch, the Additions to Esther and Bel keep their previews, 68 citations of them —
-// so this list is a set of decisions, not a rule the data draws. Anything added here needs an
-// APOCRYPHA_NOTE entry, which is the tooltip.
-const UNREAD = new Set(['1Macc', '2Macc', '3Macc', '4Macc', 'ApocBar', 'Tob', 'Jdt', 'Sir']);
-export function isUnreadBook(code) { return UNREAD.has(code); }
+// Decided 2026-08-05, in three steps — the Maccabees and Apoc Bar, then Tobit/Judith/Sirach, then
+// the rest. The KJVA verses stay in the database (see ATTRIBUTIONS.md): the linkifier reads their
+// bounds so a citation cannot land on a real-but-wrong verse, which is what keeps "Apoc Bar 14:13"
+// out of canonical Baruch.
 
 const NAME = new Map([...BOOKS, ...APOCRYPHA, ...APOCRYPHA_UNCARRIED].map(([code, name]) => [code, name]));
 const ORDER = new Map(BOOKS.map(([code], i) => [code, i]));

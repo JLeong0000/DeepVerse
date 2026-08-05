@@ -32,11 +32,12 @@
 
   // Read once per mount, same as `tick` above — a fresh instance is what picks up a newly
   // recorded article (see the remount note above), not a reactive re-read within one instance.
-  // Names come from the corpus, not from what storage happened to capture — see getTitles. The
-  // stored title is only a fallback for an id the corpus no longer carries.
-  const recent = recentArticles();
-  const recentTitles = getTitles(recent.map((r) => r.id));
-  const nameOf = (r) => recentTitles.get(r.id) ?? r.title;
+  // Storage holds ids; names come from the corpus. An id it no longer carries is dropped rather
+  // than rendered as a blank chip — that is the only reason a lookup can miss.
+  const stored = recentArticles();
+  const storedTitles = getTitles(stored.map((r) => r.id));
+  const recent = stored.filter((r) => storedTitles.has(r.id))
+    .map((r) => ({ id: r.id, title: storedTitles.get(r.id) }));
 </script>
 
 <h3 class="stitle">The Library</h3>
@@ -70,8 +71,8 @@
     <div class="rl">Recently viewed</div>
     <div class="rchips">
       {#each recent.slice(0, 12) as r (r.id)}
-        <button class="rchip" onclick={() => pushNode({ kind: 'article', id: r.id, title: nameOf(r) })}>
-          {displayTitle(nameOf(r))}
+        <button class="rchip" onclick={() => pushNode({ kind: 'article', id: r.id, title: r.title })}>
+          {displayTitle(r.title)}
         </button>
       {/each}
     </div>

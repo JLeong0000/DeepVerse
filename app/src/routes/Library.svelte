@@ -140,6 +140,11 @@
   .search { width: 260px; font-family: inherit; font-size: 12.5px; padding: 5px 10px;
     border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); }
   .search:focus { outline: none; border-color: var(--a); }
+  /* on its own row it takes the width instead of holding a fixed measure — see Breadcrumb's
+     matching breakpoint, which is what gives it that row */
+  @media (max-width: 760px) {
+    .search { flex: 1; width: auto; min-width: 0; }
+  }
   .wander { background: transparent; border: 1px solid var(--rule); border-radius: 6px;
     padding: 4px 12px; font-family: inherit; font-size: 12px; color: var(--a); cursor: pointer;
     white-space: nowrap; font-variant: small-caps; letter-spacing: .06em; }

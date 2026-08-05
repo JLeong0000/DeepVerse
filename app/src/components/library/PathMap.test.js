@@ -16,6 +16,10 @@ vi.mock('../../lib/db.js', () => ({
 const art = (id, title = id) => ({ kind: 'article', id, title });
 const nbr = (id) => ({ id, title: id, raw: id, anchor: null });
 
+// The viewBox now grows with the busiest step in the trail, so the spine's y is no longer a fixed
+// 210 — read it off the render rather than restating a number that moves with the layout.
+const spineY = (container) => Number(container.querySelector('circle.nd.on').getAttribute('cy'));
+
 beforeEach(() => {
   resetLibrary();
   xrefs.clear();
@@ -56,7 +60,7 @@ describe('PathMap', () => {
     const circle = [...container.querySelectorAll('circle.nd')]
       .find((c) => c.classList.contains('faint'));
     expect(circle.getAttribute('cx')).toBe('404');            // 328 + FAN_DX
-    expect(Number(circle.getAttribute('cy'))).not.toBe(210);  // never on the spine line itself
+    expect(Number(circle.getAttribute('cy'))).not.toBe(spineY(container));  // never on the spine itself
     const line = container.querySelector('line.lnk.branch');
     expect(line.classList.contains('faint')).toBe(true);
     expect(Number(line.getAttribute('x2'))).toBeGreaterThan(328);
@@ -100,7 +104,7 @@ describe('PathMap', () => {
     expect(line.getAttribute('marker-end')).toBe('url(#arw)');
     // runs upward (y1 > y2) and halts clear of the caption baseline at cy+24
     expect(Number(line.getAttribute('y1'))).toBeGreaterThan(Number(line.getAttribute('y2')));
-    expect(Number(line.getAttribute('y2'))).toBeGreaterThan(210 + 24);
+    expect(Number(line.getAttribute('y2'))).toBeGreaterThan(spineY(container) + 24);
   });
 
   // Clicking that inbound branch walks Shechem -> Sychem, against the reference. The step did
@@ -118,19 +122,36 @@ describe('PathMap', () => {
     expect(Number(spine[0].getAttribute('x1'))).toBeGreaterThan(Number(spine[0].getAttribute('x2')));
   });
 
-  it('caps branches at MAX_BRANCHES and reports the remainder as hidden, inside the viewBox', () => {
-    const many = Array.from({ length: 9 }, (_, i) => nbr(`N${i}`));
-    xrefs.set('Beast', { out: many, in: [] });
+  // Reads the cap off the render rather than restating it: MAX_BRANCHES is a tuning knob, and a
+  // test that hardcodes it fails on every adjustment without anything actually being wrong. What
+  // must hold at any cap is that drawn + hidden accounts for every candidate, and that the counter
+  // and the deepest row it sits above both stay inside the viewBox.
+  it('caps branches, accounts for the remainder, and keeps the counter inside the viewBox', () => {
+    const TOTAL = 40;   // far past any plausible cap, so overflow is guaranteed
+    xrefs.set('Beast', { out: Array.from({ length: TOTAL }, (_, i) => nbr(`N${i}`)), in: [] });
     pushNode(art('Beast'));
     const { container, getByText } = render(PathMap);
-    const branchCircles = container.querySelectorAll('circle.nd:not(.on):not(.spine):not(.step)');
-    expect(branchCircles).toHaveLength(7);
-    const more = getByText('+2 more');
+    const branches = [...container.querySelectorAll('circle.nd:not(.on):not(.spine):not(.step)')];
+    expect(branches.length).toBeGreaterThan(0);
+    expect(branches.length).toBeLessThan(TOTAL);
+    const more = getByText(`+${TOTAL - branches.length} more`);
+
     const svg = container.querySelector('svg');
     const H = Number(svg.getAttribute('height'));
-    const y = Number(more.getAttribute('y'));
-    expect(y).toBeGreaterThan(0);
-    expect(y).toBeLessThan(H);
+    expect(Number(more.getAttribute('y'))).toBeGreaterThan(0);
+    for (const c of branches) {
+      const cy = Number(c.getAttribute('cy'));
+      expect(cy).toBeGreaterThan(0);
+      expect(cy).toBeLessThan(H);
+    }
+    // every label too — the deepest row's caption reaches past its own node
+    for (const t of container.querySelectorAll('text')) {
+      const b = t.getBBox ? t.getBBox() : null;
+      const y = Number(t.getAttribute('y'));
+      expect(y).toBeGreaterThan(0);
+      expect(y).toBeLessThan(H);
+      if (b) expect(b.y + b.height).toBeLessThanOrEqual(H);
+    }
   });
 
   it('draws a neighbour shared by two steps once, attached to the earliest step (not merely once)', () => {
@@ -148,20 +169,20 @@ describe('PathMap', () => {
                                                      // not Antichrist's (536 + 76 = 612)
   });
 
-  // Regression for a bug the reviewer reproduced on the brief's own walkthrough trail: Antichrist
-  // has 9 real candidates, draws 7 and hides 2 behind "+2 more" — and one of the hidden two was
-  // also a neighbour of the next step, so it resurfaced there instead of staying hidden. Cause:
-  // only the 7 *drawn* branches were added to `claimed`, leaving overflow candidates free to be
-  // claimed again later. Neither a revisited article nor a large neighbour count is needed — one
-  // step over MAX_BRANCHES sharing a single candidate with the next step is enough.
+  // Regression for a bug the reviewer reproduced on the brief's own walkthrough trail: a step that
+  // overflows hides some candidates, and one of the hidden ones was also a neighbour of the next
+  // step, so it resurfaced there instead of staying hidden. Cause: only the *drawn* branches were
+  // added to `claimed`, leaving overflow candidates free to be claimed again later. `Shared` goes
+  // last so it lands in the overflow at any cap.
   it('claims overflow candidates too, so a hidden one stays behind its earliest step instead of migrating to the next', () => {
-    const many = Array.from({ length: 8 }, (_, i) => nbr(`N${i}`));
-    xrefs.set('Beast', { out: [...many, nbr('Shared')], in: [] });   // 9 candidates
+    const many = Array.from({ length: 40 }, (_, i) => nbr(`N${i}`));
+    xrefs.set('Beast', { out: [...many, nbr('Shared')], in: [] });
     xrefs.set('Antichrist', { out: [nbr('Shared')], in: [] });
     pushNode(art('Beast'));
     pushNode(art('Antichrist'));
-    const { container, getByText } = render(PathMap);
-    expect(getByText('+2 more')).toBeTruthy();   // Beast: 9 candidates, 7 shown, 2 hidden
+    const { container } = render(PathMap);
+    const labels = [...container.querySelectorAll('text')].map((t) => t.textContent);
+    expect(labels.some((s) => /^\+\d+ more$/.test(s))).toBe(true);   // Beast overflowed
     const titles = [...container.querySelectorAll('title')].map((t) => t.textContent);
     expect(titles).not.toContain('Shared');   // claimed-but-hidden at Beast, not drawn at Antichrist
   });

@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeEach } from 'vitest';
 import { lib, pushNode, truncateTo, jumpFrom, replaceTop, popNode, resetLibrary,
-  nodeLabel, crumbSlots, articleDepth, MAX_CRUMBS } from './library.svelte.js';
+  nodeLabel, crumbSlots, articleDepth, MAX_CRUMBS, recentArticles } from './library.svelte.js';
 
 const art = (id) => ({ kind: 'article', id, title: id });
 
@@ -142,5 +142,30 @@ describe('crumb truncation', () => {
 
   test('expanded renders every crumb', () => {
     expect(crumbSlots(build(8), true)).toHaveLength(8);
+  });
+});
+
+// A node restored from a bookmarked URL carries its id as a placeholder title until the db
+// resolves the real one, and recents used to capture that title on the way past — writing
+// "IdolsIdolatry" into storage where a name belongs, permanently. Nothing is stored but the id
+// now, so there is no captured name left to be wrong.
+describe('recents', () => {
+  beforeEach(() => localStorage.clear());
+
+  test('records the id and no title, even when the node carries a placeholder one', () => {
+    pushNode({ kind: 'article', id: 'IdolsIdolatry', title: 'IdolsIdolatry' });
+    expect(recentArticles()).toEqual([{ id: 'IdolsIdolatry' }]);
+  });
+
+  test('a real title on the node is not stored either — the corpus is the authority', () => {
+    pushNode({ kind: 'article', id: 'Beast', title: 'Beast' });
+    expect(recentArticles()[0]).not.toHaveProperty('title');
+  });
+
+  test('revisiting moves an article to the front without duplicating it', () => {
+    pushNode({ kind: 'article', id: 'Beast', title: 'Beast' });
+    pushNode({ kind: 'article', id: 'Temple', title: 'Temple' });
+    pushNode({ kind: 'article', id: 'Beast', title: 'Beast' });
+    expect(recentArticles().map((r) => r.id)).toEqual(['Beast', 'Temple']);
   });
 });

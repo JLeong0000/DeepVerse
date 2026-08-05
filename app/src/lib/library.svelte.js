@@ -42,9 +42,15 @@ const RECENT_KEY = 'libraryRecent';
 const RECENT_CAP = 20;
 
 // The trail dies with the session; this is what gets you back to something from yesterday.
-export function recordRecent(id, title) {
+//
+// Ids only. A title captured here is whatever the node happened to be carrying, and a node
+// restored from a bookmarked URL carries its id as a placeholder until the db resolves the real
+// one — so storing it wrote "IdolsIdolatry" where a name belongs, permanently. The corpus is the
+// authority for names; StartSurface reads them through getTitles. Rows written before this carry a
+// title too, which is simply ignored.
+export function recordRecent(id) {
   const list = getPref(RECENT_KEY, []).filter((r) => r.id !== id);
-  list.unshift({ id, title });
+  list.unshift({ id });
   setPref(RECENT_KEY, list.slice(0, RECENT_CAP));
 }
 export function recentArticles() { return getPref(RECENT_KEY, []); }
@@ -53,7 +59,7 @@ export function pushNode(node) {
   lib.stack.push(node);
   lib.crumbsOpen = false;          // a new step re-collapses the trail
   lib.mapOpen = false;
-  if (node.kind === 'article') { lib.visited += 1; recordRecent(node.id, node.title); }
+  if (node.kind === 'article') { lib.visited += 1; recordRecent(node.id); }
   lib.deepest = Math.max(lib.deepest, articleDepth(lib.stack));
 }
 

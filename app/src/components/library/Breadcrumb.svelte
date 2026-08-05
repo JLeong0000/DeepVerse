@@ -42,6 +42,14 @@
   /* the trail wraps and the controls must not: search stays put at the far right however long
      the trail gets */
   .tail { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+  /* Below this the two stop sharing a line. The controls need ~384px and the frame ~60px of
+     padding, so a narrower window left the crumbs about 36px — enough to wrap them to one word a
+     row and push the frame past 350px tall. Search takes its own full-width row instead, above the
+     trail, which is where it sat before it moved onto this one. */
+  @media (max-width: 760px) {
+    .navrow { flex-wrap: wrap; row-gap: 9px; }
+    .tail { width: 100%; order: -1; }
+  }
   .crumbs { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; min-width: 0;
     font-size: 14px; color: var(--dim); }
   .crumbs button { background: none; border: none; font-family: inherit; font-size: 14px;

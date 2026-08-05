@@ -8,11 +8,20 @@
 
   // Branches drawn per step. Ours, not the data's — `Plants` has 152 neighbours (measured against
   // the resolver that indexes all 131 supplements) and would bury the spine.
-  const MAX_BRANCHES = 7;
-  // H=420 (not 348): at MAX_BRANCHES=7 a step's branches stack up to 4 rows deep on one side
-  // (54 + 3*42 = 180px from the spine), and the "+N more" label sits at cy-190 — both need more
-  // headroom than a 174px half-height (cy = H/2) leaves, or they're clipped by the viewBox.
-  const COL = 208, H = 420;
+  const MAX_BRANCHES = 11;
+  // Slots alternate below/above and step outward by ROW_GAP; a label reaches LABEL_REACH past its
+  // node. Everything below is derived from those three, because H and the "+N more" line used to be
+  // hand-tuned constants (420 and cy-190) that were only correct at MAX_BRANCHES = 7 — raising the
+  // cap silently pushed the deepest row and the counter outside the viewBox.
+  const ROW0 = 54, ROW_GAP = 42, LABEL_REACH = 22, MORE_GAP = 16;
+  const reach = (rows) => (rows < 1 ? 0 : ROW0 + (rows - 1) * ROW_GAP + LABEL_REACH);
+  const reachDown = (n) => reach(Math.ceil(n / 2));
+  // the "+N more" counter rides above the topmost branch label on the upper side
+  const reachUp = (n) => reach(Math.floor(n / 2)) + MORE_GAP + LABEL_REACH;
+  // only drawn when a step overflowed, which means it drew the full MAX_BRANCHES
+  const MORE_Y = reach(Math.floor(MAX_BRANCHES / 2)) + MORE_GAP;
+  // a floor, so a trail with no branches is still a map rather than a strip
+  const COL = 208, MIN_H = 300;
   // How far right of its step an outbound branch sits. A centred label runs to ±57 at the 22-char
   // cap, so 76 leaves ~18px between this fan's labels and the next step's at +208 — and the same
   // margin behind it, against the previous step's fan. Pushing it further right eats that margin.
@@ -28,7 +37,6 @@
   const short = (s) => (s.length > 22 ? s.slice(0, 21).trimEnd() + '…' : s);
 
   let model = $derived.by(() => {
-    const cy = H / 2;
     const steps = lib.stack.map((node, i) => ({ i, node, id: node.kind === 'article' ? node.id : null }));
     const onSpine = new Set(steps.filter((s) => s.id).map((s) => s.id));
     const claimed = new Set(onSpine);
@@ -58,6 +66,13 @@
       // own "+N more".
       for (const n of all) claimed.add(n.id);
     }
+    // Height follows the busiest step in *this* trail, not the cap. 5,850 of the 6,010 articles
+    // have 7 neighbours or fewer, so sizing every map for MAX_BRANCHES would make all of them tall
+    // enough for a density almost none of them reach — and a taller map is one that has to be
+    // panned. Only the 160 articles that actually run deep pay for the room they use.
+    const busiest = Math.max(0, ...steps.map((s) => s.branches.length));
+    const H = Math.max(MIN_H, 2 * Math.max(reachDown(busiest), reachUp(busiest)) + 24);
+    const cy = H / 2;
     // Only the last step's fan can overflow — every earlier one has a whole column to spill into.
     const tailFan = steps.at(-1)?.branches?.some((b) => b.dir === 'out');
     const W = Math.max(700, 120 + (steps.length - 1) * COL + (tailFan ? 190 : 120));
@@ -95,7 +110,7 @@
       // them apart; direction is then free to move only x.
       s.branches.forEach((b, k) => {
         const side = k % 2 ? -1 : 1, row = Math.floor(k / 2);
-        const by = cy + side * (54 + row * 42);
+        const by = cy + side * (ROW0 + row * ROW_GAP);
         const full = displayTitle(b.title);
         if (b.dir === 'out') {
           // fans right — the way the path would carry on — and faded, because a road not taken
@@ -215,7 +230,7 @@
             <text class={n.last ? 'on' : n.isArticle ? 'spine' : 'step'}
               x={n.x} y={n.y + 24} text-anchor="middle">{n.label}</text>
             {#if n.hidden}
-              <text class="step" x={n.x} y={n.y - 190} text-anchor="middle">+{n.hidden} more</text>
+              <text class="step" x={n.x} y={n.y - MORE_Y} text-anchor="middle">+{n.hidden} more</text>
             {/if}
           </g>
         {/if}

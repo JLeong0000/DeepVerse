@@ -28,13 +28,18 @@ describe('RefText', () => {
     const { queryByRole, getByTitle } = render(RefText,
       { text: 'See 1 Maccabees 1:10-63, which describes the evils.' });
     expect(queryByRole('button', { name: /Maccabees/ })).toBeNull();
-    expect(getByTitle('1 Maccabees is outside the 66 books Study reads')).toBeTruthy();
+    expect(getByTitle(/1 Maccabees is in the KJV Apocrypha/)).toBeTruthy();
     expect(study.book).toBe('Gen');   // nothing moved
   });
 
-  it('still shows a book we hold no text for at all as plain text, not a dead link', () => {
-    const { queryByRole } = render(RefText, { text: 'Compare 3 Macc 1:3 here.' });
+  // The two cases must not read alike: 1-2 Maccabees are in the corpus as KJVA and merely
+  // unreachable from Study; 3 Maccabees is in no edition we hold, because the KJV Apocrypha never
+  // carried it. Saying "outside the 66 books Study reads" of the second one would be true and
+  // misleading.
+  it('distinguishes a book we hold from one no edition carries', () => {
+    const { queryByRole, getByTitle } = render(RefText, { text: 'Compare 3 Macc 1:3 here.' });
     expect(queryByRole('button', { name: /Macc/ })).toBeNull();
+    expect(getByTitle('3 Maccabees is in no edition DeepVerse carries')).toBeTruthy();
   });
 
   // The library's article surface passes onref and answers in a preview — the KJVA text, or the

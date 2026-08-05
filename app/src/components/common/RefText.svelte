@@ -4,7 +4,7 @@
   import { tokenizeRefs } from '../../lib/scripture.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { verseExists } from '../../lib/db.js';
-  import { bookName, isApocrypha } from '../../lib/refs.js';
+  import { bookName, isApocrypha, apocryphaHasText } from '../../lib/refs.js';
 
   // onnavigate lets an overlay close itself once a reference has been followed —
   // otherwise the modal stays over the verse it just sent you to.
@@ -27,9 +27,18 @@
   // it. Hosts that DO pass onref (the library's article surface) put the KJVA text or an
   // explanation in a preview instead, so there the citation stays a link.
   const isUnreachable = (r) => !onref && isApocrypha(r.book);
-  const deadTitle = (r) => isHere(r)
-    ? 'You are reading this verse'
-    : `${bookName(r.book)} is outside the 66 books Study reads`;
+
+  // Two different reasons, and the tooltip must not blur them. 1 and 2 Maccabees, 1 Esdras and
+  // eleven more ARE in the corpus, as the KJVA version — Study just doesn't navigate them. 3 and 4
+  // Maccabees and the Apocalypse of Baruch are in no edition DeepVerse holds: the KJV Apocrypha,
+  // our only public-domain deuterocanon, never contained them. apocryphaHasText already draws that
+  // line for the reference gate; it draws it here too.
+  const deadTitle = (r) => {
+    if (isHere(r)) return 'You are reading this verse';
+    return apocryphaHasText(r.book)
+      ? `${bookName(r.book)} is in the KJV Apocrypha, which Study does not read — open it from the Library`
+      : `${bookName(r.book)} is in no edition DeepVerse carries`;
+  };
 </script>
 
 {#each segs as s}{#if s.ref && !isHere(s.ref) && !isUnreachable(s.ref)}<button

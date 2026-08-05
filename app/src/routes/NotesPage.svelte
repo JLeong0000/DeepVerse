@@ -1,7 +1,7 @@
 <script>
   import { allNotes, addNote, updateNote, deleteNote,
            allGroups, addGroup, renameGroup, deleteGroup } from '../lib/store.js';
-  import { formatRef } from '../lib/refs.js';
+  import { parseRefQuery, refOverlaps } from '../lib/refs.js';
   import { noteHtml } from '../lib/markdown.js';
   import { inRange, memoDateLabel } from '../lib/dates.js';
   import { fade } from 'svelte/transition';
@@ -43,13 +43,17 @@
 
   const q = $derived(filter.trim().toLowerCase());
   const filtering = $derived(q !== '' || from !== '' || to !== '');
+  // Parsed once per keystroke, not once per memo. Null when the query names no book, which is what
+  // lets a half-typed word fall through to plain text search instead of emptying the board.
+  const refQuery = $derived(parseRefQuery(filter.trim()));
   // Text and date narrow together — a memo has to survive both. The range reads whichever field the
-  // page is sorted by, so the sort control is the only place "date" gets defined.
+  // page is sorted by, so the sort control is the only place "date" gets defined. Body and reference
+  // are a union: a memo matches on either.
   function matches(n) {
     if (!inRange(n[sortField], from, to)) return false;
     if (!q) return true;
     if (n.body.toLowerCase().includes(q)) return true;
-    return n.ref ? formatRef(n.ref).toLowerCase().includes(q) : false;
+    return !!(refQuery && n.ref && refOverlaps(n.ref, refQuery));
   }
   // when filtering, show a flat list of ALL matching notes (loose + grouped), no folders
   let looseNotes = $derived(filtering ? notes.filter(matches) : notes.filter(n => !n.group_id));

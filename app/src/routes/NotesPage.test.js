@@ -105,3 +105,51 @@ describe('NotesPage tile date', () => {
     await waitFor(() => expect(screen.getByText('created Jan 15')).toBeTruthy());
   });
 });
+
+describe('NotesPage reference search', () => {
+  beforeEach(async () => {
+    await _clearAllForTest();
+    const day = (n) => new Date(Date.now() - n * 86400000).toISOString();
+    const put = async (body, ref) => {
+      const { openDB } = await import('idb');
+      const db = await openDB('deepverse', 1);
+      await db.put('notes', {
+        id: 'ref_' + ref, target_type: 'verse', ref, body, group_id: null, color: null,
+        created_at: day(1), updated_at: day(1),
+      });
+    };
+    await put('memo on the hinge verse', 'John.3.16');
+    await put('memo on love chapter', '1Cor.13.4');
+  });
+
+  it('does not surface John 3:16 when you search John 3:1', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByPlaceholderText('Filter memos…'), { target: { value: 'john 3:1' } });
+    await waitFor(() => expect(bodies().length).toBe(0));
+    expect(screen.getByText('No memos match.')).toBeTruthy();
+  });
+
+  it('surfaces it when you search the verse it is actually on', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByPlaceholderText('Filter memos…'), { target: { value: 'john 3:16' } });
+    await waitFor(() => expect(bodies().length).toBe(1));
+    expect(bodies()[0]).toContain('hinge');
+  });
+
+  it('finds a spaced numbered book that substring matching hid', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByPlaceholderText('Filter memos…'), { target: { value: '1 Cor 13' } });
+    await waitFor(() => expect(bodies().length).toBe(1));
+    expect(bodies()[0]).toContain('love chapter');
+  });
+
+  it('still searches body text, so a non-reference query works', async () => {
+    render(NotesPage);
+    await waitFor(() => expect(bodies().length).toBe(2));
+    await fireEvent.input(screen.getByPlaceholderText('Filter memos…'), { target: { value: 'hinge' } });
+    await waitFor(() => expect(bodies().length).toBe(1));
+  });
+});

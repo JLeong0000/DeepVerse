@@ -113,6 +113,56 @@ export function formatRef(ref) {
   return `${name} ${ch}:${v}`;
 }
 
+// ---- Searching memos by reference ----
+// Distinct from parseReference above, which navigates: it resolves to ONE book and reads a bare
+// book as chapter 1. Searching needs every book a query could mean and no defaulting, so it gets
+// its own parser rather than bending the one the jump box depends on.
+
+// Every book whose display name CONTAINS `text` — "psalm" finds Psalms, "ohn" finds John and the
+// three numbered Johns. Spaces are significant and OSIS codes are never consulted, so "1 Cor"
+// resolves and "1Cor" does not; "ps" and "gen" work only because they are containments of "Psalms"
+// and "Genesis". No abbreviations: "jn" and "mt" match nothing.
+export function matchBooks(text) {
+  const q = String(text || '').trim().toLowerCase();
+  if (!q) return [];
+  return BOOKS.filter(([, name]) => name.toLowerCase().includes(q)).map(([code]) => code);
+}
+
+// Parse a filter query into the span it constrains: { books, chapter, verse, verseEnd }, where a
+// null chapter or verse means UNCONSTRAINED ("john" is every John memo, not John 1). Returns null
+// when no book matches, which is the caller's signal to fall back to plain text search.
+export function parseRefQuery(input) {
+  const raw = String(input || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!raw) return null;
+  const m = raw.match(/^(.*?)\s*(\d+)(?::(\d+)(?:\s*-\s*(\d+))?)?\s*$/); // trailing "ch" or "ch:v[-v]"
+  let bookText = raw, chapter = null, verse = null, verseEnd = null;
+  // Requiring book text before the number keeps a leading numeral with its book: "1 john" is a
+  // book, not chapter 1, and a bare "1" stays book text (every name containing "1").
+  if (m && m[1].trim()) {
+    bookText = m[1].trim();
+    chapter = +m[2];
+    verse = m[3] ? +m[3] : null;
+    verseEnd = m[4] ? +m[4] : verse;
+  }
+  const books = matchBooks(bookText);
+  return books.length ? { books, chapter, verse, verseEnd } : null;
+}
+
+// Does a memo's stored ref overlap the query span? Memo refs come in exactly three shapes, all
+// built in NotesCard.svelte: "John.12" (chapter), "John.3.16" (verse), "John.3.16-18" (range,
+// always inside one chapter).
+export function refOverlaps(memoRef, query) {
+  const [book, ch, v] = String(memoRef).split('.');
+  if (!query.books.includes(book)) return false;
+  if (query.chapter == null) return true;
+  if (+ch !== query.chapter) return false;
+  if (query.verse == null) return true;
+  if (v == null) return true;                    // a chapter memo covers every verse in it
+  const [lo, hi] = String(v).split('-');
+  const start = +lo, end = hi ? +hi : +lo;
+  return start <= query.verseEnd && end >= query.verse;   // spans intersect
+}
+
 // A cross-reference target may be a range ("Luke.9.23-Luke.9.27"); render the explicit span
 // ("Luke 9:23–27") rather than an abbreviation.
 export function formatCrossRef(toRef) {

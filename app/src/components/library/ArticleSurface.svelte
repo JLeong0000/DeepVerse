@@ -15,6 +15,11 @@
   let article = $derived(getArticle(id));
   let supplements = $derived(getArticleSupplements(id));
   let xrefs = $derived(getXrefs(id));
+  // Once signpost entries resolve, `out` can name one article twice — HolmTree reaches Plants
+  // through both Oak and Ash. The linkifier wants both rows, since each matches a different phrase
+  // in the prose, so the duplicate is collapsed here at the door list rather than in the query.
+  // Without this the keyed each below throws on the repeated id.
+  let doors = $derived(xrefs.out.filter((o, i, a) => a.findIndex((m) => m.id === o.id) === i));
 
   let open = $state(null);   // { ref, index } — index is the block the preview was opened from
   $effect(() => { id; open = null; });   // a new article clears any open preview
@@ -105,9 +110,9 @@
 
   <div class="leads">
     <div class="ll">Where this leads</div>
-    {#if xrefs.out.length}
+    {#if doors.length}
       <div class="doors">
-        {#each xrefs.out as o (o.id)}
+        {#each doors as o (o.id)}
           <button class="door" onclick={() => openDoor(o)}>
             {displayTitle(o.title)}{' '}{#if o.anchor}<span class="anch">§ {o.anchor}</span>{/if}
           </button>
@@ -117,8 +122,10 @@
       <!-- 2,628 of the 6,010 articles link to no other entry at all; an empty box would read as
            a bug. There is no third case: every link Tyndale writes resolves, so an article either
            has doors or names nothing. -->
+      <!-- No longer offers ✦ Wander in: that control now lives only at the start of a trail, so
+           naming it here would point at a button that is not on screen. -->
       <div class="deadend">
-        A dead end — this article names no other entry. Search, pick another route, or ✦ Wander in.
+        A dead end — this article names no other entry. Search, or go back to Start for another route.
       </div>
     {/if}
   </div>

@@ -14,6 +14,7 @@ vi.mock('./lib/db.js', () => ({
   }),
   getRandomArticle: () => null,
   verseExists: () => true,
+  getTitles: () => new Map(),   // StartSurface resolves its recents through this
 }));
 
 // Regression for the whole-branch-review fix: libIdent used to fold a search node's `q` into the

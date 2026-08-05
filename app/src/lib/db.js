@@ -657,6 +657,24 @@ export function getPassageLinks(kind, title) {
   return { passages, article };
 }
 
+// A signpost is an entry whose body is only a pointer — "See Animals." and nothing else. Reaching
+// one costs a click and shows no content, so a cross-reference landing on it is followed through to
+// the article it actually names. 504 of the 577 bare "See X." entries name exactly one target.
+//
+// Only those. The other 73 name several ("See Agriculture; Food and Food Preparation; Plants.") and
+// are a real choice point rather than a redirect. Collapsing one would also break the in-prose
+// linkifier, which keys on `raw` and takes the first match (ArticleView.svelte) — three rows
+// sharing one raw would silently pick among them.
+//
+// Targets come from dict_xref, never from splitting the body on ';': a target's own title can
+// contain a comma or a semicolon, which is the same reason getDictBrowse refuses to split.
+const SIGNPOST = `stub(id, dst, anchor) AS (
+    SELECT a.id, min(x.dst), min(x.anchor) FROM dict_articles a JOIN dict_xref x ON x.src = a.id
+    WHERE a.body LIKE 'See %' AND a.body LIKE '%.'
+      AND a.body NOT LIKE '%' || char(10) || '%'
+      AND length(a.body) - length(replace(a.body, '.', '')) = 1
+    GROUP BY a.id HAVING count(*) = 1)`;
+
 // Both directions. Outbound feeds the doors row; inbound is what the path map can reveal and
 // nothing else in the UI can. Every edge resolves — `dst` is NOT NULL — because the graph is built
 // from the source's own ?item= links rather than matched by title.
@@ -664,13 +682,46 @@ export function getXrefs(id) {
   return {
     // `raw` is the source's own link text, which is what the in-prose linkifier matches against the
     // rendered clause: the link reads "Mark of the Beast" while the article it points at is titled
-    // "Mark of God*, Mark of the Beast". Matching on title alone would silently miss those.
-    out: query(`SELECT a.id, a.title, x.raw, x.anchor FROM dict_xref x
-      JOIN dict_articles a ON a.id = x.dst
-      WHERE x.src = ? ORDER BY x.seq`, [id]),
-    in: query(`SELECT a.id, a.title FROM dict_xref x
-      JOIN dict_articles a ON a.id = x.src WHERE x.dst = ? ORDER BY a.sort_title`, [id]),
+    // "Mark of God*, Mark of the Beast". Matching on title alone would silently miss those. It
+    // survives resolution unchanged — the prose still says "Hippopotamus" even once that link leads
+    // to Animals.
+    //
+    // `h.id <> ?` drops what resolution can turn into a self-reference: Animals names Hippopotamus,
+    // Whale and WildOx, and all three are signposts back to Animals. Depth 6 caps the 5 edges that
+    // run signpost-to-signpost, and would stop a cycle rather than spin on it.
+    out: query(`WITH RECURSIVE ${SIGNPOST},
+      hop(seq, id, raw, anchor, depth) AS (
+        SELECT x.seq, x.dst, x.raw, x.anchor, 0 FROM dict_xref x WHERE x.src = ?
+        UNION ALL
+        SELECT h.seq, s.dst, h.raw, s.anchor, h.depth + 1
+          FROM hop h JOIN stub s ON s.id = h.id WHERE h.depth < 6)
+      SELECT a.id, a.title, h.raw, h.anchor FROM hop h JOIN dict_articles a ON a.id = h.id
+      WHERE h.id NOT IN (SELECT id FROM stub) AND h.id <> ?
+      ORDER BY h.seq`, [id, id]),
+    // Mirrored: an inbound edge from a signpost is credited to whatever names the signpost, so the
+    // map shows the article that actually cites this one. DISTINCT because two signposts can lead
+    // back to the same source.
+    in: query(`WITH RECURSIVE ${SIGNPOST},
+      hop(id, depth) AS (
+        SELECT x.src, 0 FROM dict_xref x WHERE x.dst = ?
+        UNION ALL
+        SELECT x.src, h.depth + 1 FROM hop h JOIN stub s ON s.id = h.id
+          JOIN dict_xref x ON x.dst = h.id WHERE h.depth < 6)
+      SELECT DISTINCT a.id, a.title FROM hop h JOIN dict_articles a ON a.id = h.id
+      WHERE h.id NOT IN (SELECT id FROM stub) AND h.id <> ?
+      ORDER BY a.sort_title`, [id, id]),
   };
+}
+
+// Recents persist the title captured when the article was opened, and a node restored from a
+// bookmarked URL carries its id as a placeholder title — so storage can hold "JesusChristTeachingsof"
+// where a name belongs. Names are re-read from the corpus at render instead of trusted, which also
+// repairs the entries already written.
+export function getTitles(ids) {
+  if (!ids.length) return new Map();
+  const rows = query(`SELECT id, title FROM dict_articles
+    WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+  return new Map(rows.map((r) => [r.id, r.title]));
 }
 
 export function getRandomArticle() {

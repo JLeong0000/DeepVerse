@@ -44,6 +44,80 @@ describe('PathMap', () => {
     expect(links[2].classList.contains('path')).toBe(true);    // Beast really links to Antichrist
   });
 
+  // The bug this pins: `Shechem (Place)` has no out-links and two in-links, so the map drew
+  // `Sychem*` as a branch while "Where this leads" correctly called the article a dead end. The
+  // branch was real — the map deliberately shows inbound neighbours — but nothing distinguished it
+  // from a door out. Direction is now carried by an arrowhead, and an inbound branch is drawn
+  // spine-ward so the single marker points the right way.
+  it('fans an outbound branch right of its step and fades it, leaving the spine axis alone', () => {
+    xrefs.set('Shechem', { out: [nbr('Gerizim')], in: [] });
+    pushNode(art('Shechem'));   // stack: [start, Shechem] — step index 1, x = 120 + 208 = 328
+    const { container } = render(PathMap);
+    const circle = [...container.querySelectorAll('circle.nd')]
+      .find((c) => c.classList.contains('faint'));
+    expect(circle.getAttribute('cx')).toBe('404');            // 328 + FAN_DX
+    expect(Number(circle.getAttribute('cy'))).not.toBe(210);  // never on the spine line itself
+    const line = container.querySelector('line.lnk.branch');
+    expect(line.classList.contains('faint')).toBe(true);
+    expect(Number(line.getAttribute('x2'))).toBeGreaterThan(328);
+    // the label fades with the node, or a dimmed dot keeps a full-strength caption
+    expect([...container.querySelectorAll('text')].some((t) =>
+      t.textContent === 'Gerizim' && t.classList.contains('faint'))).toBe(true);
+  });
+
+  // Found by auditing rendered label boxes across 14 real trails, not by eye: giving outbound and
+  // inbound a slot counter each put "Canaanite Deities and…" (outbound) and "Graven Image*"
+  // (inbound) on the same side at row 0, 8px apart vertically. Slots are allocated across all of a
+  // step's branches at once, so no two ever share a (side, row) — only x varies by direction.
+  it('never lets two branches of one step share a row, whichever direction they run', () => {
+    xrefs.set('Idols', {
+      out: [nbr('Canaanite Deities'), nbr('Grove')],
+      in: [nbr('Graven Image'), nbr('Teraphim')],
+    });
+    pushNode(art('Idols'));
+    const { container } = render(PathMap);
+    const ys = [...container.querySelectorAll('circle.nd')]
+      .filter((c) => !c.className.baseVal.match(/\b(on|spine|step)\b/))
+      .map((c) => Number(c.getAttribute('cy')));
+    expect(ys).toHaveLength(4);
+    expect(new Set(ys).size).toBe(4);                       // four distinct rows
+    // and the rows are far enough apart that a 15px-tall label cannot bridge them
+    const sorted = [...ys].sort((a, b) => a - b);
+    sorted.slice(1).forEach((y, i) => expect(y - sorted[i]).toBeGreaterThanOrEqual(42));
+  });
+
+  // The reported collision: `Sychem*` arrives from below and its line ran straight through the
+  // "Shechem (Place)" caption at cy+24. Inbound stays on the vertical axis — it is not somewhere
+  // the path can go — so the arrow has to stop under the text instead.
+  it('stops an inbound arrow below the step label rather than running through it', () => {
+    xrefs.set('Shechem', { out: [], in: [nbr('Sychem')] });
+    pushNode(art('Shechem'));
+    const { container } = render(PathMap);
+    const line = container.querySelector('line.lnk.branch');
+    expect(line.classList.contains('faint')).toBe(false);   // inbound is not faded
+    expect(line.getAttribute('x1')).toBe('328');            // still the step's own column
+    expect(line.getAttribute('x2')).toBe('328');
+    expect(line.getAttribute('marker-end')).toBe('url(#arw)');
+    // runs upward (y1 > y2) and halts clear of the caption baseline at cy+24
+    expect(Number(line.getAttribute('y1'))).toBeGreaterThan(Number(line.getAttribute('y2')));
+    expect(Number(line.getAttribute('y2'))).toBeGreaterThan(210 + 24);
+  });
+
+  // Clicking that inbound branch walks Shechem -> Sychem, against the reference. The step did
+  // follow a cross-reference, so the line stays solid; the arrow is what says which way it runs.
+  it('points the spine arrow backwards when the step was traversed against the reference', () => {
+    xrefs.set('Sychem', { out: [nbr('Shechem')], in: [] });
+    xrefs.set('Shechem', { out: [], in: [nbr('Sychem')] });
+    pushNode(art('Shechem'));
+    pushNode(art('Sychem'));
+    const { container } = render(PathMap);
+    const spine = [...container.querySelectorAll('line.lnk.path')];
+    expect(spine).toHaveLength(1);
+    expect(spine[0].getAttribute('marker-end')).toBe('url(#arw-a)');
+    // drawn right-to-left, so the arrowhead lands on Shechem — the article being named
+    expect(Number(spine[0].getAttribute('x1'))).toBeGreaterThan(Number(spine[0].getAttribute('x2')));
+  });
+
   it('caps branches at MAX_BRANCHES and reports the remainder as hidden, inside the viewBox', () => {
     const many = Array.from({ length: 9 }, (_, i) => nbr(`N${i}`));
     xrefs.set('Beast', { out: many, in: [] });
@@ -70,7 +144,8 @@ describe('PathMap', () => {
     // toHaveLength(1) alone would also pass if the node had attached to Antichrist instead of
     // Beast — pin the actual column so a regression that migrates it to the wrong step is caught.
     const circle = titles[0].nextElementSibling;
-    expect(circle.getAttribute('cx')).toBe('328');   // Beast's column, not Antichrist's (536)
+    expect(circle.getAttribute('cx')).toBe('404');   // Beast's column (328) + the outbound fan,
+                                                     // not Antichrist's (536 + 76 = 612)
   });
 
   // Regression for a bug the reviewer reproduced on the brief's own walkthrough trail: Antichrist

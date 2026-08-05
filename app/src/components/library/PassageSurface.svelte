@@ -70,8 +70,7 @@
            article. Tyndale writes no theme-to-theme links at all, so an empty box here is the
            corpus, not a gap in the extraction. -->
       <div class="deadend">
-        A dead end — nothing else in the corpus is anchored here. Open it in Study, search, or
-        ✦ Wander in.
+        A dead end — nothing else in the corpus is anchored here. Open it in Study, or search.
       </div>
     {/if}
   </div>

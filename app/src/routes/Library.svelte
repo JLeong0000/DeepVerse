@@ -84,12 +84,20 @@
 <svelte:window onkeydown={onKey} />
 
 <div class="frame">
-  <div class="searchrow">
-    <input bind:this={inputEl} bind:value={term} oninput={onInput} onkeydown={onSearchKey} class="search" type="text"
-      placeholder="Search the library — press / to focus…" autocomplete="off" />
-    <button class="wander" onclick={wander}>✦ Wander in</button>
-  </div>
-  <Breadcrumb onmap={() => (lib.mapOpen = true)} />
+  <!-- Wander belongs to the start of a trail, not to the frame. Sitting in the search row on every
+       surface, it read as the field's submit button — the thing Enter would press — when it does
+       the opposite of searching. The "or" is what separates the two: adjacency alone made them
+       look like one control. -->
+  <Breadcrumb onmap={() => (lib.mapOpen = true)}>
+    {#snippet trailing()}
+      {#if current.kind === 'start'}
+        <span class="wrap"><button class="wander" onclick={wander}>✦ Wander in</button>
+          <span class="orsep">or</span></span>
+      {/if}
+      <input bind:this={inputEl} bind:value={term} oninput={onInput} onkeydown={onSearchKey} class="search" type="text"
+        placeholder="Search the library — / to focus…" autocomplete="off" />
+    {/snippet}
+  </Breadcrumb>
 </div>
 
 <div class="surface">
@@ -126,12 +134,14 @@
 
 <style>
   .frame { border-bottom: 1px solid var(--rule); background: var(--panel); padding: 10px 30px 12px; }
-  .searchrow { display: flex; gap: 8px; }
-  .search { flex: 1; font-family: inherit; font-size: 13.5px; padding: 8px 11px;
+  .wrap { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .orsep { font-size: 11.5px; color: var(--dim); font-style: italic; }
+  /* a fixed measure, not flex: the field is a control on this row, not the row itself */
+  .search { width: 260px; font-family: inherit; font-size: 12.5px; padding: 5px 10px;
     border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); }
   .search:focus { outline: none; border-color: var(--a); }
   .wander { background: transparent; border: 1px solid var(--rule); border-radius: 6px;
-    padding: 0 14px; font-family: inherit; font-size: 12px; color: var(--a); cursor: pointer;
+    padding: 4px 12px; font-family: inherit; font-size: 12px; color: var(--a); cursor: pointer;
     white-space: nowrap; font-variant: small-caps; letter-spacing: .06em; }
   .wander:hover { border-color: var(--a); background: var(--bg); }
   .surface { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 30px 40px; }
@@ -143,6 +153,5 @@
      text only occupies the left 60% of it. */
   .inner.reading { max-width: 74ch; }
   .frame :global(.navrow) { max-width: 1100px; margin-left: auto; margin-right: auto; }
-  .searchrow { max-width: 1100px; margin-left: auto; margin-right: auto; }
   .stub { color: var(--dim); font-style: italic; }
 </style>

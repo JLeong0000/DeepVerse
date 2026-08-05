@@ -24,6 +24,11 @@ vi.mock('../lib/db.js', () => ({
     start_chapter: 1, start_verse: 1 }),
   getPassageLinks: () => ({ passages: [], article: null }),
   verseExists: () => true,
+  // enough for DictionaryIndex to mount when a 'route' node is the surface under test
+  getDictLetters: () => [],
+  getDictBrowse: () => [],
+  getOrphanSupplements: () => [],
+  getTitles: () => new Map(),   // StartSurface resolves recents through this
 }));
 
 // jsdom implements no scroll layout, so Element.prototype.scrollIntoView doesn't exist at all —
@@ -82,5 +87,27 @@ describe('Library.svelte search keyboard traversal', () => {
     input.focus();
     const notPrevented = await fireEvent.keyDown(input, { key: '/' });
     expect(notPrevented).toBe(true);   // fireEvent returns false only if some handler called preventDefault()
+  });
+});
+
+// Sharing the search row on every surface made ✦ Wander in read as the field's submit button —
+// the thing Enter would press — when it does the opposite of searching. It now belongs to the
+// start of a trail only, and the "or" is what marks the two as alternatives.
+describe('Library.svelte ✦ Wander in placement', () => {
+  it('offers Wander beside search, separated by "or", at the start of a trail', () => {
+    resetLibrary();   // beforeEach left a search node on the stack
+    const { container, getByText } = render(Library);
+    expect(container.querySelector('button.wander')).toBeTruthy();
+    expect(getByText('or')).toBeTruthy();
+  });
+
+  it('withdraws Wander once the trail has moved off the start', () => {
+    for (const node of [{ kind: 'search', q: 'test' }, { kind: 'route', route: 'dict' }]) {
+      resetLibrary();
+      pushNode(node);
+      const { container } = render(Library);
+      expect(container.querySelector('button.wander')).toBeNull();
+      expect(container.querySelector('.orsep')).toBeNull();
+    }
   });
 });

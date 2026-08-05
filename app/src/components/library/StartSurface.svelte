@@ -2,6 +2,7 @@
   // Four routes as cards, each carrying its real count and a rotating real example so the page
   // invites rather than lists.
   import { lib, pushNode, recentArticles } from '../../lib/library.svelte.js';
+  import { getTitles } from '../../lib/db.js';
   import { displayTitle } from '../../lib/titles.js';
 
   const ROUTES = [
@@ -31,7 +32,11 @@
 
   // Read once per mount, same as `tick` above — a fresh instance is what picks up a newly
   // recorded article (see the remount note above), not a reactive re-read within one instance.
+  // Names come from the corpus, not from what storage happened to capture — see getTitles. The
+  // stored title is only a fallback for an id the corpus no longer carries.
   const recent = recentArticles();
+  const recentTitles = getTitles(recent.map((r) => r.id));
+  const nameOf = (r) => recentTitles.get(r.id) ?? r.title;
 </script>
 
 <h3 class="stitle">The Library</h3>
@@ -65,8 +70,8 @@
     <div class="rl">Recently viewed</div>
     <div class="rchips">
       {#each recent.slice(0, 12) as r (r.id)}
-        <button class="rchip" onclick={() => pushNode({ kind: 'article', id: r.id, title: r.title })}>
-          {displayTitle(r.title)}
+        <button class="rchip" onclick={() => pushNode({ kind: 'article', id: r.id, title: nameOf(r) })}>
+          {displayTitle(nameOf(r))}
         </button>
       {/each}
     </div>

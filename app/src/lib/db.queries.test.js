@@ -660,6 +660,53 @@ describe('library explorer', () => {
     expect(x.out.every((o) => o.id && o.title)).toBe(true);
   });
 
+  // A bare "See X." entry has no content, so landing on one costs a click and shows nothing.
+  // `Presence, Bread of the` is the case that exposed this: it showed up on the path map as a
+  // neighbour of `Bread of the Presence`, under a name displayTitle renders identically.
+  test('getXrefs follows a single-target signpost through to the article it names', () => {
+    expect(db.getArticle('PresenceBreadofthe').body).toBe('See Bread of the Presence.');
+    const inbound = db.getXrefs('BreadofthePresence').in.map((n) => n.id);
+    expect(inbound).not.toContain('PresenceBreadofthe');
+    // and whatever named the signpost is credited to the real article instead
+    expect(inbound).toContain('Temple');
+
+    // Cephas names "Simon Peter", which is only "See Peter, The Apostle."
+    const out = db.getXrefs('Cephas').out.map((o) => o.id);
+    expect(out).not.toContain('SimonPeter');
+    expect(out).toContain('PetertheApostle');
+  });
+
+  // 73 of the 577 bare signposts name several articles rather than one. Those are a real choice
+  // point, not a redirect, so they stay — and collapsing one would hand the in-prose linkifier
+  // several rows sharing a single `raw`, of which it keeps only the first.
+  test('getXrefs leaves a multi-target signpost standing', () => {
+    expect(db.getArticle('Wheat').body).toBe('See Agriculture; Food and Food Preparation; Plants.');
+    expect(db.getXrefs('Wheat').out.map((o) => o.id).sort())
+      .toEqual(['Agriculture', 'FoodandFoodPreparation', 'Plants']);
+    expect(db.getXrefs('Grain').out.map((o) => o.id)).toContain('Wheat');
+  });
+
+  // Animals names Hippopotamus, Whale and WildOx, and each is a signpost straight back to Animals.
+  // Resolved naively that is three edges from Animals to itself, which would also throw on the
+  // keyed {#each xrefs.out as o (o.id)} that renders the doors.
+  test('getXrefs never returns the article itself after resolution', () => {
+    for (const id of ['Animals', 'Birds', 'Plants', 'Insect', 'Rose', 'HolmTree']) {
+      const x = db.getXrefs(id);
+      expect(x.out.map((o) => o.id)).not.toContain(id);
+      expect(x.in.map((o) => o.id)).not.toContain(id);
+    }
+  });
+
+  // Cephas's prose still reads "Simon Peter" even though that link now leads to Peter, The
+  // Apostle — the linkifier matches on `raw`, so resolution must not rewrite it to the new target's
+  // name, or the phrase would stop linkifying entirely.
+  test('getXrefs keeps the source wording when it resolves an edge', () => {
+    const row = db.getXrefs('Cephas').out.find((o) => o.raw === 'Simon Peter');
+    expect(row).toBeTruthy();
+    expect(row.id).toBe('PetertheApostle');
+    expect(db.getArticle('Cephas').body).toContain('Simon Peter');
+  });
+
   test('getRandomArticle only returns substantial articles', () => {
     for (let i = 0; i < 30; i++) {
       const a = db.getRandomArticle();

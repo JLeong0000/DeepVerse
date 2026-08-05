@@ -3,7 +3,10 @@
   // so middle truncation cannot misroute a click.
   import { lib, truncateTo, crumbSlots, articleDepth } from '../../lib/library.svelte.js';
 
-  let { onmap } = $props();
+  // `trailing` is the frame's own controls — search, and Wander at the start of a trail. They ride
+  // this row rather than owning one above it, so the field sits beside the trail it searches
+  // instead of spanning the window.
+  let { onmap, trailing = null } = $props();
 
   let slots = $derived(crumbSlots(lib.stack, lib.crumbsOpen));
   let depth = $derived(articleDepth(lib.stack));
@@ -24,15 +27,21 @@
     <!-- only worth remarking on once you have actually gone somewhere -->
     {#if depth >= 3}<span class="depth">{depth} deep</span>{/if}
   </div>
-  {#if lib.stack.length > 1}
-    <button class="mapbtn" onclick={onmap}>⁂ View path map</button>
-  {/if}
+  <div class="tail">
+    {#if lib.stack.length > 1}
+      <button class="mapbtn" onclick={onmap}>⁂ View path map</button>
+    {/if}
+    {@render trailing?.()}
+  </div>
 </div>
 
 <style>
   /* trail left, map link right, so the link holds one position instead of sliding as the trail grows */
-  .navrow { display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
-    min-height: 21px; margin-top: 11px; }
+  .navrow { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    min-height: 21px; }
+  /* the trail wraps and the controls must not: search stays put at the far right however long
+     the trail gets */
+  .tail { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
   .crumbs { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; min-width: 0;
     font-size: 14px; color: var(--dim); }
   .crumbs button { background: none; border: none; font-family: inherit; font-size: 14px;

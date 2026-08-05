@@ -79,6 +79,18 @@ export const APOCRYPHA_NOTE = {
     + 'churches — it survives in the Syriac Peshitta tradition — so DeepVerse carries no text for it.',
 };
 
+// Books DeepVerse names but never opens. The Maccabees and the Apocalypse of Baruch come from
+// canons this reader does not present — 3 and 4 Maccabees and Apoc Bar are in no edition we hold at
+// all, and 1 and 2 Maccabees only in the KJV Apocrypha, which no reader-facing list offers. So
+// their citations stay prose everywhere: not a jump (Study reads the 66), and not a preview either.
+// The reader still gets APOCRYPHA_NOTE on hover, which is what those citations already explained.
+//
+// This is narrower than "the deuterocanon": Tobit, Judith, Sirach, 1–2 Esdras and the rest keep
+// their previews, 171 citations of them. The line is where it is because it was drawn deliberately
+// (2026-08-05), not because these five differ in kind from Tobit.
+const UNREAD = new Set(['1Macc', '2Macc', '3Macc', '4Macc', 'ApocBar']);
+export function isUnreadBook(code) { return UNREAD.has(code); }
+
 const NAME = new Map([...BOOKS, ...APOCRYPHA, ...APOCRYPHA_UNCARRIED].map(([code, name]) => [code, name]));
 const ORDER = new Map(BOOKS.map(([code], i) => [code, i]));
 

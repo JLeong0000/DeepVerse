@@ -4,7 +4,7 @@
   import { tokenizeRefs } from '../../lib/scripture.js';
   import { study, goToPassage } from '../../lib/study.svelte.js';
   import { verseExists } from '../../lib/db.js';
-  import { bookName, isApocrypha, apocryphaHasText } from '../../lib/refs.js';
+  import { bookName, isApocrypha, apocryphaHasText, isUnreadBook, APOCRYPHA_NOTE } from '../../lib/refs.js';
 
   // onnavigate lets an overlay close itself once a reference has been followed —
   // otherwise the modal stays over the verse it just sent you to.
@@ -20,21 +20,20 @@
   const isHere = (r) =>
     r.book === study.book && r.chapter === study.chapter && r.verse === study.verse;
 
-  // Same rule, second case. With no `onref` the only thing a click can do is jump, and Study
-  // navigates the 66 canonical books — deliberately, which is why KJVA is kept out of every
-  // version-scoped list. Jumping anyway left the reader on `#/study/1Macc/1/10` with a blank pane
-  // and an empty book selector: 58 citations in the study notes, themes and profiles could reach
-  // it. Hosts that DO pass onref (the library's article surface) put the KJVA text or an
-  // explanation in a preview instead, so there the citation stays a link.
-  const isUnreachable = (r) => !onref && isApocrypha(r.book);
+  // Same rule, two more cases.
+  //
+  // The Maccabees and Apoc Bar are never links anywhere — see isUnreadBook. The rest of the
+  // deuterocanon is a link only where the host can answer with a preview: with no `onref` the only
+  // thing a click can do is jump, and Study navigates the 66 canonical books, deliberately, which
+  // is why KJVA is kept out of every version-scoped list. Jumping anyway left the reader on
+  // `#/study/1Macc/1/10` with a blank pane and an empty book selector.
+  const isUnreachable = (r) => isUnreadBook(r.book) || (!onref && isApocrypha(r.book));
 
-  // Two different reasons, and the tooltip must not blur them. 1 and 2 Maccabees, 1 Esdras and
-  // eleven more ARE in the corpus, as the KJVA version — Study just doesn't navigate them. 3 and 4
-  // Maccabees and the Apocalypse of Baruch are in no edition DeepVerse holds: the KJV Apocrypha,
-  // our only public-domain deuterocanon, never contained them. apocryphaHasText already draws that
-  // line for the reference gate; it draws it here too.
+  // The reasons differ and the tooltip must not blur them: a book we do not present at all, a book
+  // the library can show but Study cannot, and the verse already on screen.
   const deadTitle = (r) => {
     if (isHere(r)) return 'You are reading this verse';
+    if (isUnreadBook(r.book)) return APOCRYPHA_NOTE[r.book];
     return apocryphaHasText(r.book)
       ? `${bookName(r.book)} is in the KJV Apocrypha, which Study does not read — open it from the Library`
       : `${bookName(r.book)} is in no edition DeepVerse carries`;

@@ -27,14 +27,12 @@
 
   const KIND_LABEL = { chart: 'Chart', textbox: 'Textbox' };
 
-  // The empty-preview branch below DOES fire today, for exactly five references, all of them in
-  // this surface: "Apoc Bar 14:13" (Apocrypha), "4 Macc 16:13" (Death), "3 Macc 1:3" (Dositheus),
-  // "3 Macc 7:16" (Savior) and "4 Maccabees 13:17" (Abraham's Bosom). Those three books are in
-  // APOCRYPHA_UNCARRIED — the KJV Apocrypha, our only public-domain deuterocanon, never contained
-  // them — and they are linked on purpose so the preview can name the book and say why it is
-  // empty. Every other linkified reference in the corpus resolves to text in one of the four
-  // editions. (An earlier note here claimed 0 unresolved; the five were counted in the 2026-08-05
-  // audit, and this surface is the only host that answers them, since a jump cannot.)
+  // The empty-preview branch below is a guard, not a case that occurs: of the 33,663 references
+  // this surface still links, 0 preview empty. The five that used to fire it — "Apoc Bar 14:13",
+  // "4 Macc 16:13", "3 Macc 1:3", "3 Macc 7:16", "4 Maccabees 13:17" — are no longer links at all,
+  // because the Maccabees and Apoc Bar are in isUnreadBook and stay prose everywhere (292 of this
+  // surface's citations went that way). Keep the branch: a future edition change is exactly what it
+  // is for, and an absence rendered as an explanation is this surface's own convention.
   //
   // It used to hold a hand-written note for the Additions to Esther; those are now readable,
   // because the KJV Apocrypha carries them at the Vulgate chapter numbers Tyndale cites. 2 Esdras 7

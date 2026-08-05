@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import { study } from '../../lib/study.svelte.js';
+import { APOCRYPHA_NOTE } from '../../lib/refs.js';
 import RefText from './RefText.svelte';
 
 // verseExists is the only db call RefText makes (through tokenizeRefs); the canon is complete, so
@@ -26,20 +27,30 @@ describe('RefText', () => {
   // profiles could reach it — every host that renders prose without a preview surface.
   it('does not offer a jump to a book Study cannot navigate', () => {
     const { queryByRole, getByTitle } = render(RefText,
-      { text: 'See 1 Maccabees 1:10-63, which describes the evils.' });
-    expect(queryByRole('button', { name: /Maccabees/ })).toBeNull();
-    expect(getByTitle(/1 Maccabees is in the KJV Apocrypha/)).toBeTruthy();
+      { text: 'Tobit 4:15 says the same.' });
+    expect(queryByRole('button', { name: /Tobit/ })).toBeNull();
+    expect(getByTitle(/Tobit is in the KJV Apocrypha/)).toBeTruthy();
     expect(study.book).toBe('Gen');   // nothing moved
   });
 
-  // The two cases must not read alike: 1-2 Maccabees are in the corpus as KJVA and merely
-  // unreachable from Study; 3 Maccabees is in no edition we hold, because the KJV Apocrypha never
-  // carried it. Saying "outside the 66 books Study reads" of the second one would be true and
-  // misleading.
-  it('distinguishes a book we hold from one no edition carries', () => {
-    const { queryByRole, getByTitle } = render(RefText, { text: 'Compare 3 Macc 1:3 here.' });
-    expect(queryByRole('button', { name: /Macc/ })).toBeNull();
-    expect(getByTitle('3 Maccabees is in no edition DeepVerse carries')).toBeTruthy();
+  // The Maccabees and Apoc Bar are never links, in any host — they come from canons DeepVerse
+  // does not present. The citation keeps the words and the explanation it already carried.
+  it.each([['Compare 3 Macc 1:3 here.', '3Macc'], ['See 1 Maccabees 1:10-63.', '1Macc'],
+           ['As Apoc Bar 14:13 has it.', 'ApocBar']])(
+    'never links %s, and keeps its explanation on hover', (text, code) => {
+      const { queryByRole, getByTitle } = render(RefText, { text });
+      expect(queryByRole('button')).toBeNull();
+      expect(getByTitle(APOCRYPHA_NOTE[code])).toBeTruthy();
+    });
+
+  // ...not even where the host could have answered with a preview, which is the one thing that
+  // used to keep them clickable in the library.
+  it('does not link a Maccabees citation even when a preview surface is offered', () => {
+    const seen = [];
+    const { queryByRole } = render(RefText,
+      { text: 'See 1 Maccabees 1:10-63.', onref: (r) => seen.push(r) });
+    expect(queryByRole('button')).toBeNull();
+    expect(seen).toEqual([]);
   });
 
   // The library's article surface passes onref and answers in a preview — the KJVA text, or the
@@ -47,9 +58,9 @@ describe('RefText', () => {
   it('keeps the citation clickable when the host has a preview surface', async () => {
     const seen = [];
     const { getByRole } = render(RefText,
-      { text: 'See 1 Maccabees 1:10-63.', onref: (r) => seen.push(r) });
-    await fireEvent.click(getByRole('button', { name: '1 Maccabees 1:10-63' }));
-    expect(seen).toEqual([{ book: '1Macc', chapter: 1, verse: 10 }]);
+      { text: 'See Tobit 4:15.', onref: (r) => seen.push(r) });
+    await fireEvent.click(getByRole('button', { name: 'Tobit 4:15' }));
+    expect(seen).toEqual([{ book: 'Tob', chapter: 4, verse: 15 }]);
     expect(study.book).toBe('Gen');   // a preview, not a jump
   });
 
